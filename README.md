@@ -24,9 +24,10 @@ DuckDB. Everything else needs a LakehouseBox account.
 
 | agent | install |
 |---|---|
-| Claude Code | `/plugin marketplace add tablemere/lakehousebox-skills`, then `/plugin install lakehousebox@lakehousebox` |
+| Claude Code | `/plugin marketplace add lakehousebox/agent-skills`, then `/plugin install lakehousebox@lakehousebox` |
 | Claude (claude.ai, Desktop) and Cowork | upload `dist/lakehousebox.zip` and `dist/lakehousebox-portolan.zip` as custom skills; add `https://mcp.lakehousebox.com/mcp` as a custom connector |
-| Gemini CLI | `gemini extensions install https://github.com/tablemere/lakehousebox-skills` |
+| Codex | `codex plugin marketplace add lakehousebox/agent-skills`, then `codex plugin add lakehousebox@lakehousebox` |
+| Gemini CLI | `gemini extensions install https://github.com/lakehousebox/agent-skills` |
 | any agent that reads skills from a folder | copy `skills/<name>/` into that agent's skills directory |
 
 Not yet listed in the Claude or OpenAI (ChatGPT, Codex) plugin directories.
