@@ -12,6 +12,10 @@ LakehouseBox keeps analytical data as Apache Iceberg tables, operated in Germany
 | skill | layer | use it for |
 |---|---|---|
 | `lakehousebox` | base | connecting through the `lhbox` CLI, the connector or plain DuckDB; the rules that save a retry; reading anyone's public catalog with no account |
+| `lakehousebox-load-data` | workflow | files into tables (CSV, Parquet, GeoParquet) in one commit, the file bucket, upload-only keys for devices |
+| `lakehousebox-keep-fresh` | workflow | a table that fills itself: scheduled SQL from a URL, or an ingest sink a producer posts rows to |
+| `lakehousebox-share` | workflow | access for colleagues and agents, publishing a catalog, AGENTS.md and table descriptions |
+| `lakehousebox-hosted-agents` | workflow | a prompt LakehouseBox runs on a schedule next to the data (a preview) |
 | `lakehousebox-portolan` | use-case | reading a Portolan geospatial catalog hosted on LakehouseBox (no account needed), or hosting one |
 
 **Layers.** The base skill is what every LakehouseBox task needs. Workflow skills cover one capability of the

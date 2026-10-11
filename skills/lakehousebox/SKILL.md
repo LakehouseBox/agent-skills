@@ -92,22 +92,18 @@ SELECT count(*) FROM iceberg_scan('s3://<bucket>/<namespace>/<table>');   -- the
 - `lhbox table document <catalog>.<ns>.<table> --doc "One row per …"` describes a table you made; `describe_table`
   shows it and `list_tables` search finds it.
 
-## Other tasks
+## The other skills
 
-Until a skill covers them, these pages are the instructions; each has a Markdown copy at the same URL plus `index.md`.
+Load the one the task needs; each builds on this one.
 
-- Load files into tables: https://lakehousebox.com/docs/import/
-- Files that are not tables (photos, PDFs, rasters) and what the file bucket takes: https://lakehousebox.com/docs/files/
-- A table that fills itself from a URL on a schedule: https://lakehousebox.com/docs/scheduled-sql/
-- Devices and webhooks that send rows: https://lakehousebox.com/docs/ingest/
-- Prompts LakehouseBox runs on a schedule next to the data: https://lakehousebox.com/docs/hosted-agents/
-- Access for colleagues and other agents: https://lakehousebox.com/docs/access/
-- Older versions of a table: https://lakehousebox.com/docs/time-travel/
-- Every page: https://lakehousebox.com/llms.txt
+- `lakehousebox-load-data`: files into tables (CSV, Parquet, GeoParquet), the file bucket, upload-only keys for devices.
+- `lakehousebox-keep-fresh`: a table that fills itself, from a URL on a schedule or from a producer that sends rows.
+- `lakehousebox-share`: access for colleagues and agents, publishing a catalog, AGENTS.md and table descriptions.
+- `lakehousebox-hosted-agents`: a prompt LakehouseBox runs on a schedule next to the data (a preview).
+- `lakehousebox-portolan`: reading or hosting Portolan geospatial catalogs (STAC, GeoParquet, Cloud-Optimized GeoTIFF).
 
-## Use-case skills
-
-- `lakehousebox-portolan`: read or host Portolan geospatial catalogs (STAC, GeoParquet, Cloud-Optimized GeoTIFF).
+Everything else is in the docs; each page has a Markdown copy at the same URL plus `index.md`, and
+https://lakehousebox.com/llms.txt lists them all.
 
 ## References
 

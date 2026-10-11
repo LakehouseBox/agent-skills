@@ -1,6 +1,6 @@
 {
   "name": "lakehousebox-skills",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "site": "https://lakehousebox.com",
   "layers": {
     "base": "what every LakehouseBox task needs: the ways in, the rules, reading public catalogs; depends on nothing",
@@ -17,6 +17,57 @@
         "references/public-catalogs.md": "web/docs/public-catalogs/index.md",
         "references/duckdb.md": "web/docs/engines/duckdb/index.md",
         "references/performance.md": "web/docs/performance/index.md"
+      },
+      "written": []
+    },
+    "lakehousebox-load-data": {
+      "layer": "workflow",
+      "depends_on": [
+        "lakehousebox"
+      ],
+      "generated": {
+        "references/import.md": "web/docs/import/index.md",
+        "references/files.md": "web/docs/files/index.md",
+        "references/uploaders.md": "web/docs/uploaders/index.md",
+        "references/time-travel.md": "web/docs/time-travel/index.md"
+      },
+      "written": [],
+      "runs": [
+        "runs/2026-10-11-workflow-agent-test.md"
+      ]
+    },
+    "lakehousebox-keep-fresh": {
+      "layer": "workflow",
+      "depends_on": [
+        "lakehousebox"
+      ],
+      "generated": {
+        "references/scheduled-sql.md": "web/docs/scheduled-sql/index.md",
+        "references/ingest.md": "web/docs/ingest/index.md"
+      },
+      "written": [],
+      "runs": [
+        "runs/2026-10-11-workflow-agent-test.md"
+      ]
+    },
+    "lakehousebox-share": {
+      "layer": "workflow",
+      "depends_on": [
+        "lakehousebox"
+      ],
+      "generated": {
+        "references/access.md": "web/docs/access/index.md",
+        "references/public-catalogs.md": "web/docs/public-catalogs/index.md"
+      },
+      "written": []
+    },
+    "lakehousebox-hosted-agents": {
+      "layer": "workflow",
+      "depends_on": [
+        "lakehousebox"
+      ],
+      "generated": {
+        "references/hosted-agents.md": "web/docs/hosted-agents/index.md"
       },
       "written": []
     },
