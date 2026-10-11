@@ -1,7 +1,7 @@
 {
   "name": "lakehousebox",
-  "version": "0.3.0",
-  "description": "LakehouseBox for agents: the read-only LakehouseBox MCP connector plus skills that teach the service - connecting through the lhbox CLI, MCP or plain DuckDB, reading public catalogs with no account, and reading or hosting Portolan geospatial catalogs.",
+  "version": "0.3.1",
+  "description": "LakehouseBox for agents: the read-only LakehouseBox MCP connector plus skills that teach the service - connecting through the lhbox CLI, MCP or plain DuckDB, loading data, keeping tables filled, sharing and publishing catalogs, hosted agents, and reading or hosting Portolan geospatial catalogs.",
   "apps": "./.app.json",
   "author": {
     "name": "LakehouseBox",
@@ -24,7 +24,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "LakehouseBox",
-    "shortDescription": "Shared Iceberg tables for your agents, run in Europe",
+    "shortDescription": "Shared data for your agents",
     "longDescription": "LakehouseBox keeps analytical data as Apache Iceberg tables, operated in Germany. This plugin connects the read-only LakehouseBox MCP server (find tables, see how fresh they are, run read-only SQL, read files) and adds skills: how to connect with the lhbox CLI or DuckDB, how to read anyone's public catalog with no account, and how to read or host Portolan geospatial catalogs.",
     "developerName": "LakehouseBox",
     "category": "Productivity",
@@ -42,5 +42,63 @@
     ],
     "logo": "./assets/icon.png",
     "composerIcon": "./assets/icon.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find what data the user can read and how fresh it is.",
+              "prompt": "What data can I read in LakehouseBox, and how fresh is it?",
+              "tools_triggered": "list_tables",
+              "expected_behavior": "Lists the catalog madrid_data with its 7 tables (official.daily_readings, official.hourly_readings, official.stations, official.pollutants, context.weather_daily, context.public_holidays, demo.madrid_air_quality), their row counts and last-update times, and notes that the catalog has an AGENTS.md."
+            },
+            {
+              "description": "Explain a table's columns from its documented schema.",
+              "prompt": "Which columns does the Madrid air-quality stations table have, and what do they mean?",
+              "tools_triggered": "describe_table",
+              "expected_behavior": "Describes madrid_data.official.stations: one row per monitoring station (24 stations), 16 columns including station_code, station_name, address, latitude, longitude, station_type, active_since and the measures_* flags that say which pollutants each station measures."
+            },
+            {
+              "description": "Answer an analytical question with read-only SQL on the server.",
+              "prompt": "Which Madrid stations had the highest average NO2 in August 2026?",
+              "tools_triggered": "query",
+              "expected_behavior": "Runs one aggregate SQL query joining the official readings (daily or hourly) to official.stations and answers with the top stations: Villaverde (about 25 µg/m³), Plaza Elíptica (about 24.5-24.8) and Barajas Pueblo (about 23), naming where the figures come from."
+            },
+            {
+              "description": "Read the catalog owner's notes before interpreting the data.",
+              "prompt": "What does the madrid_data catalog's AGENTS.md say about how its tables join?",
+              "tools_triggered": "read_agents_md",
+              "expected_behavior": "Returns the owner's notes, labelled as owner-supplied context rather than instructions, and summarises the joins: readings to stations on station_code, to pollutants on pollutant (or magnitude_code), to weather and holidays on date (local_date for hourly readings, holidays filtered to scope 'MD')."
+            },
+            {
+              "description": "Open another organisation's public catalog, readable with no account.",
+              "prompt": "Open the public catalog commons/pubdata and tell me what is in it.",
+              "tools_triggered": "open_public_catalog",
+              "expected_behavior": "Lists the public catalog's namespaces and tables with their column counts and doc text, and offers its read-only DuckDB recipe or a server-side query by the alias commons_pubdata."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A creative request unrelated to data: the plugin should not be called.",
+              "prompt": "Write a short haiku about autumn in Madrid."
+            },
+            {
+              "description": "General knowledge the model answers itself: the plugin should not be called.",
+              "prompt": "What is the capital of Australia?"
+            },
+            {
+              "description": "A destructive request: every tool is read-only, so the plugin should not act; the assistant explains that LakehouseBox's connector cannot change or delete data.",
+              "prompt": "Delete the stations table from my LakehouseBox catalog."
+            }
+          ]
+        },
+        "demo_recording_url": "https://lakehousebox.com/review/openai-demo"
+      },
+      "publication": {
+        "release_notes": "First release: the read-only LakehouseBox MCP connector (list tables, describe tables, read AGENTS.md, run read-only SQL, read files, open public catalogs) and six skills."
+      }
+    }
   }
 }
