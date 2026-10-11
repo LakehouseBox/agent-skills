@@ -1,0 +1,45 @@
+{
+  "name": "lakehousebox",
+  "version": "0.2.0",
+  "description": "LakehouseBox for agents: the read-only LakehouseBox MCP connector plus skills that teach the service - connecting through the lhbox CLI, MCP or plain DuckDB, reading public catalogs with no account, and reading or hosting Portolan geospatial catalogs.",
+  "author": {
+    "name": "LakehouseBox",
+    "url": "https://lakehousebox.com"
+  },
+  "homepage": "https://lakehousebox.com/docs/skills/",
+  "repository": "https://github.com/tablemere/lakehousebox-skills",
+  "license": "MIT",
+  "keywords": [
+    "lakehousebox",
+    "iceberg",
+    "duckdb",
+    "lakehouse",
+    "mcp",
+    "geospatial",
+    "portolan",
+    "stac",
+    "geoparquet"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "LakehouseBox",
+    "shortDescription": "Shared Iceberg tables for your agents, run in Europe",
+    "longDescription": "LakehouseBox keeps analytical data as Apache Iceberg tables, operated in Germany. This plugin connects the read-only LakehouseBox MCP server (find tables, see how fresh they are, run read-only SQL, read files) and adds skills: how to connect with the lhbox CLI or DuckDB, how to read anyone's public catalog with no account, and how to read or host Portolan geospatial catalogs.",
+    "developerName": "LakehouseBox",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ],
+    "websiteURL": "https://lakehousebox.com",
+    "supportURL": "https://github.com/tablemere/lakehousebox-skills/issues",
+    "privacyPolicyURL": "https://lakehousebox.com/legal/privacy/",
+    "termsOfServiceURL": "https://lakehousebox.com/legal/terms/",
+    "defaultPrompt": [
+      "What tables can I read in LakehouseBox, and how fresh are they?",
+      "Open the public catalog commons/pubdata and show me what is in it.",
+      "How many trees are within 100 m of Puerta del Sol in the public Portolan catalog portolan/madrid?"
+    ],
+    "logo": "./assets/icon.png",
+    "composerIcon": "./assets/icon.png"
+  }
+}

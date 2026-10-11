@@ -1,0 +1,30 @@
+{
+  "name": "lakehousebox",
+  "displayName": "LakehouseBox",
+  "version": "0.2.0",
+  "description": "LakehouseBox for agents: the read-only LakehouseBox MCP connector plus skills that teach the service - connecting through the lhbox CLI, MCP or plain DuckDB, reading public catalogs with no account, and reading or hosting Portolan geospatial catalogs.",
+  "author": {
+    "name": "LakehouseBox",
+    "email": "hello@lakehousebox.com",
+    "url": "https://lakehousebox.com"
+  },
+  "homepage": "https://lakehousebox.com/docs/skills/",
+  "repository": "https://github.com/tablemere/lakehousebox-skills",
+  "license": "MIT",
+  "keywords": [
+    "lakehousebox",
+    "iceberg",
+    "duckdb",
+    "lakehouse",
+    "mcp",
+    "geospatial",
+    "portolan",
+    "stac",
+    "geoparquet"
+  ],
+  "icon": "./assets/icon.png",
+  "documentationUrl": "https://lakehousebox.com/docs/skills/",
+  "supportUrl": "https://github.com/tablemere/lakehousebox-skills/issues",
+  "privacyPolicyUrl": "https://lakehousebox.com/legal/privacy/",
+  "termsOfServiceUrl": "https://lakehousebox.com/legal/terms/"
+}

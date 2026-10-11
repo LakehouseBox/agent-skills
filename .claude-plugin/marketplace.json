@@ -1,0 +1,15 @@
+{
+  "name": "lakehousebox",
+  "owner": {
+    "name": "LakehouseBox",
+    "email": "hello@lakehousebox.com"
+  },
+  "description": "LakehouseBox skills for coding agents: managed Apache Iceberg in Europe, public catalogs, Portolan geospatial catalogs.",
+  "plugins": [
+    {
+      "name": "lakehousebox",
+      "source": "./",
+      "description": "The LakehouseBox MCP connector and skills: connect, read public catalogs with no account, Portolan geospatial catalogs."
+    }
+  ]
+}
