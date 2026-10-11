@@ -61,9 +61,10 @@ unless the owner's organisation is approved to serve them.
 
 ## Through MCP, with an account and no shell
 
-`open_public_catalog("<handle>/<catalog>")` returns the tables, the AGENTS.md and a DuckDB recipe. The MCP `query`
-tool does not run on another organisation's catalog, so without a shell you can describe the catalog but not query
-it. For a catalog with many tables the answer is large (`portolan/madrid`, 51 tables: about 95,000 characters).
+`open_public_catalog("<handle>/<catalog>")` returns the tables (without their columns: pass `table` for one table's),
+the alias and the AGENTS.md. The MCP `query` tool then runs SQL on LakehouseBox's side by that alias, for example
+`SELECT count(*) FROM portolan_madrid.v3.barrios`, with the same spatial patterns as above (the spatial extension loads
+when the SQL uses an `ST_` function); each query has 20 seconds of compute and returns at most 2,000 rows.
 
 ## Host: the path
 

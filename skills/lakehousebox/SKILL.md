@@ -19,8 +19,10 @@ maintains the tables. Everything is in open formats the person can take elsewher
 | a public catalog, no account | DuckDB with unsigned requests | the section below, then [public-catalogs](references/public-catalogs.md) |
 | another organisation's public catalog, with an account | `lhbox duckdb --catalog <handle>/<catalog>`, or the MCP tool `open_public_catalog` | [public-catalogs](references/public-catalogs.md) |
 
-The MCP `query` tool runs SQL on LakehouseBox's side over the caller's own catalogs only. For another organisation's
-public catalog, MCP gives the tables, the AGENTS.md and a recipe; the SQL then runs in a DuckDB you run.
+The MCP `query` tool runs SQL on LakehouseBox's side over the caller's catalogs and over any organisation's public
+catalog, named by its alias `<handle>_<catalog>` (`open_public_catalog` gives it, with the tables and the AGENTS.md):
+`commons_pubdata.reference.countries` (`"commons/pubdata".reference.countries` in double quotes when the alias is
+ambiguous or starts with a digit; name every table in full when one is public). Heavier work belongs in a DuckDB you run.
 
 ## With an account and a shell
 

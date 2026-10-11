@@ -1,6 +1,6 @@
 {
   "name": "lakehousebox-skills",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "site": "https://lakehousebox.com",
   "layers": {
     "base": "what every LakehouseBox task needs: the ways in, the rules, reading public catalogs; depends on nothing",
