@@ -32,6 +32,23 @@ DuckDB. Everything else needs a LakehouseBox account.
 
 Not yet listed in the Claude or OpenAI (ChatGPT, Codex) plugin directories.
 
+## Where it connects
+
+The connector, and the commands and DuckDB statements the skills give the agent, reach these services only:
+
+| address | what goes there |
+|---|---|
+| `https://mcp.lakehousebox.com/mcp` | the connector: read-only tool calls (listing tables, read-only SQL, reading files) |
+| `https://api.lakehousebox.com` | the `lhbox` CLI (sign-in approval, catalogs, tables, loading the person's files) and the description of a public catalog, read with no account |
+| `https://catalog.lakehousebox.com` | the Iceberg catalog that DuckDB and other engines read and write tables through |
+| `https://s3.lakehousebox.com` | the tables' and files' storage, read (and written, with an account) by DuckDB and the CLI |
+| `https://lakehousebox.com/install.sh` | the CLI installer, downloaded once when the person installs it |
+| `https://extensions.duckdb.org` | DuckDB's own extensions (iceberg, httpfs, spatial), downloaded the first time each is used |
+
+The first four are LakehouseBox's services, run in Germany; the installer comes from LakehouseBox's website. Beyond these, a skill reaches only a source the person
+names, such as the URL of a file to import. What LakehouseBox keeps, and for how long, is in its
+[privacy policy](https://lakehousebox.com/legal/privacy/).
+
 ## Use
 
 Ask for the task; the agent loads the skill when it matches. For example:
