@@ -13,6 +13,10 @@ It is a hosted server (Streamable HTTP; OAuth 2.1 or an agent key): there is not
 
 As a plugin, with skills. The LakehouseBox plugin installs this server together with skills that teach the agent the service, in Claude Code, Codex and Gemini CLI: see Agent skills (https://lakehousebox.com/docs/skills/).
 
+From the Claude directory. LakehouseBox is listed as a community connector at claude.ai/directory/lakehousebox (since 2026-10-11): connect it there and approve it on LakehouseBox.
+
+In ChatGPT. Settings → Plugins → Add → Add custom MCP server: a name, https://mcp.lakehousebox.com/mcp, authentication OAuth; then connect it and approve it on LakehouseBox. Checked on 2026-10-11 with a free ChatGPT account: connected, and list_tables answered in a chat. (Until that day ChatGPT's sign-in was refused: its client describes itself as able to use a signed key or none, and only the second was accepted.)
+
 Remote, with OAuth (a person at a browser). Add https://mcp.lakehousebox.com/mcp as a custom connector in Claude.ai or Claude Desktop, or claude mcp add --transport http lakehousebox https://mcp.lakehousebox.com/mcp in Claude Code. The host discovers the authorization server from the server's 401 (the protected-resource metadata at /.well-known/oauth-protected-resource/mcp), registers itself (Client ID Metadata Documents; Dynamic Client Registration as a fallback) and sends you to LakehouseBox to approve it. The approval creates a token in your Tokens tab with the catalogs you chose; the server needs the scope catalogs:read.
 
 Remote, with an agent key (a scheduled or headless agent). Send the key as a bearer token. Keep it off the command line (anyone on the machine can read a command line while it runs): put it in the environment Claude Code starts with and let Claude Code fill it in when it connects. The single quotes keep your shell from expanding it:
