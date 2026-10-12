@@ -1,6 +1,6 @@
 {
   "name": "lakehousebox-skills",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "site": "https://lakehousebox.com",
   "layers": {
     "base": "what every LakehouseBox task needs: the ways in, the rules, reading public catalogs; depends on nothing",
@@ -85,6 +85,20 @@
       "runs": [
         "runs/2026-10-10-portolan-reader.md",
         "runs/2026-10-10-agent-test.md"
+      ]
+    },
+    "lakehousebox-home-assistant": {
+      "layer": "use-case",
+      "depends_on": [
+        "lakehousebox",
+        "lakehousebox-keep-fresh"
+      ],
+      "generated": {
+        "references/instructions.md": "web/docs/guides/home-assistant/reference/index.md"
+      },
+      "written": [],
+      "runs": [
+        "runs/2026-10-12-home-assistant-agent-test.md"
       ]
     }
   }
