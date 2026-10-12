@@ -48,7 +48,18 @@ Rules that save a retry (details and the other engines in section 7):
 
 From Python instead of the shell: lhbox --json connect --engine duckdb --show-secrets returns the recipe (read it in code, do not print it); its sql field is the ATTACH block. Without --show-secrets the secret is ******** and the block starts with an error() that says so. Files from the CLI in one commit: lhbox table import 'data/*.parquet' --namespace raw --name trips (CSV too, by extension or --format csv).
 
-If login cannot block: lhbox login --no-wait, send the link, later lhbox login --resume. Several catalogs: lhbox catalog list, then --catalog <name> on connect, duckdb and table ….
+If login cannot block: lhbox login --no-wait, send the link, later lhbox login --resume.
+
+No account, or no person at hand right now? Do not stop: make a catalog for yourself and let the person keep it later.
+
+```
+lhbox new                                              # a catalog you can write now, no account; the key is saved, never shown
+lhbox duckdb                                           # attached: CREATE TABLE works
+lhbox claim                                            # when the person is there: a link and a code for them to keep it
+lhbox claim --resume --wait                            # after they approve: this machine's new key, saved in place
+```
+
+Until a person claims it, the catalog holds at most 1 GB, nothing in it can be made public, and it is deleted with its data 72 hours after lhbox new (lhbox status says how long is left; every command warns in its last day). Running lhbox new accepts the Terms of Service for whoever runs you: say so to the person. To claim, the person opens the link, signs up or logs in, types the code you give them, chooses their organisation and ticks write if you should keep writing. The key you used until then stops working at that moment; lhbox claim --resume --wait saves the new one. Section 2b has the details. Several catalogs: lhbox catalog list, then --catalog <name> on connect, duckdb and table ….
 
 What to say to the person: "Open this link, type the code XXXX-XXXX when it asks, and approve the connection; tick write if I should create tables or load data" (always give the code: the page asks the person to type it). No account yet: the same page creates one.
 
@@ -84,6 +95,22 @@ The key is never shown. Do not ask for it, do not look for it, do not cat the cr
 Running lhbox login again on a machine whose saved key still works answers Still connected … and starts nothing new. --level read asks for read only; --name <agent> names the agent; --new forces a fresh authorisation.
 
 If the code expired before the person approved (15 minutes), run lhbox login again (or --no-wait again) and send the new link.
+
+## 2b. Without an account: lhbox new, then lhbox claim
+
+lhbox new (POST /v1/agent/identity, no body and no key) makes an organisation nobody owns yet, a catalog named lakehouse in it, and a key with write on that catalog, saved like lhbox login saves one. It refuses when this machine already holds a key for the API (--force replaces it; lhbox --profile scratch new keeps both) and when LHBOX_API_KEY is set (unset it first: the saved key would never be used).
+
+Until it is claimed:
+
+- 72 hours, then the organisation and its data are deleted, with no notice. lhbox status shows the time left.
+
+- 1 GB, one catalog, nothing public (no public catalogs, no public files).
+
+- The key reads, and writes data only: tables, files, queries, AGENTS.md. New keys or tokens, grants, publishing, sinks, scheduled SQL, hosted agents and invitations answer 403 claim_required.
+
+- At most 5 such catalogs an hour and 20 a day from one network address; past that, 429 rate_limited.
+
+The claim: lhbox claim prints a link and a code (POST /v1/agent/identity/claim; the code lives a day, never past the catalog's own end). Tell the person: "Open this link, sign up or log in, type the code XXXX-XXXX, keep the catalog in your organisation and tick write if I should keep writing." They choose the organisation (one they administer; a new one only when they have none, with a handle they choose). Approving moves the catalog there (renamed lakehouse_2 if the name is taken), ends every key from before the claim and rotates the catalog's keys. lhbox claim --resume --wait (or lhbox claim --wait from the start) then saves this machine's new key, at the level the person chose. From there it is an ordinary catalog of their organisation: lhbox duckdb attaches it under its name.
 
 ## 3. Check the path, then get the DuckDB recipe
 
