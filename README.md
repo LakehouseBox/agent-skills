@@ -1,4 +1,4 @@
-# LakehouseBox agent skills: downloads (0.4.1)
+# LakehouseBox agent skills: downloads (0.4.2)
 
 Built from the `main` branch by its publish; do not edit here.
 
@@ -8,4 +8,5 @@ Built from the `main` branch by its publish; do not edit here.
 - `lakehousebox-share.zip`: the `lakehousebox-share` skill, to upload as a custom skill in Claude (claude.ai, Desktop) or Cowork
 - `lakehousebox-hosted-agents.zip`: the `lakehousebox-hosted-agents` skill, to upload as a custom skill in Claude (claude.ai, Desktop) or Cowork
 - `lakehousebox-portolan.zip`: the `lakehousebox-portolan` skill, to upload as a custom skill in Claude (claude.ai, Desktop) or Cowork
+- `lakehousebox-home-assistant.zip`: the `lakehousebox-home-assistant` skill, to upload as a custom skill in Claude (claude.ai, Desktop) or Cowork
 - `lakehousebox-plugin.zip`: the whole plugin (connector and skills), as the OpenAI plugin directory takes it
