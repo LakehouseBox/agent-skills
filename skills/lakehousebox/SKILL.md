@@ -1,6 +1,6 @@
 ---
 name: lakehousebox
-description: Work with LakehouseBox (lakehousebox.com), the managed Apache Iceberg service operated in Europe. Connect an agent through the lhbox CLI, the MCP server or plain DuckDB, read and write its catalogs, and read anyone's public catalog with no account. Load it for any LakehouseBox task; the use-case skills, such as lakehousebox-portolan, build on it.
+description: Work with LakehouseBox (lakehousebox.com), the managed Apache Iceberg service operated in Europe. Connect an agent through the lhbox CLI, the MCP server or plain DuckDB (or start with no account: lhbox new), read and write its catalogs, and read anyone's public catalog with no account. Load it for any LakehouseBox task; the use-case skills, such as lakehousebox-portolan, build on it.
 ---
 
 # LakehouseBox
