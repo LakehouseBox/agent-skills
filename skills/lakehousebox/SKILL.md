@@ -68,7 +68,7 @@ new one. Measured on production on 2026-10-12: `lhbox new` 1.3 s, a first table 
 
 ```sql
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
-CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true);
+CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true, KEY_ID '', SECRET '');
 SELECT count(*) FROM iceberg_scan('s3://<bucket>/<namespace>/<table>');   -- the table's root
 ```
 

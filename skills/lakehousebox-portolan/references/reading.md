@@ -2,7 +2,7 @@
 
 No account and no credentials. Every SQL block below ran as written, in this order, in one DuckDB 1.5.6 session
 with no account against the public catalog `portolan/madrid` on 2026-10-10; the times and answers quoted are from
-that run (`runs/2026-10-10-portolan-reader.md` in the skills repository). Substitute your catalog's bucket, tables,
+that run (`runs/2026-10-10-portolan-reader.md` in the skills repository). On 2026-10-12 the secret gained `KEY_ID '', SECRET ''` (without them DuckDB signs with AWS variables some sandboxes set) and every block ran again as written, none failing (`runs/2026-10-12-portolan-reader.md`). Substitute your catalog's bucket, tables,
 columns and coordinate system.
 
 ## Contents
@@ -64,7 +64,7 @@ DuckDB 1.5.6 or newer (`pip install 'duckdb>=1.5.6'`; an old `duckdb` binary may
 
 ```sql
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs; INSTALL spatial; LOAD spatial;
-CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true);
+CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true, KEY_ID '', SECRET '');
 ```
 
 The secret has no key: requests go unsigned. Do not add a made-up key pair, which the store refuses. The secret is

@@ -1,6 +1,6 @@
 {
   "name": "lakehousebox-skills",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "site": "https://lakehousebox.com",
   "layers": {
     "base": "what every LakehouseBox task needs: the ways in, the rules, reading public catalogs; depends on nothing",
@@ -18,7 +18,10 @@
         "references/duckdb.md": "web/docs/engines/duckdb/index.md",
         "references/performance.md": "web/docs/performance/index.md"
       },
-      "written": []
+      "written": [],
+      "runs": [
+        "runs/2026-10-12-sandbox-egress.md"
+      ]
     },
     "lakehousebox-load-data": {
       "layer": "workflow",
@@ -84,6 +87,7 @@
       ],
       "runs": [
         "runs/2026-10-10-portolan-reader.md",
+        "runs/2026-10-12-portolan-reader.md",
         "runs/2026-10-10-agent-test.md"
       ]
     },

@@ -52,7 +52,7 @@ DuckDB reads a public table over plain HTTPS. The requests go unsigned; do not p
 
 ```
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
-CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true);
+CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true, KEY_ID '', SECRET '');
 -- a table by its root (reads <ns>/<table>/metadata/version-hint.text)
 SELECT count(*) FROM iceberg_scan('s3://<handle>--<catalog>/<ns>/<table>');
 -- or by its current metadata file (the secret above is still needed: the metadata names its files as s3:// paths)
@@ -108,7 +108,7 @@ LakehouseBox publishes a catalog of public datasets itself: commons/pubdata, wit
 
 ```
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
-CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true);
+CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true, KEY_ID '', SECRET '');
 SELECT * FROM iceberg_scan('s3://commons--pubdata/reference/countries') LIMIT 10;
 ```
 

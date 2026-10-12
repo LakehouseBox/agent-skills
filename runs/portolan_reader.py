@@ -16,7 +16,7 @@ from pathlib import Path
 import duckdb
 
 REF = Path(__file__).resolve().parent.parent / "skills/lakehousebox-portolan/references/reading.md"
-SECRET = "CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true)"
+SECRET = "CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true, KEY_ID '', SECRET '')"
 
 
 def show(rows, cols, limit=8):
