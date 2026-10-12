@@ -1,0 +1,37 @@
+# 2026-10-12: can a chat or cloud sandbox compute against LakehouseBox?
+
+The routing in `skills/lakehousebox/SKILL.md` ("a shell that reaches s3.lakehousebox.com") and the MCP server's
+`local_compute` rest on these runs. The probe reads the public catalog `commons/pubdata`, no account, no key.
+
+**Positive control, the founder's laptop (macOS arm64, DuckDB 1.5.6):** every host answered; `reference.countries`
+249 rows in 0.9 s; `places.places` `count(*), count(DISTINCT country_code)` = 7,257,624 and 50 in 4.3 s.
+
+**A Claude cloud sandbox (Linux x86_64, Python 3.13.16, `CCR_*` environment), default network setting:**
+
+```
+api public catalog JSON            FAIL curl: (56) CONNECT tunnel failed, response 403
+s3 table metadata                  FAIL curl: (56) CONNECT tunnel failed, response 403
+install.sh (lhbox CLI)             FAIL curl: (56) CONNECT tunnel failed, response 403
+pypi (pip install duckdb)          FAIL curl: (6) Could not resolve host: pypi.org
+extensions.duckdb.org              FAIL curl: (56) CONNECT tunnel failed, response 403
+control: example.com               FAIL curl: (56) CONNECT tunnel failed, response 403
+```
+
+The proxy's own note: `connect_rejected (the egress proxy denied the CONNECT (organization policy) ...)`.
+
+**Same sandbox after the person allowed lakehousebox.com, its subdomains and extensions.duckdb.org:**
+
+```
+api public catalog JSON            200 1.088369s
+s3 table metadata                  200 0.679227s
+install.sh (lhbox CLI)             200 0.522070s
+pypi (pip install duckdb)          FAIL curl: (6) Could not resolve host: pypi.org
+extensions.duckdb.org              301 0.270166s
+control: example.com               FAIL curl: (56) CONNECT tunnel failed, response 403
+```
+
+Why pip failed: `pypi.org` is in the sandbox's `NO_PROXY`, so pip connects directly, but only the proxy resolves names
+(`CLAUDE_CODE_PROXY_RESOLVES_HOSTS=true`): `[Errno -2] Name or service not known`. With the bypass turned off,
+`NO_PROXY= no_proxy= pip install 'duckdb>=1.5.5'` answered `Successfully installed duckdb-1.5.6`.
+
+Not yet run there: a DuckDB query end to end; claude.ai and ChatGPT chat with the connector (next).

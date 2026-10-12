@@ -14,9 +14,9 @@ maintains the tables. Everything is in open formats the person can take elsewher
 
 | situation | use | read next |
 |---|---|---|
-| a shell, and the person has an account or will create one | the `lhbox` CLI, then DuckDB on this machine | [agent-setup](references/agent-setup.md) |
+| a shell that reaches `https://s3.lakehousebox.com/` (check with `curl -sI`), and the person has an account or will create one | the `lhbox` CLI, then DuckDB on this machine | [agent-setup](references/agent-setup.md) |
 | a shell, no account yet (or nobody to approve right now) | `lhbox new`, then `lhbox claim` when the person is there | the section below, then [agent-setup](references/agent-setup.md) §2b |
-| a chat with no shell (Claude.ai, Claude Desktop) | the MCP server, `https://mcp.lakehousebox.com/mcp` | [mcp](references/mcp.md) |
+| a chat with no shell, or a sandbox whose network refuses `s3.lakehousebox.com` | the MCP server, `https://mcp.lakehousebox.com/mcp` | [mcp](references/mcp.md) |
 | a public catalog, no account | DuckDB with unsigned requests | the section below, then [public-catalogs](references/public-catalogs.md) |
 | another organisation's public catalog, with an account | `lhbox duckdb --catalog <handle>/<catalog>`, or the MCP tool `open_public_catalog` | [public-catalogs](references/public-catalogs.md) |
 
@@ -24,6 +24,9 @@ The MCP `query` tool runs SQL on LakehouseBox's side over the caller's catalogs 
 catalog, named by its alias `<handle>_<catalog>` (`open_public_catalog` gives it, with the tables and the AGENTS.md):
 `commons_pubdata.reference.countries` (`"commons/pubdata".reference.countries` in double quotes when the alias is
 ambiguous or starts with a digit; name every table in full when one is public). Heavier work belongs in a DuckDB you run.
+Many chat and cloud sandboxes block the network, so a shell alone does not settle it: the `curl -sI` check does. When a
+server-side answer hits a limit it carries `local_compute`, which says what to tell the person if you cannot reach us
+(an agent on their own computer, or allowing `lakehousebox.com` and its subdomains in the sandbox's network settings).
 
 ## With an account and a shell
 
