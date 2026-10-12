@@ -15,6 +15,7 @@ maintains the tables. Everything is in open formats the person can take elsewher
 | situation | use | read next |
 |---|---|---|
 | a shell, and the person has an account or will create one | the `lhbox` CLI, then DuckDB on this machine | [agent-setup](references/agent-setup.md) |
+| a shell, no account yet (or nobody to approve right now) | `lhbox new`, then `lhbox claim` when the person is there | the section below, then [agent-setup](references/agent-setup.md) §2b |
 | a chat with no shell (Claude.ai, Claude Desktop) | the MCP server, `https://mcp.lakehousebox.com/mcp` | [mcp](references/mcp.md) |
 | a public catalog, no account | DuckDB with unsigned requests | the section below, then [public-catalogs](references/public-catalogs.md) |
 | another organisation's public catalog, with an account | `lhbox duckdb --catalog <handle>/<catalog>`, or the MCP tool `open_public_catalog` | [public-catalogs](references/public-catalogs.md) |
@@ -36,6 +37,21 @@ lhbox duckdb     # the DuckDB shell with the catalog attached; the key never rea
 When you will create tables or load data, ask the person to tick write on the approval page. Never ask for, print or
 copy the key: the CLI keeps it and every `lhbox` command reads it. Administration (catalogs, grants, tokens,
 publishing) is the CLI or the account page; the MCP server only reads.
+
+## With a shell and no account yet
+
+```sh
+lhbox new                     # a catalog named lakehouse, write access, no account; the key is saved, never shown
+lhbox table import data.csv --catalog lakehouse --namespace raw --name t   # or lhbox duckdb (DuckDB 1.5.5+)
+lhbox claim                   # when the person is there: a link and a code to give them
+lhbox claim --resume --wait   # after they approve: this machine's new key, saved in place
+```
+
+Until a person claims it: 1 GB, nothing public, data writes only (`403 claim_required` for keys, grants, publishing,
+sinks), deleted with its data after 72 hours (`lhbox status` says how long is left). Running `lhbox new` accepts the
+Terms for whoever runs you: tell the person. The person opens the link, signs up or logs in, types the code and
+chooses their organisation; at that moment your earlier key stops working and `lhbox claim --resume --wait` saves the
+new one. Measured on production on 2026-10-12: `lhbox new` 1.3 s, a first table about 6 s later.
 
 ## With no account: a public catalog
 

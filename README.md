@@ -22,7 +22,8 @@ LakehouseBox keeps analytical data as Apache Iceberg tables, operated in Germany
 service; use-case skills cover an end-to-end job and build on the layers below. `catalog.json` has the graph.
 
 Reading a public catalog needs neither an account nor the connector: the skills show the agent how to read it with
-DuckDB. Everything else needs a LakehouseBox account.
+DuckDB. Everything else needs a LakehouseBox account, which an agent with a shell can start without: `lhbox new`
+gives it a catalog to write at once, and the person keeps it later with `lhbox claim` (https://lakehousebox.com/new).
 
 ## Install
 

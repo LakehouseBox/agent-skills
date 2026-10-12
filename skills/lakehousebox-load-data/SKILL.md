@@ -6,7 +6,8 @@ description: Load data into LakehouseBox tables - CSV, Parquet, GeoParquet or an
 # Load data into LakehouseBox
 
 The `lakehousebox` skill has the ways in and the general rules; this one is the path from files to tables. It
-needs an account and a write credential on the catalog (`lhbox login`, the person ticks write).
+needs a write credential on the catalog: `lhbox login` (the person ticks write), or the catalog `lhbox new` made
+with no account (data writes work before a person claims it).
 
 ## First decision: what the person has
 
