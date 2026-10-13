@@ -6,8 +6,8 @@ description: Work with LakehouseBox (lakehousebox.com), the managed Apache Icebe
 # LakehouseBox
 
 LakehouseBox keeps analytical data as Apache Iceberg tables, operated in Germany. The hierarchy is organisation →
-catalog → namespace → table, and SQL names a table `<catalog>.<namespace>.<table>`. The agent brings the compute
-(DuckDB, usually where the agent runs); LakehouseBox stores the tables, hands engines short-lived credentials and
+catalog → namespace → table, and SQL names a table `<catalog>.<namespace>.<table>`. The agent computes where it runs
+(DuckDB) when it can reach LakehouseBox, and through the MCP server's capped query when it cannot; LakehouseBox stores the tables, hands engines short-lived credentials and
 maintains the tables. Everything is in open formats the person can take elsewhere.
 
 ## First decision: which way in
@@ -39,7 +39,8 @@ lhbox duckdb     # the DuckDB shell with the catalog attached; the key never rea
 
 When you will create tables or load data, ask the person to tick write on the approval page. Never ask for, print or
 copy the key: the CLI keeps it and every `lhbox` command reads it. Administration (catalogs, grants, tokens,
-publishing) is the CLI or the account page; the MCP server only reads.
+publishing) is the CLI or the account page; the MCP server reads, and with write approved changes data one SQL
+statement at a time (`query_rw`).
 
 ## With a shell and no account yet
 
