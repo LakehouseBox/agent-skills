@@ -18,8 +18,9 @@ turns what arrives into Iceberg commits on a rolling policy, so nothing of the p
 
 ## Scheduled SQL: LakehouseBox fetches
 
-Switched on per organisation: until then the commands answer `403 not_enabled`, and the person writes to
-hello@lakehousebox.com with the organisation's handle (`lhbox usage --full` shows the limit `sql_sinks`).
+On for every organisation on the free plan (two sinks; `lhbox usage --full` shows the limit `sql_sinks`). A catalog made
+with `lhbox new` gets it when a person claims it: until then `lhbox sink preview --sql @query.sql` runs the query once (nothing written)
+and create answers `403 claim_required`.
 
 ```sh
 lhbox sink preview --catalog analytics --sql @quakes.sql --limit 3        # runs once, writes nothing: rows and types
