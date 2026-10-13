@@ -9,7 +9,7 @@ Give LakehouseBox one DuckDB SELECT that reads http(s) URLs, and a schedule. At 
 
 A scheduled-SQL sink is a kind of ingest sink (https://lakehousebox.com/docs/ingest/): it has no send key, and LakehouseBox is the producer.
 
-Availability. Scheduled SQL is live, and it is switched on per organisation by LakehouseBox (the plan limit sql_sinks, 0 until then; lhbox usage --full shows yours and the per-run budgets). To have it switched on, write to hello@lakehousebox.com with your organisation's handle. Until then the commands below answer 403 not_enabled.
+Availability. Scheduled SQL is live, and it is switched on per organisation by LakehouseBox (the plan limit sql_sinks, 0 until then; lhbox usage --full shows yours and the per-run budgets). To have it switched on, write to hello@lakehousebox.com with your organisation's handle. Until then sink create, run and resume answer 403 not_enabled. Preview works without it, and before a person claims an agent-made catalog too: the query runs once and nothing is written, so an agent can hand over a query it has seen run. Without the feature a preview may make at most 25 requests and download 16 MiB, runs one at a time, and shares a capacity kept for such previews (busy: 429 with retry_after_seconds). An organisation may make 10 such previews an hour (the plan limit sql_previews_per_hour; a preview that did not run is not counted). Its answer carries sink_create, saying what creating the sink still needs (not_enabled or claim_required), and no stored connection credential is sent.
 
 ## A first sink, end to end
 
