@@ -115,6 +115,8 @@ lhbox sink connection delete weather --catalog <catalog> --yes    # pauses the S
 
 - The prefix is https://, a host name, a path ending in /; two connections of a catalog may not overlap. The credential is not sent on a redirect to another host. The host is the boundary: DuckDB compares URLs as text, so a path prefix does not keep the credential from other paths of the same host (/v1/../admin/).
 
+- A connection belongs to the catalog, not to the one who stored it: every member and agent that can write to the catalog can run a scheduled query that sends it to its host (none can read the value back). Give the key the narrowest rights the source offers; a key that only some writers should use goes in a catalog of its own.
+
 - Who stores it is up to you: an agent with the CLI (--value-env VAR, --value @FILE or @-; a person at a terminal with neither is asked, hidden), or a person on the account page (the catalog's Sinks tab, Connections: paste the key, and the agent only ever needs the connection's name). Never on the command line itself.
 
 - The value is write-only (no route, command or page shows it again) and is stored encrypted.
