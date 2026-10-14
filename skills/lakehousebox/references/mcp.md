@@ -3,7 +3,7 @@ This is a copy of https://lakehousebox.com/docs/mcp/index.md taken when this ski
 
 # The LakehouseBox MCP server
 
-The MCP server is published from the repository note docs/mcp.md, as written on 2026-09-20. It is installable from a checkout (uvx --from <checkout>/platform/mcp lakehousebox-mcp); the package name lakehousebox-mcp is reserved and not yet on PyPI. lhbox mcp install (CLI reference (https://lakehousebox.com/docs/cli/#lakehousebox-mcp-install)) writes the host configuration below for you, without the key in it: the host asks the CLI for the saved key when it connects.
+Published from the repository note docs/mcp.md. The server is hosted at https://mcp.lakehousebox.com/mcp: there is nothing to install. lhbox mcp install (CLI reference (https://lakehousebox.com/docs/cli/#lhbox-mcp-install)) adds it to Claude Code without the key in its configuration: the host asks the CLI for the saved key when it connects.
 
 The LakehouseBox MCP server at https://mcp.lakehousebox.com/mcp gives an MCP host (Claude.ai, Claude Desktop, Claude Code, Cursor, anything that speaks the protocol) your data: find the tables you can read, see their columns and how fresh they are, run read-only SQL on our side, read files such as photos and, when the person approved write, change data with SQL (save a result as a table, add, correct or remove rows). It is for people and agents in a chat — an analyst in Claude.ai or ChatGPT, or an agent whose sandbox cannot reach LakehouseBox — and for a quick look from anywhere. Someone with no account yet can let the client set one up on the consent page and keep it later. Administration (catalogs, grants, tokens, members, the organisation) lives in the CLI (lhbox), the API and the account page; this server does not do it.
 

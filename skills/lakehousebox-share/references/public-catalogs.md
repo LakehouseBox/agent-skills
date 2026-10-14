@@ -104,7 +104,7 @@ A public catalog's bytes (its tables and its whole file bucket, published folder
 
 ## The LakehouseBox public data catalog
 
-LakehouseBox publishes a catalog of public datasets itself: commons/pubdata, with weather, public holidays, countries, places, population, earthquakes, airports and rail data. /public-data (https://lakehousebox.com/public-data) describes the datasets; the catalog's page is lakehousebox.com/app/commons/pubdata. Read a table with no account:
+LakehouseBox publishes a catalog of public datasets itself: commons/pubdata, with weather, air quality, public holidays, countries and regions, places, population, earthquakes, airports and rail data. /public-data (https://lakehousebox.com/public-data) describes the datasets; the catalog's page is lakehousebox.com/app/commons/pubdata. Read a table with no account:
 
 ```
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
