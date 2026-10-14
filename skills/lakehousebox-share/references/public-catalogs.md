@@ -48,7 +48,7 @@ A public catalog has a page at https://lakehousebox.com/app/<handle>/<catalog>, 
 
 ## Reading without an account
 
-DuckDB reads a public table over plain HTTPS. The requests go unsigned; do not put a made-up key pair in the secret, because the store refuses keys it does not know, even on a public catalog.
+DuckDB reads a public table over plain HTTPS. The requests go unsigned; do not put a made-up key pair in the secret, because the store refuses keys it does not know, even on a public catalog. Keep KEY_ID '' and SECRET '': without them DuckDB signs with any AWS_ACCESS_KEY_ID it finds in the environment (many cloud sandboxes set one), and the read fails with InvalidAccessKeyId, or, on a table root, with "no version-hint could be found".
 
 ```
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
