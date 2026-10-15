@@ -18,7 +18,7 @@ lhbox catalog unpublish <name>                             # private again: tabl
 lhbox catalog public-url <name> [--table <ns>.<table>]     # the public URL and the no-credentials DuckDB recipe
 ```
 
-Only an admin of the organisation can publish or unpublish. The account page has the same control in the catalog's Settings. In the API it is POST /v1/catalogs/{id}/public with {"confirm": "<catalog name>"} (and optionally "files": "<prefix>/" or "files": null), and DELETE /v1/catalogs/{id}/public; see the API (https://lakehousebox.com/docs/api/).
+By default only an admin of the organisation can publish or unpublish. An admin can open publishing to members (on the catalogs they can write) or turn it off for everyone (publish_catalogs, what members may do (https://lakehousebox.com/docs/access/#what-members-may-do)); turning it off leaves public catalogs public, and an admin can still make any of them private. The account page has the same control in the catalog's Settings. In the API it is POST /v1/catalogs/{id}/public with {"confirm": "<catalog name>"} (and optionally "files": "<prefix>/" or "files": null), and DELETE /v1/catalogs/{id}/public; see the API (https://lakehousebox.com/docs/api/).
 
 Publishing again without --files keeps whatever folder is already published. A new --files folder replaces the old one; only one folder can be public at a time.
 

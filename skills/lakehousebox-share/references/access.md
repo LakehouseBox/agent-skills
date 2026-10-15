@@ -18,9 +18,11 @@ Tokens are machine identities of the organisation: an agent, a script, a schedul
 | see the organisation, its catalogs, members, tokens and usage | yes | yes |
 | invite and remove members, change roles, claim domains, rename the organisation | yes | no |
 | create a catalog | yes | yes, and gets write on it |
-| rotate a catalog's credentials, delete, restore, publish or unpublish it | yes | no |
+| rotate a catalog's credentials, delete or restore it | yes | no |
+| publish or unpublish a catalog | yes, unless publishing is set to nobody (unpublishing always) | no, unless publishing is open to members (then on catalogs they can write) |
 | grant or revoke read and write | on every catalog | only where they hold write, never above their own level, and only grants they made |
-| create tokens | any role, any grants | member tokens, with grants up to their own |
+| create tokens, approve lhbox login and MCP clients, create API keys | yes | yes by default (member tokens, grants up to their own); an admin can turn this off |
+| create hosted agents | yes | yes by default; an admin can turn this off |
 | revoke tokens | any | the ones they created |
 | read the audit log | the organisation's events | their own events |
 
@@ -42,6 +44,28 @@ An invitation is valid for 7 days. The invitee follows the link in the mail, or 
 A domain claim (admin) does nothing until it is verified: the claim answers a TXT record, _lakehousebox.<domain> with a random value, which you publish in the domain's DNS; --verify looks it up. The record must be a TXT record at that very name: one reached through a CNAME does not count. Public mail domains (gmail.com, outlook.com, gmx.de, yahoo.co.uk, …) are refused. Several organisations may hold an unverified claim on a domain; the first to verify it holds it alone. Keep the record published: a verified domain is looked up again once a day, and three definite misses in a row (the name does not exist, or the value is not in it; a resolver failure never counts) unverify it, which also switches domain join off; so does a week in which the domain's DNS gives no answer at all. Another organisation that publishes its own value once yours is gone takes the domain over at its next verify.
 
 With domain join on, a person whose address is on a verified domain is offered membership (the account page asks; lhbox org offers lists it) and joins as a member only if they accept, with their own login or API key: accepting is the person's act, and an organisation's token is offered nothing. Nobody is added automatically. A person who left the organisation or was removed from it is not offered it again, matched by their account and by their address (lower case, a +tag ignored), so a new account on the same address is not offered it either: an admin's invitation is the way back. A departure is remembered for 12 months (as a one-way hash of the address, never the address itself), then forgotten. Departures before 2026-10-01 were taken from the audit log; someone whose account was deleted before then left no address to match. Removing a member also removes the grants they held.
+
+## What members may do
+
+An admin decides three things for the whole organisation, on the account page under Settings › General › Member permissions, or with lhbox org policy. Everyone in the organisation can read them; only an admin who is a person changes them (a token cannot, whatever its role). Each one is checked by the API whenever the thing is made, whatever made the request: the account page, the CLI, an MCP client or a script.
+
+| setting | who may | default |
+|---|---|---|
+| publish_catalogs | admins; members (admins, and member people on a catalog they can write; a member token never publishes); or nobody (admins included) | admins |
+| connect_agents | members (admins and members) or admins: tokens (lhbox token create), lhbox login approvals, MCP clients approved on the consent page, and personal API keys | members |
+| hosted_agents | members or admins: who may create hosted agents (https://lakehousebox.com/docs/hosted-agents/) | members |
+
+A token counts as what its organisation role says: a member token is a member here. A personal API key acts as you in every organisation you belong to, so it is refused while any of them lets only its admins connect agents and you are a member there; lhbox login --issuer (which exchanges your identity provider's sign-in for such a key) is refused alike.
+
+Changing a setting never undoes what exists. Catalogs that are public stay public when publishing is narrowed or turned off: the settings page lists them with a Make private button, and an admin can always make a catalog private or narrow it (stop publishing its files). Tokens, connections and hosted agents made before keep working until someone revokes or deletes them.
+
+A refused request answers 403 org_policy_forbids, with the setting (policy), its value, and a remedy naming the organisation's admins to ask. Every change is recorded in the audit log as org.policy_update, with each setting's value before and after.
+
+```
+lhbox org policy                                          # the settings, what you may do, whom to ask
+lhbox org policy --connect-agents admins                  # admin: only admins connect agents from now on
+lhbox org policy --publish-catalogs nobody                # admin: nobody publishes; public catalogs stay public
+```
 
 ## Catalog grants: read and write
 
