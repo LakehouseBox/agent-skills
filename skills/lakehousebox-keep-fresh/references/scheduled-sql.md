@@ -3,7 +3,7 @@ This is a copy of https://lakehousebox.com/docs/scheduled-sql/index.md taken whe
 
 # Scheduled SQL: keep a table filled from a URL
 
-Published from the repository note platform/docs/scheduled-sql.md; the design and its measurements are in research/46. The routes are in the API reference (https://lakehousebox.com/docs/api/), every flag in the CLI reference (https://lakehousebox.com/docs/cli/).
+The routes are in the API reference (https://lakehousebox.com/docs/api/), every flag in the CLI reference (https://lakehousebox.com/docs/cli/).
 
 Give LakehouseBox one DuckDB SELECT that reads http(s) URLs, and a schedule. At every run LakehouseBox runs the query, casts the rows to your table's types and commits them. There is no cron job, server or engine of your own to keep running: "read this feed every 20 minutes and keep this table populated" is one command. The query runs on LakehouseBox's executor, not on your machine, and an agent can set the whole thing up with the CLI.
 

@@ -3,7 +3,7 @@ This is a copy of https://lakehousebox.com/docs/agent-setup/index.md taken when 
 
 # Agent setup
 
-Written for the agent, not the person: paste https://lakehousebox.com/docs/agent-setup/ into your agent, or use the prompt on the agents page (https://lakehousebox.com/agents). The person's part is to approve the connection once in the browser. Source: the repository note docs/agent-setup.md.
+Written for the agent, not the person: paste https://lakehousebox.com/docs/agent-setup/ into your agent, or use the prompt on the agents page (https://lakehousebox.com/agents). The person's part is to approve the connection once in the browser.
 
 ## 0. Quick path
 

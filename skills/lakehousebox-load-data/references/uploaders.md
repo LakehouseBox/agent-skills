@@ -3,7 +3,7 @@ This is a copy of https://lakehousebox.com/docs/uploaders/index.md taken when th
 
 # Blob uploaders: a write-only credential for the blob bucket
 
-Published from the repository note platform/docs/blob-uploader.md, measured on 2026-09-21. The short version for agents is on the agents page (https://lakehousebox.com/agents#relay); the routes are in the API reference (https://lakehousebox.com/docs/api/), the commands in the CLI reference (https://lakehousebox.com/docs/cli/).
+Measured on 2026-09-21. The short version for agents is on the agents page (https://lakehousebox.com/agents#relay); the routes are in the API reference (https://lakehousebox.com/docs/api/), the commands in the CLI reference (https://lakehousebox.com/docs/cli/).
 
 The founder's item 1 of 2026-09-21 (platform/STATE.md, 03:40 UTC): a scoped, long-lived, revocable credential that can only drop files into a catalog's blob bucket <handle>--<catalog>--blobs (b-<uuid> on catalogs created before 2026-09-20; the API's bucket field and the recipe's blob_bucket spell it, this document writes <blobs> for it). For a relay, a camera, a field device, a partner that sends you files, a CI job that publishes artefacts: anything that must write and must never read, list what others wrote, or come near the tables and the catalog.
 
@@ -98,7 +98,7 @@ DELETE /v1/warehouses/{id}/blobs?key=<object key>                               
 
 - The bytes still never pass through the API. /blobs/upload answers one presigned PUT (SigV4 query auth, the catalog's own pair, 900 s, path-style on the store's public endpoint) bound to the key, the PUT method and, when given, the Content-Type (a signed header: the browser must send exactly it; measured on a local store: the signed type 200, another 403). The page PUTs each file with progress, three at a time, and asks before replacing a file of the same name (S3 overwrites silently).
 
-- What the store enforces applies unchanged, because the PUT is made with the catalog's pair through the public gateway: the bucket's storage quota (the organisation's allowance) and the file-type gate (research/53 §3, 415 UnsupportedFileType). The page words both (files_rules.js uploadErrorText).
+- What the store enforces applies unchanged, because the PUT is made with the catalog's pair through the public gateway: the bucket's storage quota (the organisation's allowance) and the file-type gate (415 UnsupportedFileType). The page words both (files_rules.js uploadErrorText).
 
 - New folder is a folder marker: the key ending in / with an empty body (the gate accepts it). The listing hides a folder's own marker from its contents, and the store keeps one after a folder's last file goes. An empty folder is deleted from inside it ("Delete this empty folder": its marker, one key). A folder dragged onto the page is not uploaded (the browser hands over no readable file for it); the page says so.
 
@@ -144,7 +144,7 @@ The catalog credential at write level can put S3 lifecycle rules on the blob buc
 
 ## The drop box: FTP, FTPS and SFTP for devices that speak nothing else
 
-Running since 2026-09-24 at ftp.lakehousebox.com, on its own host (al-dropbox1), separate from the one that holds the data; the first user is a garden camera that has uploaded a photo every few minutes since then. --protocols ftps,sftp (or ftp) on lhbox catalog uploader create gives the uploader a generated drop-box login (<organisation>.<catalog>.<uploader>) and password, shown once like the secret; the answer's dropbox block names the host, the ports (FTP and FTPS on 21 with passive ports 50000-50019, SFTP on 2222) and status: ready (a deployment without a drop box says not_deployed there, and the uploader's S3 key works either way). Design and measurements: research/32-device-intake.md §4.
+Running since 2026-09-24 at ftp.lakehousebox.com, on its own host (al-dropbox1), separate from the one that holds the data; the first user is a garden camera that has uploaded a photo every few minutes since then. --protocols ftps,sftp (or ftp) on lhbox catalog uploader create gives the uploader a generated drop-box login (<organisation>.<catalog>.<uploader>) and password, shown once like the secret; the answer's dropbox block names the host, the ports (FTP and FTPS on 21 with passive ports 50000-50019, SFTP on 2222) and status: ready (a deployment without a drop box says not_deployed there, and the uploader's S3 key works either way).
 
 A device logs in with that login and uploads into any folder; each finished file is written into the blob bucket under the uploader's prefix as the uploader (so the store still confines it to the prefix and it still cannot read anything), within seconds. The drop box is write-only: it lists nothing already uploaded. FTPS is explicit TLS with a certificate for ftp.lakehousebox.com. Plain FTP is offered for devices without TLS: the password and the files then cross the network unencrypted, and choosing it is the customer's call. How many drop-box uploaders an organisation may have is a limit of its plan (dropbox_uploaders, 10 by default; FTP, FTPS and SFTP are options of the same feature). Revoking the uploader refuses the next login at once, and so does its expires_at once passed.
 

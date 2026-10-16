@@ -3,9 +3,9 @@ This is a copy of https://lakehousebox.com/docs/ingest/index.md taken when this 
 
 # Ingest sinks: one HTTP intake per table
 
-Published from the repository note platform/docs/ingest-sink.md, measured on 2026-09-21. The routes are in the API reference (https://lakehousebox.com/docs/api/), the commands in the CLI reference (https://lakehousebox.com/docs/cli/); the short version for agents is on agent setup (https://lakehousebox.com/docs/agent-setup/).
+Measured on 2026-09-21. The routes are in the API reference (https://lakehousebox.com/docs/api/), the commands in the CLI reference (https://lakehousebox.com/docs/cli/); the short version for agents is on agent setup (https://lakehousebox.com/docs/agent-setup/).
 
-Status: enabled on the service since the fourth pull request of the series (research/24a §4); AL_SINKS_ENABLED=false turns it off (every /v1/sinks route answers 404 not_found, the roller idles). Designed in research/24-ingest-sink.md, sized in research/24-ingest-sink-estimate.md; the founder's defaults (2026-09-21): the ingest host is the API host, consumed batches are deleted at commit, the roller is its own service. The integration check is Phase 10 of platform/scripts/test.sh (CI's stack job and the deploy gate run it).
+Status: enabled on the service.
 
 A device, a webhook, a cron job or an agent with no query engine posts JSON arrays to one URL with a send-only key. The platform stores each batch unchanged, appends what is waiting to the Iceberg table on a rolling policy, stamps when each row arrived, and puts the rows that do not fit the table's schema where the producer can read them. No transforms, no schema evolution, no ordering across batches, no user code: the table's current schema is the contract.
 
@@ -28,9 +28,9 @@ curl -X POST https://api.lakehousebox.com/v1/sinks/<sink_id> \
 
 ## What a sink is
 
-One row per table (409 sink_exists for a second): the table's single committer. The table must exist (404 table_not_found with the namespace's tables). A format-version 2 table must be unpartitioned; a format-version 3 table may be partitioned by time (day, hour, month or year of a date or timestamp column), and any other partition is refused (409 partitioned_table_unsupported): its roll writes one file per partition, and an identity or bucket partition would cut every roll into many small files. A geography column, or a geometry column with a CRS of its own, is refused too (409 unsupported_column_type): a sink writes longitude/latitude geometries ("Positions and shapes" below). Creating a sink costs no IAM write and no commit: the answer says iam_writes: [], and the store's identity count does not move (every other create route on the platform costs identity writes; research/25). When the table has no description, or columns without one, the answer says so in docs_hint with the command that adds them (lhbox table document): the table is what other people's agents will read, and an undescribed one leaves them guessing what a row is.
+One row per table (409 sink_exists for a second): the table's single committer. The table must exist (404 table_not_found with the namespace's tables). A format-version 2 table must be unpartitioned; a format-version 3 table may be partitioned by time (day, hour, month or year of a date or timestamp column), and any other partition is refused (409 partitioned_table_unsupported): its roll writes one file per partition, and an identity or bucket partition would cut every roll into many small files. A geography column, or a geometry column with a CRS of its own, is refused too (409 unsupported_column_type): a sink writes longitude/latitude geometries ("Positions and shapes" below). Creating a sink costs no IAM write and no commit: the answer says iam_writes: [], and the store's identity count does not move (every other create route on the platform costs identity writes). When the table has no description, or columns without one, the answer says so in docs_hint with the command that adds them (lhbox table document): the table is what other people's agents will read, and an undescribed one leaves them guessing what a row is.
 
-The roll policy, per sink: roll_seconds (default 300, floor 60), roll_bytes (32–64 MiB, default 64), inactivity_seconds (optional: a producer that posts a burst and goes quiet gets its rows committed early), and a fixed count of 1,000 pending batches. Any of them rolls. A roll is a commit, and a commit costs more the more snapshots the table holds (research/24 §4 "Interplay"): 300–900 s suits a producer under about a megabyte per five minutes; the maintenance sweep (every 6 hours) expires the table back to 20 snapshots and compacts the small files.
+The roll policy, per sink: roll_seconds (default 300, floor 60), roll_bytes (32–64 MiB, default 64), inactivity_seconds (optional: a producer that posts a burst and goes quiet gets its rows committed early), and a fixed count of 1,000 pending batches. Any of them rolls. A roll is a commit, and a commit costs more the more snapshots the table holds: 300–900 s suits a producer under about a megabyte per five minutes; the maintenance sweep (every 6 hours) expires the table back to 20 snapshots and compacts the small files.
 
 The first roll adds an optional __ingest_ts (timestamptz) column and sets the metadata-retention properties (write.metadata.delete-after-commit.enabled=true, write.metadata.previous-versions-max=5), one commit; a table that has both is untouched. The sink never partitions a table itself: create it partitioned (lhbox table create … --partition 'day(ts)', format-version 3) or partition it with your engine.
 
@@ -70,7 +70,7 @@ Exactly-once is recovery, not coordination: a batch in intake is already consume
 
 ## A key: one row per key, not one per send
 
-By default a roll appends, so a producer that sends the same row twice (a republished feed, a retry with a new batch id) stores it twice. A sink with a key (key: ["observation_id"] at creation or by PATCH; lhbox sink create --key observation_id, lhbox sink update <sink> --key observation_id) has each roll replace the rows that share the key instead (research/65):
+By default a roll appends, so a producer that sends the same row twice (a republished feed, a retry with a new batch id) stores it twice. A sink with a key (key: ["observation_id"] at creation or by PATCH; lhbox sink create --key observation_id, lhbox sink update <sink> --key observation_id) has each roll replace the rows that share the key instead:
 
 - The latest wins. A keyed sink rolls its batches in the order they arrived. Inside a roll, the row received last wins (among rows of one batch, the last one); a row already in the table with the same key is replaced.
 
@@ -90,7 +90,7 @@ A row is rejected, never a batch, with a reason: missing_required (field), unkno
 
 ## Positions and shapes: geometry columns
 
-A bus that reports where it is every few seconds, a delivery van, a phone, a tracker: a sink feeds a format-version 3 table with a geometry column, partitioned by day, and the maintenance keeps it fast to query by area (research/60-spatial-sinks.md):
+A bus that reports where it is every few seconds, a delivery van, a phone, a tracker: a sink feeds a format-version 3 table with a geometry column, partitioned by day, and the maintenance keeps it fast to query by area:
 
 ```
 lhbox table create fleet.transit.positions --format-version 3 --partition 'day(ts)' \
@@ -107,7 +107,7 @@ lhbox sink create fleet --table transit.positions --name positions_in --mapping 
 
 - How it is written: a format-version 3 table is committed by DuckDB (PyIceberg, which commits format-version 2 tables, cannot write version 3), one append per roll, one file per day partition, the day computed in UTC whatever the sender's zone. Exactly once still holds: before the commit the roll writes an intent naming its batches, the commit sets the table property lakehousebox.sink.roll in the same transaction, and a roll that dies is confirmed or abandoned from that property on the next tick. A commit that races another (an engine's, the maintenance's) is refused by the catalog and retried; one whose answer was lost is recognised from the property and not written twice; one whose outcome is unknown is never retried at once (it may still land): the sink waits up to 10 minutes for the property to name it before rolling those batches again.
 
-- Writing such a table yourself: with DuckDB, SET TimeZone = 'UTC'; before the INSERT. DuckDB 1.5.6 computes the day of a timestamptz in the session's time zone, not in UTC as Iceberg defines it: from a session in Los Angeles, rows of 2026-10-05 UTC were filed under 2026-10-04 and a filter on 2026-10-05 found none of them (research/60 §2.3).
+- Writing such a table yourself: with DuckDB, SET TimeZone = 'UTC'; before the INSERT. DuckDB 1.5.6 computes the day of a timestamptz in the session's time zone, not in UTC as Iceberg defines it: from a session in Los Angeles, rows of 2026-10-05 UTC were filed under 2026-10-04 and a filter on 2026-10-05 found none of them.
 
 - What the maintenance does with it: today stays as it was written, in time order, so "where is every vehicle now" reads only the newest files. Once a day has ended (plus two hours for late batches), the maintenance compacts it in spatial order (a Hilbert curve over the points, small row groups with geometry statistics), so a query for one area of one past day reads a small part of it. Measured on a fleet day of 1,000 buses (1.44 M fixes): the last ten minutes read 0.04 MB of today's files, where a day compacted in spatial order would have read 2.51 MB; an area query on a past day read 2.74 MB after its compaction instead of 19.4 MB. Measured on a throwaway store (platform/lab/spatial_sink_probe.py, 2026-10-05): twelve batches of 2,000 scattered positions over two days rolled as one snapshot in 0.7 s; after compaction four lookups of about 2 km read 0.81 MB instead of 1.97 MB, with the same answers.
 
@@ -128,7 +128,7 @@ WHERE ts >= current_date AND geometry && ST_MakeEnvelope(-3.71, 40.41, -3.69, 40
 
 ## Files that become rows: index rules
 
-A camera that uploads a photo every 15 minutes, a partner that drops CSV files: the files land in the catalog's blob bucket (an uploader, blob-uploader.md), and an index rule makes each one a row of a table, so an engine can ask what arrived (research/32-device-intake.md §3):
+A camera that uploads a photo every 15 minutes, a partner that drops CSV files: the files land in the catalog's blob bucket (an uploader, blob-uploader.md), and an index rule makes each one a row of a table, so an engine can ask what arrived:
 
 ```
 lhbox index create garden --name photos --prefix camera/ --table garden.images --rename last_modified=uploaded_at \
@@ -184,7 +184,7 @@ Two facts the run taught, both in the code now: PyIceberg's S3 filesystem upload
 
 ## Devices that cannot set headers: the device route and the mapping
 
-A weather gateway that posts a form over plain HTTP, a webhook that posts one JSON object, a script that posts CSV: none of them can send a JSON array with Authorization and Idempotency-Key. A sink can carry a device route for them (research/32-device-intake.md §2):
+A weather gateway that posts a form over plain HTTP, a webhook that posts one JSON object, a script that posts CSV: none of them can send a JSON array with Authorization and Idempotency-Key. A sink can carry a device route for them:
 
 ```
 lhbox sink create garden --table garden.sensor_readings --name weather_in \
@@ -212,7 +212,7 @@ A sink can also be fed by LakehouseBox itself: one DuckDB SELECT over http(s) UR
 
 ## Not in v1
 
-Creating the table from the sink request; a rotate-key route (delete and create rotates); NDJSON request bodies; MCP tools (after the REST and CLI have run for a week); a partition at the first roll (create the table partitioned instead); a per-table max_snapshots override for sinks at the 60 s floor; the sidecar id list for sinks needing more than 1,000 batches per roll. All named with their reasons in research/24 §6 and research/24a §2.
+Creating the table from the sink request; a rotate-key route (delete and create rotates); NDJSON request bodies; MCP tools (after the REST and CLI have run for a week); a partition at the first roll (create the table partitioned instead); a per-table max_snapshots override for sinks at the 60 s floor; the sidecar id list for sinks needing more than 1,000 batches per roll.
 
 ---
 HTML version: https://lakehousebox.com/docs/ingest/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt
