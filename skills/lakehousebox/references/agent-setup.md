@@ -88,9 +88,9 @@ What happens:
 
 - The person sees a consent screen: the name this machine gives, where the request came from and when, the catalog, and the access asked for. Read is preselected; write is ticked by the person (so if you need to create tables or load data, say so: "tick write on acme_corp"). They type the code and approve.
 
-- The CLI receives the key of a new agent of their organisation, named after this machine and holding exactly the approved access, saves it, and prints: Connected to acme_corp (read and write) as <machine>. Saved to ~/.config/lhbox/credentials.json. (or read only when the person kept read; ask them for write, or to raise it later under Connections & tokens, before you write).
+- The CLI receives the key of a new agent of their organisation, named after this machine and holding exactly the approved access, saves it, and prints: Connected to acme_corp (read and write) as <machine>. Saved to ~/.config/lhbox/credentials.json. (or read only when the person kept read; ask them for write, or to raise it later under Access tokens → Connections, before you write).
 
-The key is never shown. Do not ask for it, do not look for it, do not cat the credentials file. Every lhbox command and the connection recipe below read it themselves. If the person wants to see or remove the connection later: their account page, Connections & tokens; revoking it stops this machine at once.
+The key is never shown. Do not ask for it, do not look for it, do not cat the credentials file. Every lhbox command and the connection recipe below read it themselves. If the person wants to see or remove the connection later: their account page, Access tokens → Connections; revoking it stops this machine at once.
 
 Running lhbox login again on a machine whose saved key still works answers Still connected … and starts nothing new. --level read asks for read only; --name <agent> names the agent; --new forces a fresh authorisation.
 
@@ -190,9 +190,12 @@ lhbox table list and lhbox table get show tables, schemas, row counts and proper
 | variable | meaning | default |
 |---|---|---|
 | LHBOX_API_KEY | an API key; overrides the credentials file (--api-key overrides both) | none: the file is used |
-| LHBOX_CREDENTIALS | the path of the credentials file; a new path starts empty, and the legacy ~/.config/agentlake/credentials.json is read only when this is unset | ~/.config/lhbox/credentials.json (0600) |
+| LHBOX_CREDENTIALS | the path of the credentials file; a new path starts empty | ~/.config/lhbox/credentials.json (0600) |
 | LHBOX_URL | the API (a self-hosted or local stack) | https://api.lakehousebox.com |
 | LHBOX_PYTHON | the interpreter whose duckdb module table import uses (--python PATH per run) | the interpreter running lhbox, else the duckdb binary |
+| LHBOX_PROFILE | which saved profile to use (--profile overrides it; lhbox profile list names them) | the one lhbox profile use chose, else default |
+| LHBOX_NO_BROWSER | set: lhbox login prints the approval link and never opens a browser | unset: opens one when a person is at the terminal |
+| LHBOX_NO_VERSION_CHECK | set: no daily "lhbox is out of date" line (--no-version-check per run) | unset |
 
 You never need to read any of these; the CLI does.
 

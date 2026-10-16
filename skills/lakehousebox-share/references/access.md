@@ -3,11 +3,11 @@ This is a copy of https://lakehousebox.com/docs/access/index.md taken when this 
 
 # Access and permissions
 
-Everything in LakehouseBox belongs to an organisation. An organisation holds catalogs; a catalog holds namespaces; a namespace holds tables. Access is decided at two levels: a role in the organisation (what you may do to the organisation, its people and its tokens) and a grant on each catalog (what you may do to its data). The API also calls a catalog a warehouse (/v1/warehouses, warehouse_id). There are no per-namespace or per-table grants: a grant on a catalog covers every namespace and table in it.
+Everything in LakehouseBox belongs to an organisation. An organisation holds catalogs; a catalog holds namespaces; a namespace holds tables. Access is decided at two levels: a role in the organisation (what you may do to the organisation, its people and its tokens) and a grant on each catalog (what you may do to its data). The API also calls a catalog a warehouse (/v1/warehouses, warehouse_id). A grant is on a catalog and covers every namespace and table in it.
 
 ## Who can hold access
 
-People log in on the account page with email and password and hold one of two roles, admin or member. The person who creates the organisation is its first admin.
+People log in on the account page with email and password, or with Google, and hold one of two roles, admin or member. The person who creates the organisation is its first admin.
 
 Tokens are machine identities of the organisation: an agent, a script, a scheduled job. A token has its own API key, an organisation role (member by default) and its own catalog grants. A token never holds more than the person or token that created it: its role and its grants are capped by the creator's at creation and at every edit.
 
