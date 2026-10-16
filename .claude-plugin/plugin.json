@@ -1,7 +1,7 @@
 {
   "name": "lakehousebox",
   "displayName": "LakehouseBox",
-  "version": "0.4.18",
+  "version": "0.4.19",
   "description": "LakehouseBox for agents: the read-only LakehouseBox MCP connector plus skills that teach the service - connecting through the lhbox CLI, MCP or plain DuckDB, reading public catalogs with no account, and reading or hosting Portolan geospatial catalogs.",
   "author": {
     "name": "LakehouseBox",

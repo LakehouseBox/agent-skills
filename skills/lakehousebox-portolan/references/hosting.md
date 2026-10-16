@@ -308,7 +308,7 @@ Wrote AGENTS.md to catalog portland: 1394 bytes, sha256 e2faa423d0c6593589232fc1
 
 - No tool writes the iceberg: block yet, and metadata_location changes with every commit to the table. The table root (s3://<handle>--portland/transit/stops) stays the same.
 
-- Format version 3 tables are not compacted yet (snapshot expiry and orphan cleanup do run). A table you import once and append to rarely does not need it.
+- Format version 3 tables are compacted like any other (since 2026-09-30), and a table with one geometry column keeps its spatial order through compaction, so appends do not undo the import's layout.
 
 - PyIceberg 0.12 cannot load a geometry column with a non-default CRS such as EPSG:2913: read those tables with DuckDB.
 
