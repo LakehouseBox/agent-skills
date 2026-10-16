@@ -229,7 +229,7 @@ PyIceberg (0.12)
 
 Spark (3.5 + Iceberg 1.11)
 
-- Reads and writes, format-version 3 included (verified 2026-09-20 with a geometry(EPSG:28992) column); the s3:// form for warehouse, header.X-Iceberg-Access-Delegation=vended-credentials, client.region=us-east-1 (the SigV4 region the store accepts, not a placement; without it the AWS SDK fails before the first request).
+- Reads and writes, format-version 3 included (Spark 4.1 + Iceberg 1.12, verified 2026-10-03; geometry and geography columns need that pair, Spark 3.5 has no such types: Spark (https://lakehousebox.com/docs/engines/spark/)); the s3:// form for warehouse, header.X-Iceberg-Access-Delegation=vended-credentials, client.region=us-east-1 (the SigV4 region the store accepts, not a placement; without it the AWS SDK fails before the first request).
 
 - Java 17 or newer: the Iceberg 1.11 runtime jars are compiled for Java 17 and die with UnsupportedClassVersionError on Java 11 (what the apache/spark:3.5 images ship).
 

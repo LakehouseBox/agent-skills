@@ -63,7 +63,7 @@ A new table gets the catalog's default format version (2 unless it was changed w
 
 - Version 2 is read by every engine the Engines page has verified, and written by DuckDB, PyIceberg, Spark, Trino and Polars. A geometry column is stored as WKB in a binary column.
 
-- Version 3 keeps geometry columns typed (geometry, or geometry(EPSG:xxxx)). DuckDB 1.5.5+ and Spark 3.5 with Iceberg 1.11 write it; PyIceberg 0.12 reads it but cannot write it. See Engines (https://lakehousebox.com/docs/engines/).
+- Version 3 keeps geometry columns typed (geometry, or geometry(EPSG:xxxx)). DuckDB 1.5.5+ and Spark 4.1 with Iceberg 1.12 write it, geometry included (Spark 3.5 has no geometry type); PyIceberg 0.12 reads it but cannot write it. See Engines (https://lakehousebox.com/docs/engines/).
 
 ## Sorted rows and large files
 
