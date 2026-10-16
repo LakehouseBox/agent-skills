@@ -19,17 +19,15 @@ The file bucket takes data file types (photos, documents, archives and data form
 
 ## What the credential is, exactly
 
-One IAM identity in the store, u-<warehouse_uuid>-<8 hex of the uploader id>, granted its rights by two statements in the blob bucket's plain bucket policy (an S3 write, PutBucketPolicy; since 2026-09-21, PLAN.md item 11 -- before that the same two statements were an inline user policy, PutUserPolicy, name uploader, an IAM write of 10 s at the host's identity count; uploaders from before keep theirs, uploader.grant_mode NULL). The control plane writes them once and never re-puts them:
+One IAM identity in the store, u-<warehouse_uuid>-<8 hex of the uploader id>, granted its rights by its own policy (an inline user policy, PutUserPolicy, name uploader; uploader.grant_mode user_policy). The control plane writes it once, before the key exists, and never re-puts it:
 
 ```
-{"Sid": "tm-up-<identity>-put", "Effect": "Allow", "Principal": {"AWS": ["arn:aws:iam::*:user/u-<uuid>-<short>"]},
- "Action": ["s3:PutObject"], "Resource": ["arn:aws:s3:::<blobs>/photos/north/*"]}
-{"Sid": "tm-up-<identity>-list", "Effect": "Allow", "Principal": {"AWS": ["arn:aws:iam::*:user/u-<uuid>-<short>"]},   <- only with list: true
- "Action": ["s3:ListBucket"], "Resource": ["arn:aws:s3:::<blobs>"],
+{"Sid": "PutOnly", "Effect": "Allow", "Action": ["s3:PutObject"], "Resource": ["arn:aws:s3:::<blobs>/photos/north/*"]}
+{"Sid": "ListOwnPrefix", "Effect": "Allow", "Action": ["s3:ListBucket"], "Resource": ["arn:aws:s3:::<blobs>"],   <- only with list: true
  "Condition": {"StringLike": {"s3:prefix": ["photos/north/*"]}}}
 ```
 
-The statements sit next to the tenant's own data-path statement and the lifecycle grant in the same document (docs/permissions-and-access.md, "How identities and policies are laid out"); a revocation removes exactly the two Sids and nothing else.
+Nothing of it is in a document other uploaders share, so a catalog takes as many uploaders as it needs. From 2026-09-21 to 2026-10-16 the same two statements were written into the blob bucket's plain bucket policy instead (Sids tm-up-<identity>-put / -list); the storage layer caps that document at 20,480 bytes, so a catalog stopped taking uploaders at about 32 (409 bucket_policy_full). Those uploaders are moved to their own policy once, starting at the control plane's next start, without a gap: the policy is written and read back while the two statements stay, and only a minute later (the settle), after a second read-back, are the statements removed (audit uploader.grant_moved); for that minute the uploader holds both grants, and its key does not change. Uploaders from before 2026-09-21 had their own policy already (grant_mode NULL).
 
 | the holder can | the holder cannot |
 |---|---|
@@ -48,11 +46,11 @@ Every IAM write costs the store a propagation deadline (10 s at the host's ident
 
 | operation | IAM writes | which |
 |---|---|---|
-| create an uploader | 2 (was 3 until 2026-09-21) | CreateUser, CreateAccessKey, then the two statements merged into the blob bucket's policy -- an S3 call, no propagation (in that order: the key never exists with any grant but the final one; an identity with neither actions nor policies is denied everything) |
+| create an uploader | 3 (2 from 2026-09-21 to 2026-10-16, when the grant was in the shared bucket policy) | the service-area Deny on the blob bucket (an S3 call, once per bucket), then CreateUser, PutUserPolicy, CreateAccessKey, in that order: the key never exists with any grant but the final one |
 | list | 0 |  |
-| any later call, GET /v1/connection included | 0 | the statements are never re-put |
-| revoke | 2 (3 for an uploader from before) | DeleteAccessKey first (that is the revocation; the key is refused from then on), then the statements off the bucket policy (S3) and DeleteUser; an uploader with an inline policy (grant_mode NULL) gets DeleteUserPolicy in between; before the answer, idempotent |
-| delete the catalog | 2 per uploader (3 for one from before) | inside the background teardown that already carries the tenant's writes; the statements go with the blob bucket; each step lands in the tombstone's storage map |
+| any later call, GET /v1/connection included | 0 | the policy is never re-put |
+| revoke | 2 (3 for an uploader from before 2026-09-21) | DeleteAccessKey first (that is the revocation; the key is refused from then on), then DeleteUser, which takes the policy with it; an uploader not yet moved has its two statements removed from the bucket policy (S3) instead; one from before 2026-09-21 (grant_mode NULL) gets DeleteUserPolicy in between; before the answer, idempotent |
+| delete the catalog | 2 per uploader (3 for one from before 2026-09-21) | inside the background teardown that already carries the tenant's writes; each step lands in the tombstone's storage map |
 
 The unit tests count them through the fake's call log (control_plane/tests/test_uploaders.py). Each uploader is one more identity in the store, so make one per device or partner, not one per file.
 
@@ -154,7 +152,7 @@ Limits: a file of at most 256 MiB; password login only (the generated 24-charact
 
 ## Revocation and rotation
 
-DELETE /v1/warehouses/{id}/uploaders/{id|name}: the key is deleted at the store before anything else, so a request signed with it is refused at once and a multipart upload in flight cannot complete. There is no rotate: a lost or leaked secret is revoke + create (the name is free again; 4 IAM writes in all, 6 before 2026-09-21). Deleting the catalog removes every uploader identity with it. uploader.create and uploader.revoke are audited (name, prefix, list, identity, key id, the writes; never the secret).
+DELETE /v1/warehouses/{id}/uploaders/{id|name}: the key is deleted at the store before anything else, so a request signed with it is refused at once and a multipart upload in flight cannot complete. There is no rotate: a lost or leaked secret is revoke + create (the name is free again; 5 IAM writes in all). Deleting the catalog removes every uploader identity with it. uploader.create and uploader.revoke are audited (name, prefix, list, identity, key id, the writes; never the secret).
 
 ## Routes
 
