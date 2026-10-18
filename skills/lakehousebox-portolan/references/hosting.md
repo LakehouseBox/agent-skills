@@ -185,14 +185,14 @@ ORDER BY feet;
 
 Write spatial filters as geometry && <shape> AND <exact test>: DuckDB skips files and row groups for && only (performance (https://lakehousebox.com/docs/performance/)).
 
-With no account, anyone reads the table by its root, and the GeoParquet by its URL:
+With no account, anyone attaches the catalog by name, and reads the GeoParquet by its URL:
 
 ```
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
-CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true, KEY_ID '', SECRET '');
-SELECT count(*) AS stops FROM iceberg_scan('s3://<handle>--portland/transit/stops');
+ATTACH '<handle>/portland' AS portland (TYPE iceberg, ENDPOINT 'https://public-catalog.lakehousebox.com', AUTHORIZATION_TYPE 'none');
+SELECT count(*) AS stops FROM portland.transit.stops;
 SELECT count(*) AS stops FROM read_parquet('https://s3.lakehousebox.com/<handle>--portland--blobs/portland/stops/stops.parquet');
-SELECT jurisdic, count(*) AS stops FROM iceberg_scan('s3://<handle>--portland/transit/stops') GROUP BY ALL ORDER BY stops DESC LIMIT 5;
+SELECT jurisdic, count(*) AS stops FROM portland.transit.stops GROUP BY ALL ORDER BY stops DESC LIMIT 5;
 ```
 
 ```

@@ -69,18 +69,14 @@ new one. Measured on production on 2026-10-12: `lhbox new` 1.3 s, a first table 
 
 ```sql
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
-CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true, KEY_ID '', SECRET '');
-SELECT count(*) FROM iceberg_scan('s3://<bucket>/<namespace>/<table>');   -- the table's root
+ATTACH '<handle>/<catalog>' AS <catalog> (TYPE iceberg, ENDPOINT 'https://public-catalog.lakehousebox.com', AUTHORIZATION_TYPE 'none');
+SHOW ALL TABLES;
+SELECT * FROM <catalog>.<namespace>.<table> LIMIT 10;
 ```
 
-- The secret has no key on purpose: the requests go unsigned. Without it, or with a made-up key pair in it, an
-  `s3://` root fails with `no version-hint could be found … SET unsafe_enable_version_guessing = true`: fix the
-  secret, never turn version guessing on. An `https://` path without it looks for the files at Amazon
-  (`NoSuchBucket`).
-- Read a table by its root. It follows the table's `version-hint.text`: current at once after a change made through
-  LakehouseBox, within about ten minutes after an engine's own commit. A `vN.metadata.json` URL is one fixed version.
-- Take `bucket` from the JSON; do not build it from the names.
-- DuckDB needs outbound HTTPS to `s3.lakehousebox.com` (and `extensions.duckdb.org` the first time it installs an
+- No account, no key, no secret: the public catalog answers for every public catalog, and its answers and files come
+  from a CDN. It always reads the current snapshot.
+- DuckDB needs outbound HTTPS to `public-catalog.lakehousebox.com` and `public-s3.lakehousebox.com` (and `extensions.duckdb.org` the first time it installs an
   extension). In a sandbox that blocks it, tell the person; do not answer from memory.
 
 ## Rules that save a retry

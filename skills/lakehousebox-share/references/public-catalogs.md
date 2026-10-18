@@ -48,15 +48,22 @@ A public catalog has a page at https://lakehousebox.com/app/<handle>/<catalog>, 
 
 ## Reading without an account
 
-DuckDB reads a public table over plain HTTPS. The requests go unsigned; do not put a made-up key pair in the secret, because the store refuses keys it does not know, even on a public catalog. Keep KEY_ID '' and SECRET '': without them DuckDB signs with any AWS_ACCESS_KEY_ID it finds in the environment (many cloud sandboxes set one), and the read fails with InvalidAccessKeyId, or, on a table root, with "no version-hint could be found".
+DuckDB attaches any public catalog by name, with no account, no key and no secret, through LakehouseBox's public catalog: a read-only Iceberg catalog of every public catalog, served (with the data files) from a CDN.
 
 ```
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
-CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true, KEY_ID '', SECRET '');
--- a table by its root (reads <ns>/<table>/metadata/version-hint.text)
-SELECT count(*) FROM iceberg_scan('s3://<handle>--<catalog>/<ns>/<table>');
--- or by its current metadata file (the secret above is still needed: the metadata names its files as s3:// paths)
-SELECT count(*) FROM iceberg_scan('https://s3.lakehousebox.com/<handle>--<catalog>/<ns>/<table>/metadata/v<N>.metadata.json');
+ATTACH '<handle>/<catalog>' AS <catalog> (TYPE iceberg, ENDPOINT 'https://public-catalog.lakehousebox.com', AUTHORIZATION_TYPE 'none');
+SHOW ALL TABLES;
+SELECT * FROM <catalog>.<ns>.<table> LIMIT 10;
+```
+
+Any Iceberg REST client attaches it the same way (endpoint https://public-catalog.lakehousebox.com, warehouse <handle>/<catalog>, no authentication). It always reads the current snapshot; a catalog made private stops answering at once at the source and within 30 seconds at the CDN.
+
+One table by its files, for an engine that reads Iceberg files without a catalog: a keyless S3 secret and the table's root. Keep KEY_ID '' and SECRET '': without them DuckDB signs with any AWS_ACCESS_KEY_ID it finds in the environment (many cloud sandboxes set one), and the read fails with "no version-hint could be found".
+
+```
+CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 'public-s3.lakehousebox.com', URL_STYLE 'path', USE_SSL true, KEY_ID '', SECRET '');
+SELECT count(*) FROM iceberg_scan('s3://<handle>--<catalog>/<ns>/<table>');   -- the root reads <ns>/<table>/metadata/version-hint.text
 ```
 
 The bucket name is the catalog's own (bucket in lhbox catalog get); catalogs created before 2026-09-21 have a w-<uuid> bucket instead. lhbox catalog public-url <name> --table <ns>.<table> prints a table's current metadata URL, which changes on every commit. The table-root form follows version-hint.text: it is current at once after a change made through LakehouseBox, and within about ten minutes after a commit an engine makes directly. Until then it reads the previous version.
@@ -104,15 +111,15 @@ A public catalog's bytes (its tables and its whole file bucket, published folder
 
 ## The LakehouseBox public data catalog
 
-LakehouseBox publishes a catalog of public datasets itself: commons/pubdata, with weather, air quality, public holidays, countries and regions, places, population, earthquakes, airports and rail data. /public-data (https://lakehousebox.com/public-data) describes the datasets; the catalog's page is lakehousebox.com/app/commons/pubdata. Read a table with no account:
+LakehouseBox publishes a catalog of public datasets itself: commons/pubdata, with weather, air quality, public holidays, countries and regions, places, population, earthquakes, airports and rail data. /public-data (https://lakehousebox.com/public-data) describes the datasets; the catalog's page is lakehousebox.com/app/commons/pubdata. Attach it with no account:
 
 ```
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
-CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 's3.lakehousebox.com', URL_STYLE 'path', USE_SSL true, KEY_ID '', SECRET '');
-SELECT * FROM iceberg_scan('s3://commons--pubdata/reference/countries') LIMIT 10;
+ATTACH 'commons/pubdata' AS pubdata (TYPE iceberg, ENDPOINT 'https://public-catalog.lakehousebox.com', AUTHORIZATION_TYPE 'none');
+SELECT * FROM pubdata.reference.countries LIMIT 10;
 ```
 
-Run on 2026-09-29 with DuckDB 1.5.5 and no account: count(*) over this table answered 249 rows in 0.8 s.
+Run on 2026-10-18 with DuckDB 1.5.5 from Madrid and no account: a new DuckDB process attached the catalog and counted this table's 249 rows in 0.2 s, start to finish.
 
 Or attach it with an account, next to your own catalogs, and join its tables with yours:
 
