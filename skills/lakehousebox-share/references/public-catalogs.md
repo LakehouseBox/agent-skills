@@ -40,7 +40,21 @@ A reader without an account gets the folder's data files: Parquet, Arrow, Avro, 
 
 Photos (.jpg, .jpeg, .png, .webp) are served publicly for organisations that ask for it, for example to show thumbnails next to the rasters of a STAC catalog: write to hello@lakehousebox.com. Until then they are listed but not served.
 
-lhbox catalog get and lhbox catalog list show public_files_prefix; the catalog's API row carries public_url, public_files_url and public_agents_md_url while it is public (null while private).
+lhbox catalog get and lhbox catalog list show public_files_prefix; the catalog's API row carries public_url, public_files_url, public_files_s3_url and public_agents_md_url while it is public (null while private).
+
+### Published files come from the CDN
+
+The published folder is also served from our CDN, at https://public-files.lakehousebox.com/<file bucket>/<key>, and that is the address public_files_url gives. A reader far from our servers gets each range of a Cloud-Optimized GeoTIFF or a PMTiles archive from a nearby edge server instead of from Germany. The same files stay readable at the S3 endpoint, at public_files_s3_url. What to know:
+
+- Copies live at most an hour. The CDN keeps a copy of a file for up to an hour, and a browser keeps it for 60 seconds. If you overwrite a file in place, readers can get the old version from the CDN for up to that hour. If readers must see a new version at once, publish it under a new name (v2/…, a date in the path) and point to it.
+
+- Stopping removes the copies. When you make the catalog private, delete it, stop publishing the folder (--no-files) or publish a different folder, the CDN's copies are removed in the background, usually within a few minutes.
+
+- No ETag. The CDN does not pass a file's ETag; Last-Modified is there. A reader that must not mix two versions of a file across its range requests sends If-Range with the Last-Modified it saw first.
+
+- Photos are not served by the CDN. Where photos are served publicly, read them from public_files_s3_url.
+
+- AGENTS.md and folder listings are never cached by the CDN.
 
 ## The public page
 

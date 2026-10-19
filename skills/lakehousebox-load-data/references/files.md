@@ -47,7 +47,7 @@ The rule applies to every credential that can write files: the catalog's own cre
 
 ## What a public folder serves
 
-A catalog that publishes a folder of its file bucket serves only that folder's data files to readers without an account. Photos, PDFs, spreadsheets and archives stay readable with your own credentials, and photos can be served publicly for organisations that ask for it. The list is on Public catalogs.
+A catalog that publishes a folder of its file bucket serves only that folder's data files to readers without an account. Photos, PDFs, spreadsheets and archives stay readable with your own credentials, and photos can be served publicly for organisations that ask for it. The list is on Public catalogs. The published folder is also served from our CDN (public-files.lakehousebox.com), which keeps copies for up to an hour: the same page says what that means for a file you overwrite.
 
 ## Asking for a format
 
