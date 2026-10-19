@@ -46,7 +46,7 @@ lhbox catalog get and lhbox catalog list show public_files_prefix; the catalog's
 
 The published folder is also served from our CDN, at https://public-files.lakehousebox.com/<file bucket>/<key>, and that is the address public_files_url gives. A reader far from our servers gets each range of a Cloud-Optimized GeoTIFF or a PMTiles archive from a nearby edge server instead of from Germany. The same files stay readable at the S3 endpoint, at public_files_s3_url. What to know:
 
-- Copies live at most an hour. The CDN keeps a copy of a file for up to an hour, and a browser keeps it for 60 seconds. If you overwrite a file in place, readers can get the old version from the CDN for up to that hour. If readers must see a new version at once, publish it under a new name (v2/…, a date in the path) and point to it.
+- An overwrite reaches the CDN in about a minute. When you overwrite, delete or rename a published file, the CDN's copy of it is removed, usually within two minutes (we measured 37 to 72 seconds), and a browser keeps a copy for 60 seconds. If that removal cannot run, the CDN keeps a copy for at most seven days. If readers must see a new version at once, publish it under a new name (v2/…, a date in the path) and point to it.
 
 - Stopping removes the copies. When you make the catalog private, delete it, stop publishing the folder (--no-files) or publish a different folder, the CDN's copies are removed in the background, usually within a few minutes.
 
