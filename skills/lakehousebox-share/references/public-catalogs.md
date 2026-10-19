@@ -52,7 +52,9 @@ The published folder is also served from our CDN, at https://public-files.lakeho
 
 - A browser's copy outlives an overwrite. The CDN's copy goes within minutes, but a browser that read the file keeps its copy for its max-age, an hour by default. Within that time, a reader that read part of a file can get the rest from the new version and mix the two. If readers must see a new version at once, publish it under a new name (v2/…, a date in the path) and point to it, or give the file a short max-age.
 
-- Your other headers pass as stored: Content-Disposition (for example attachment; filename="report.csv"), Content-Language, Content-Encoding (a gzip file you stored with Content-Encoding: gzip opens decompressed in a browser) and x-amz-meta-*. The content type follows the extension, as above.
+- Your other headers pass as stored: Content-Disposition (for example attachment; filename="report.csv"), Content-Language and x-amz-meta-*. The content type follows the extension, as above.
+
+- Compressed files: publish them as .csv.gz (or .json.gz) without a Content-Encoding. Readers then get the gzip bytes under a name that says so, from the CDN and from the S3 endpoint alike. The CDN sends every file's bytes exactly as stored and never a Content-Encoding. A file you stored with Content-Encoding: gzip therefore reaches CDN readers as gzip bytes typed application/gzip, whatever its name.
 
 - Stopping removes the copies. When you make the catalog private, delete it, stop publishing the folder (--no-files) or publish a different folder, the CDN's copies are removed in the background, usually within a few minutes.
 
