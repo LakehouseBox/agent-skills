@@ -46,7 +46,13 @@ lhbox catalog get and lhbox catalog list show public_files_prefix; the catalog's
 
 The published folder is also served from our CDN, at https://public-files.lakehousebox.com/<file bucket>/<key>, and that is the address public_files_url gives. A reader far from our servers gets each range of a Cloud-Optimized GeoTIFF or a PMTiles archive from a nearby edge server instead of from Germany. The same files stay readable at the S3 endpoint, at public_files_s3_url. What to know:
 
-- An overwrite reaches the CDN in about a minute. When you overwrite, delete or rename a published file, the CDN's copy of it is removed, usually within two minutes (we measured 37 to 72 seconds), and a browser keeps a copy for 60 seconds. If that removal cannot run, the CDN keeps a copy for at most seven days. If readers must see a new version at once, publish it under a new name (v2/…, a date in the path) and point to it.
+- An overwrite reaches the CDN in about a minute. When you overwrite, delete or rename a published file, the CDN's copy of it is removed, usually within two minutes (we measured 37 to 72 seconds). If that removal cannot run, the CDN keeps a copy for at most seven days.
+
+- Browsers keep a file for an hour, unless you set its Cache-Control. A file without a Cache-Control of yours reaches browsers with public, max-age=3600. Set your own per file, the S3 way: Cache-Control on the upload, or on a copy of the file onto itself. It reaches browsers exactly as you wrote it. With max-age=60 browsers keep the file for a minute. With max-age=0 they check for a new version on every read, and the CDN still serves it. public, max-age=31536000, immutable is for a file that never changes under that name. no-store, no-cache or private also take the file off the CDN: every read then comes from our servers in Germany. A Cache-Control without a max-age (public alone, say) gets max-age=3600 added. An s-maxage of yours is replaced by the CDN's own. The CDN's copy follows the rules above whatever you set: up to seven days, and removed when you overwrite. Expires is not passed on by the CDN: use Cache-Control.
+
+- A browser's copy outlives an overwrite. The CDN's copy goes within minutes, but a browser that read the file keeps its copy for its max-age, an hour by default. Within that time, a reader that read part of a file can get the rest from the new version and mix the two. If readers must see a new version at once, publish it under a new name (v2/…, a date in the path) and point to it, or give the file a short max-age.
+
+- Your other headers pass as stored: Content-Disposition (for example attachment; filename="report.csv"), Content-Language, Content-Encoding (a gzip file you stored with Content-Encoding: gzip opens decompressed in a browser) and x-amz-meta-*. The content type follows the extension, as above.
 
 - Stopping removes the copies. When you make the catalog private, delete it, stop publishing the folder (--no-files) or publish a different folder, the CDN's copies are removed in the background, usually within a few minutes.
 
@@ -55,6 +61,25 @@ The published folder is also served from our CDN, at https://public-files.lakeho
 - Photos are not served by the CDN. Where photos are served publicly, read them from public_files_s3_url.
 
 - AGENTS.md and folder listings are never cached by the CDN.
+
+Setting a file's Cache-Control: any S3 tool works. The bucket is the catalog's blob_bucket and the key pair is the catalog's own credential, both in the connection recipe (GET /v1/connection; blob_example_python is a ready client).
+
+```
+# on upload
+aws s3 cp tiles.pmtiles s3://<file bucket>/public/tiles.pmtiles --endpoint-url https://s3.lakehousebox.com \
+  --cache-control "public, max-age=86400"
+# on a file already there: copy it onto itself with new metadata
+aws s3 cp s3://<file bucket>/public/tiles.pmtiles s3://<file bucket>/public/tiles.pmtiles \
+  --endpoint-url https://s3.lakehousebox.com --metadata-directive REPLACE --cache-control "max-age=60"
+```
+
+```
+s3.put_object(Bucket=bucket, Key="public/tiles.pmtiles", Body=data, CacheControl="public, max-age=86400")
+s3.copy_object(Bucket=bucket, Key=key, CopySource={"Bucket": bucket, "Key": key},
+               MetadataDirective="REPLACE", CacheControl="max-age=60")   # REPLACE also resets the file's other headers
+```
+
+The upload link of POST /v1/warehouses/{id}/blobs/upload keeps a Cache-Control header sent with the PUT, too. DuckDB's COPY … TO 's3://…' cannot set one: copy the file onto itself afterwards.
 
 ## The public page
 
