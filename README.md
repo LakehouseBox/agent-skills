@@ -1,4 +1,4 @@
-# LakehouseBox agent skills: downloads (0.4.26)
+# LakehouseBox agent skills: downloads (0.4.27)
 
 Built from the `main` branch by its publish; do not edit here.
 
