@@ -64,12 +64,12 @@ The published folder is also served from our CDN, at https://public-files.lakeho
 
 - AGENTS.md and folder listings are never cached by the CDN.
 
-Setting a file's Cache-Control: upload it with lhbox file put, which needs no other tool (Files). Uploading the file again under the same key replaces its headers.
+Setting a file's Cache-Control: upload it with lhbox file cp (or lhbox file put), which needs no other tool (Files). Uploading the file again under the same key replaces its headers.
 
 ```
-lhbox file put tiles.pmtiles public/ --catalog <catalog> --cache-control "public, max-age=86400"
-lhbox file put report.csv public/ --catalog <catalog> --cache-control "max-age=60" \
-  --content-disposition 'attachment; filename="report.csv"' --content-language en --meta source=ine
+lhbox file cp ./tiles.pmtiles lhbox://<catalog>/public/ --cache-control "public, max-age=86400"
+lhbox file cp ./report.csv lhbox://<catalog>/public/ --cache-control "max-age=60" \
+  --content-disposition 'attachment; filename="report.csv"' --content-language en --metadata source=ine
 ```
 
 Measured on 2026-10-20 in a published public/ folder, read through the CDN. The file uploaded with --cache-control "public, max-age=120", a Content-Disposition and --meta source=qa answered cache-control: public, max-age=120, s-maxage=604800, content-disposition: attachment; filename="small.csv" and x-amz-meta-source: qa. A 12 MiB file uploaded in parts kept its headers the same way.

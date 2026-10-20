@@ -11,27 +11,42 @@ Tables are not affected: they hold Iceberg tables, as always.
 
 The CLI does it without the aws CLI or boto3. Every byte goes between your machine and the store through links the API signs for each upload; the catalog's key never leaves the API. You need write on the catalog to upload or delete, and read to list or download.
 
+The commands follow aws s3: the catalog side is written lhbox://<catalog>/<key or prefix> (the catalog's name or id), the other side is a local path.
+
 ```
-lhbox file put tiles.pmtiles public/ --catalog garden --cache-control "public, max-age=86400"
-lhbox file put ./stac public/stac --catalog garden            # a folder, recursively; keys keep the relative paths
-lhbox file ls public/ --catalog garden                       # folders and files; --recursive for every key
-lhbox file get public/tiles.pmtiles -o tiles.pmtiles --catalog garden   # -o - writes to stdout
-lhbox file rm public/old.pmtiles --catalog garden --yes      # --recursive deletes a folder
+lhbox file cp ./tiles.pmtiles lhbox://garden/public/ --cache-control "public, max-age=86400"
+lhbox file cp ./stac lhbox://garden/public/stac/ --recursive  # a folder; keys keep the relative paths
+lhbox file sync ./site lhbox://garden/site/                    # only what changed; a second run sends nothing
+lhbox file ls lhbox://garden/public/                           # folders and files; --recursive for every key
+lhbox file cp lhbox://garden/public/tiles.pmtiles .            # down: a file, a folder, or - for stdout
+lhbox file cp lhbox://garden/site/ ./site --recursive          # down: everything under the prefix
+lhbox file sync lhbox://garden/site/ ./site                    # down, skipping the files that are the same here
+lhbox file rm lhbox://garden/public/old.pmtiles                # --recursive deletes a folder
 ```
 
-- Keys. For one file, the key is the name you give. A key ending in / is a folder, and the file's name is added to it. Without a key, the file's name is used. For a folder, the key is the prefix, and it defaults to the folder's name. Hidden files (.DS_Store, .git/) are skipped.
+lhbox file put PATH [KEY] --catalog garden and lhbox file get KEY [DEST] --catalog garden do the same as cp up and down, with the key written without the lhbox:// part (put and get take lhbox:// addresses too). An s3:// URL is refused with the lhbox:// form to use: the bucket behind a catalog is not a name you need.
 
-- Headers kept with the file. The content type follows the file's name, or --content-type; a compressed file such as data.csv.gz is application/gzip. --cache-control, --content-disposition (for example attachment; filename="report.csv"; the file name must be a type the bucket takes), --content-language and --meta name=value (sent as x-amz-meta-name) are stored with the file. A published folder passes them on to readers: see Public catalogs. Content-Encoding is not set: publish compressed data as .csv.gz.
+- Keys. For one file, the key is the name you give. A key ending in / is a folder, and the file's name is added to it. Without a key, the file's name is used. A folder's contents go under the prefix you give (cp and sync); put without a key uses the folder's name as the prefix. A folder is uploaded recursively with or without --recursive. Hidden files (.DS_Store, .git/) are skipped.
+
+- Downloads. A key ending in /, or --recursive, is a folder: everything under it is written into the local directory with the relative paths kept (data means data/, never data2/). A key that would land outside that directory (one holding ..) stops the download before anything is written.
+
+- --exclude and --include take globs matched against the path relative to the source folder or prefix (* matches across /). They apply in order and the last one that matches wins, as in aws s3: --exclude "*" --include "*.csv" takes only the CSV files. cp, sync, put and rm --recursive take them.
+
+- Headers kept with the file. The content type follows the file's name, or --content-type; a compressed file such as data.csv.gz is application/gzip. --cache-control, --content-disposition (for example attachment; filename="report.csv"; the file name must be a type the bucket takes), --content-language and --metadata name=value (or --meta; several as a=1,b=2, or JSON {"a": "1"}; sent as x-amz-meta-name) are stored with the file. A published folder passes them on to readers: see Public catalogs. Content-Encoding is not set: publish compressed data as .csv.gz.
 
 - Large files go up in parts. A file larger than 64 MiB (--part-size, in MiB, at least 5) is sent in parts, four at a time (--parallel). A part that fails is retried on its own with a new link. If the upload cannot finish, it is cancelled and nothing is kept. A file can be up to 5 TB. An upload that would take the organisation over its storage limit is refused before it starts, or cancelled when it completes.
 
-- --skip-unchanged skips files whose stored copy has the same size and checksum (the ETag), so a folder can be uploaded again after an interruption. --dry-run lists what would be uploaded.
+- sync skips every file whose other copy has the same size and checksum (the ETag), in both directions, so it can be run again after an interruption. cp and put do the same with --skip-unchanged. sync never deletes: there is no --delete, and lhbox file rm removes files. --dryrun (or --dry-run) lists what would be copied or deleted.
 
-- Output. When the output is piped, JSON goes to stdout, for example {"uploaded": [{"key", "size", "etag", "method": "put" | "multipart", "parts"}], "skipped": [...], "count", "bytes", "seconds"}. Progress goes to stderr when stderr is a terminal, or always with --progress. A refused file (415 for a type the bucket does not take) is named in one error envelope.
+- Deleting. lhbox file rm asks for confirmation only when a person is at a terminal; a script or an agent deletes without --yes, as aws s3 rm does.
 
-- lhbox file get writes the whole file before it renames it into place, and reports its sha256.
+- aws s3 flags that do not apply (--acl, --sse, --storage-class, --expires, --content-encoding, --endpoint-url, --delete, …) are refused with the reason and what to use instead. --quiet, --only-show-errors and --no-progress are accepted and change nothing.
 
-Measured on 2026-10-20 against lakehousebox.com from a laptop: a 150 MiB file went up in 3 parts in 4.2 s and came back in 2.7 s with the same sha256. Re-running with --skip-unchanged skipped it.
+- Output. When the output is piped, JSON goes to stdout, for example {"uploaded": [{"key", "size", "etag", "method": "put" | "multipart", "parts"}], "skipped": [...], "count", "bytes", "seconds"} (a download: "downloaded"). Progress goes to stderr when stderr is a terminal, or always with --progress. A refused file (415 for a type the bucket does not take) is named in one error envelope.
+
+- A download writes the whole file before it renames it into place, and reports its sha256.
+
+Measured on 2026-10-20 against lakehousebox.com from a laptop: a 150 MiB file went up in 3 parts in 4.2 s and came back in 2.7 s with the same sha256. Re-running with --skip-unchanged skipped it. With lhbox 0.6.63, lhbox file sync of a five-file folder (one file of 70 MB) sent everything the first time and nothing the second (5 skipped, 0.11 s); sync back down gave a folder identical to the original (diff -r).
 
 Other ways in still work. Any S3 tool can write the file bucket with the catalog's own credential from the connection recipe (lhbox connect; blob_example_python is a boto3 client). The API's upload links are POST /v1/warehouses/{id}/blobs/upload for one PUT and …/blobs/multipart for parts (API). A device that should only write gets an uploader key.
 
