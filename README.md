@@ -3,8 +3,8 @@
 The [LakehouseBox](https://lakehousebox.com) MCP connector and [Agent Skills](https://agentskills.io) in one plugin.
 LakehouseBox keeps analytical data as Apache Iceberg tables, operated in Germany; the agent brings the compute.
 
-- **The connector** (`https://mcp.lakehousebox.com/mcp`, read-only): find the tables you can read and how fresh they
-  are, run read-only SQL on LakehouseBox's side, read files such as photos. It needs a LakehouseBox account (free); you
+- **The connector** (`https://mcp.lakehousebox.com/mcp`): find the tables you can read and how fresh they are, run
+  read-only SQL on LakehouseBox's side, read files such as photos and, when you approved write, change tables with SQL. It needs a LakehouseBox account (free); you
   approve it once in the browser.
 - **The skills** teach the agent the service. A skill is a folder with a `SKILL.md` the agent loads when the task
   matches, plus references it opens only when needed.
@@ -43,7 +43,7 @@ The connector, and the commands and DuckDB statements the skills give the agent,
 
 | address | what goes there |
 |---|---|
-| `https://mcp.lakehousebox.com/mcp` | the connector: read-only tool calls (listing tables, read-only SQL, reading files) |
+| `https://mcp.lakehousebox.com/mcp` | the connector: tool calls (listing tables, SQL, reading files; writes only when you approved write) |
 | `https://api.lakehousebox.com` | the `lhbox` CLI (sign-in approval, catalogs, tables, loading the person's files) and the description of a public catalog, read with no account |
 | `https://catalog.lakehousebox.com` | the Iceberg catalog that DuckDB and other engines read and write tables through |
 | `https://s3.lakehousebox.com` | the tables' and files' storage, read (and written, with an account) by DuckDB and the CLI |

@@ -1,7 +1,7 @@
 {
   "name": "lakehousebox",
-  "version": "0.4.27",
-  "description": "LakehouseBox for agents: the read-only LakehouseBox MCP connector plus skills that teach the service - connecting through the lhbox CLI, MCP or plain DuckDB, loading data, keeping tables filled, sharing and publishing catalogs, hosted agents, and reading or hosting Portolan geospatial catalogs.",
+  "version": "0.4.28",
+  "description": "LakehouseBox for agents: the LakehouseBox MCP connector (it reads, and writes only when the person approved write) plus skills that teach the service - connecting through the lhbox CLI, MCP or plain DuckDB, loading data, keeping tables filled, sharing and publishing catalogs, hosted agents, and reading or hosting Portolan geospatial catalogs.",
   "mcpServers": "./.mcp.json",
   "author": {
     "name": "LakehouseBox",
@@ -25,7 +25,7 @@
   "interface": {
     "displayName": "LakehouseBox",
     "shortDescription": "Shared data for your agents",
-    "longDescription": "LakehouseBox keeps analytical data as Apache Iceberg tables, operated in Germany. This plugin connects the read-only LakehouseBox MCP server (find tables, see how fresh they are, run read-only SQL, read the catalog owner's notes, open public catalogs, read files) and adds skills: connecting with the lhbox CLI, MCP or DuckDB; loading files into tables; keeping tables filled from feeds and devices; sharing and publishing catalogs; hosted agents; and reading or hosting Portolan geospatial catalogs.",
+    "longDescription": "LakehouseBox keeps analytical data as Apache Iceberg tables, operated in Germany. This plugin connects the LakehouseBox MCP server (find tables, see how fresh they are, run read-only SQL, read the catalog owner's notes, open public catalogs, read files and, when the person approved write, change tables with SQL) and adds skills: connecting with the lhbox CLI, MCP or DuckDB; loading files into tables; keeping tables filled from feeds and devices; sharing and publishing catalogs; hosted agents; and reading or hosting Portolan geospatial catalogs.",
     "developerName": "LakehouseBox",
     "category": "Productivity",
     "capabilities": [
