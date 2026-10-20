@@ -3,7 +3,7 @@ This is a copy of https://lakehousebox.com/docs/uploaders/index.md taken when th
 
 # Blob uploaders: a write-only credential for the blob bucket
 
-Measured on 2026-09-21. The short version for agents is on the agents page (https://lakehousebox.com/agents#relay); the routes are in the API reference (https://lakehousebox.com/docs/api/), the commands in the CLI reference (https://lakehousebox.com/docs/cli/).
+Measured on 2026-09-21. The routes are in the API reference (https://lakehousebox.com/docs/api/), the commands in the CLI reference (https://lakehousebox.com/docs/cli/).
 
 The founder's item 1 of 2026-09-21 (platform/STATE.md, 03:40 UTC): a scoped, long-lived, revocable credential that can only drop files into a catalog's blob bucket <handle>--<catalog>--blobs (b-<uuid> on catalogs created before 2026-09-20; the API's bucket field and the recipe's blob_bucket spell it, this document writes <blobs> for it). For a relay, a camera, a field device, a partner that sends you files, a CI job that publishes artefacts: anything that must write and must never read, list what others wrote, or come near the tables and the catalog.
 
