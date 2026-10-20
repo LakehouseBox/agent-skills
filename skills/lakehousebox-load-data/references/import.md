@@ -91,6 +91,35 @@ lhbox table import analytics.geo.parcels 'parcels/*.parquet' --format-version 3
 
 A version-3 import needs a CRS with an authority code (such as EPSG:25830). A file whose CRS has none stops with geometry_crs_without_authority before the table is created. Import it with --format-version 2 (the full PROJJSON is kept in geo.crs.projjson), or re-tag the file's CRS with its code first.
 
+## Files you laid out yourself: lhbox table add-files
+
+table import reads your rows and writes new files. When you have already written the Parquet files the way you want them (row groups, sort order, compression), for example raster tiles one per row prepared with your own tools such as raquet and queried with your own DuckDB, lhbox table add-files keeps them exactly as they are. It works in two steps: upload the files to the catalog's files with lhbox file put, then add them to a table.
+
+```
+lhbox file put out/ staging/spain/ --catalog analytics
+lhbox table add-files analytics.dem.spain staging/spain/ --sorted-by block
+```
+
+- The files are copied inside LakehouseBox, not uploaded again: add-files reads only their footers (never the rows), copies them into the table and registers them all in one commit. Then it deletes the uploaded copies; --keep-staged keeps them. A run on 2026-10-20 added 66 files (1.11 GB) in 40 s as one commit, with a peak of 214 MB on the laptop; a cold read of one row afterwards read 1 of the 66 files and 170 KiB.
+
+- What to name: a file (staging/spain/part-0.parquet), a folder (staging/spain/: every .parquet under it) or a pattern in quotes ('staging/spain/*.parquet'; ** also matches subfolders). A file on your machine or a URL is refused with the lhbox file put to run first.
+
+- Every file must have the same columns and types. With --mode append, they must also fit the table's schema. A mismatch stops the command before anything is copied (schema_mismatch, with the file and both schemas).
+
+- Files written by an Iceberg engine carry field ids and are refused (files_have_field_ids); add them with that engine.
+
+- The report warns, and changes nothing, about:
+
+row groups that make a point read expensive: over 64 MB, or over 4 MB of rows averaging more than 2 KB each;
+
+- unsigned integer columns, which Iceberg does not have (DuckDB reads them; other engines may not);
+
+- with --sorted-by <column>, files whose ranges of that column overlap.
+
+- It needs PyIceberg 0.12 or newer with pyarrow in the interpreter running lhbox (or --python PATH), and no DuckDB. The table is format version 2. --full adds each file's footer summary to the JSON.
+
+- If anything fails before the commit, the copies are deleted, your uploaded files stay where they are, and nothing is in the table.
+
 ## From the account page
 
 Open a catalog, go to Tables and choose Import files. The dialog has three steps:
