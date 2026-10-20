@@ -7,6 +7,34 @@ Every catalog has two places for data: its tables, and a file bucket for the fil
 
 Tables are not affected: they hold Iceberg tables, as always.
 
+## Upload, download, list and delete with lhbox
+
+The CLI does it without the aws CLI or boto3. Every byte goes between your machine and the store through links the API signs for each upload; the catalog's key never leaves the API. You need write on the catalog to upload or delete, and read to list or download.
+
+```
+lhbox file put tiles.pmtiles public/ --catalog garden --cache-control "public, max-age=86400"
+lhbox file put ./stac public/stac --catalog garden            # a folder, recursively; keys keep the relative paths
+lhbox file ls public/ --catalog garden                       # folders and files; --recursive for every key
+lhbox file get public/tiles.pmtiles -o tiles.pmtiles --catalog garden   # -o - writes to stdout
+lhbox file rm public/old.pmtiles --catalog garden --yes      # --recursive deletes a folder
+```
+
+- Keys. For one file, the key is the name you give. A key ending in / is a folder, and the file's name is added to it. Without a key, the file's name is used. For a folder, the key is the prefix, and it defaults to the folder's name. Hidden files (.DS_Store, .git/) are skipped.
+
+- Headers kept with the file. The content type follows the file's name, or --content-type; a compressed file such as data.csv.gz is application/gzip. --cache-control, --content-disposition (for example attachment; filename="report.csv"; the file name must be a type the bucket takes), --content-language and --meta name=value (sent as x-amz-meta-name) are stored with the file. A published folder passes them on to readers: see Public catalogs. Content-Encoding is not set: publish compressed data as .csv.gz.
+
+- Large files go up in parts. A file larger than 64 MiB (--part-size, in MiB, at least 5) is sent in parts, four at a time (--parallel). A part that fails is retried on its own with a new link. If the upload cannot finish, it is cancelled and nothing is kept. A file can be up to 5 TB. An upload that would take the organisation over its storage limit is refused before it starts, or cancelled when it completes.
+
+- --skip-unchanged skips files whose stored copy has the same size and checksum (the ETag), so a folder can be uploaded again after an interruption. --dry-run lists what would be uploaded.
+
+- Output. When the output is piped, JSON goes to stdout, for example {"uploaded": [{"key", "size", "etag", "method": "put" | "multipart", "parts"}], "skipped": [...], "count", "bytes", "seconds"}. Progress goes to stderr when stderr is a terminal, or always with --progress. A refused file (415 for a type the bucket does not take) is named in one error envelope.
+
+- lhbox file get writes the whole file before it renames it into place, and reports its sha256.
+
+Measured on 2026-10-20 against lakehousebox.com from a laptop: a 150 MiB file went up in 3 parts in 4.2 s and came back in 2.7 s with the same sha256. Re-running with --skip-unchanged skipped it.
+
+Other ways in still work. Any S3 tool can write the file bucket with the catalog's own credential from the connection recipe (lhbox connect; blob_example_python is a boto3 client). The API's upload links are POST /v1/warehouses/{id}/blobs/upload for one PUT and …/blobs/multipart for parts (API). A device that should only write gets an uploader key.
+
 ## What the file bucket takes
 
 The type is the file name's last extension, in any case (.parquet, .PARQUET).

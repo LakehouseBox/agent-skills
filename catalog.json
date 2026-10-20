@@ -1,6 +1,6 @@
 {
   "name": "lakehousebox-skills",
-  "version": "0.4.24",
+  "version": "0.4.25",
   "site": "https://lakehousebox.com",
   "layers": {
     "base": "what every LakehouseBox task needs: the ways in, the rules, reading public catalogs; depends on nothing",
@@ -36,7 +36,8 @@
       },
       "written": [],
       "runs": [
-        "runs/2026-10-11-workflow-agent-test.md"
+        "runs/2026-10-11-workflow-agent-test.md",
+        "runs/2026-10-20-lhbox-file.md"
       ]
     },
     "lakehousebox-keep-fresh": {

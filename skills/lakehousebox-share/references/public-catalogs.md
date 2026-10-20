@@ -64,7 +64,17 @@ The published folder is also served from our CDN, at https://public-files.lakeho
 
 - AGENTS.md and folder listings are never cached by the CDN.
 
-Setting a file's Cache-Control: any S3 tool works. The bucket is the catalog's blob_bucket and the key pair is the catalog's own credential, both in the connection recipe (GET /v1/connection; blob_example_python is a ready client).
+Setting a file's Cache-Control: upload it with lhbox file put, which needs no other tool (Files). Uploading the file again under the same key replaces its headers.
+
+```
+lhbox file put tiles.pmtiles public/ --catalog <catalog> --cache-control "public, max-age=86400"
+lhbox file put report.csv public/ --catalog <catalog> --cache-control "max-age=60" \
+  --content-disposition 'attachment; filename="report.csv"' --content-language en --meta source=ine
+```
+
+Measured on 2026-10-20 in a published public/ folder, read through the CDN. The file uploaded with --cache-control "public, max-age=120", a Content-Disposition and --meta source=qa answered cache-control: public, max-age=120, s-maxage=604800, content-disposition: attachment; filename="small.csv" and x-amz-meta-source: qa. A 12 MiB file uploaded in parts kept its headers the same way.
+
+Any S3 tool works too. The bucket is the catalog's blob_bucket and the key pair is the catalog's own credential, both in the connection recipe (GET /v1/connection; blob_example_python is a ready client). A copy of a file onto itself changes the headers without uploading it again:
 
 ```
 # on upload
@@ -81,7 +91,7 @@ s3.copy_object(Bucket=bucket, Key=key, CopySource={"Bucket": bucket, "Key": key}
                MetadataDirective="REPLACE", CacheControl="max-age=60")   # REPLACE also resets the file's other headers
 ```
 
-The upload link of POST /v1/warehouses/{id}/blobs/upload keeps a Cache-Control header sent with the PUT, too. DuckDB's COPY … TO 's3://…' cannot set one: copy the file onto itself afterwards.
+The API's upload links (POST /v1/warehouses/{id}/blobs/upload, and …/blobs/multipart for a large file) take cache_control, content_disposition, content_language and metadata and sign them into the upload. DuckDB's COPY … TO 's3://…' cannot set one: copy the file onto itself afterwards.
 
 ## The public page
 

@@ -48,6 +48,8 @@ Rules that save a retry (details and the other engines in section 7):
 
 From Python instead of the shell: lhbox --json connect --engine duckdb --show-secrets returns the recipe (read it in code, do not print it); its sql field is the ATTACH block. Without --show-secrets the secret is ******** and the block starts with an error() that says so. Files from the CLI in one commit: lhbox table import 'data/*.parquet' --namespace raw --name trips (CSV too, by extension or --format csv).
 
+Files that are not tables (rasters, PMTiles, PDFs, photos, the source downloads) go in the catalog's file bucket with the CLI, no aws CLI or boto3 needed: lhbox file put tiles.pmtiles public/ --cache-control "public, max-age=86400" (a folder too, recursively; a large file goes up in parallel parts), then lhbox file ls, lhbox file get <key>, lhbox file rm <key> --yes (Files).
+
 If login cannot block: lhbox login --no-wait, send the link, later lhbox login --resume.
 
 No account, or no person at hand right now? Do not stop: make a catalog for yourself and let the person keep it later.

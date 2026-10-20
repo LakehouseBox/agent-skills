@@ -15,7 +15,7 @@ with no account (data writes work before a person claims it).
 |---|---|---|
 | CSV, Parquet or GeoParquet files on this machine or at an https URL | `lhbox table import <catalog>.<ns>.<table> <file>` | [import](references/import.md) |
 | anything else DuckDB reads (JSON, a database attached next to the catalog) | one `CREATE TABLE … AS SELECT` in `lhbox duckdb` | [import](references/import.md), last section |
-| files that are not tables: photos, PDFs, rasters, archives | the catalog's file bucket | [files](references/files.md) |
+| files that are not tables: photos, PDFs, rasters, PMTiles, archives | `lhbox file put <path> [key] --catalog <catalog>` (the file bucket) | [files](references/files.md) |
 | a device, relay or partner that only drops files | an upload-only key for one folder | [uploaders](references/uploaders.md) |
 | rows that keep arriving (a feed, a webhook, a sensor) | the `lakehousebox-keep-fresh` skill | |
 
@@ -57,8 +57,18 @@ limited time, so roll back soon. To redo a table, `DROP TABLE` then import again
 ## Files that are not tables
 
 The file bucket `<handle>--<catalog>--blobs` takes data files, photos, documents and archives; any other type is
-refused with `415 UnsupportedFileType` ([files](references/files.md)). A device that must only write gets an
-upload-only key for one folder, which can neither read nor list:
+refused with `415 UnsupportedFileType` ([files](references/files.md)). Upload, list, download and delete with the CLI
+(no aws CLI or boto3; a folder goes up recursively, a large file in parallel parts; JSON on stdout when piped):
+
+```sh
+lhbox file put tiles.pmtiles public/ --catalog garden --cache-control "public, max-age=86400"
+lhbox file put ./stac public/stac --catalog garden --skip-unchanged
+lhbox file ls public/ --catalog garden
+lhbox file get public/tiles.pmtiles -o tiles.pmtiles --catalog garden
+lhbox file rm public/old.pmtiles --catalog garden --yes
+```
+
+A device that must only write gets an upload-only key for one folder, which can neither read nor list:
 
 ```sh
 lhbox catalog uploader create garden --name camera-north --prefix photos/north/ --save ~/camera-north.json
