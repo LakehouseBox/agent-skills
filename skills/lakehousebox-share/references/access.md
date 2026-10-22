@@ -132,7 +132,7 @@ Two credentials reach one path and nothing else; neither can read a table or use
 
 - Uploaders are write-only keys for the catalog's file bucket, confined to one prefix: for a camera, a device or a partner that drops files. Creating one needs write on the catalog; the secret is shown once. See Uploaders (https://lakehousebox.com/docs/uploaders/).
 
-- Sink send keys can only post batches to one ingest sink, which LakehouseBox commits into one table. Creating a sink needs write; the key is shown once; deleting the sink revokes it. See Ingest (https://lakehousebox.com/docs/ingest/).
+- Sink send keys can only post batches to one ingest sink, which LakehouseBox commits into one table. Creating a sink needs write; the key is shown once; deleting the sink revokes it. See Sinks (https://lakehousebox.com/docs/ingest/).
 
 ## Revoking and rotating
 

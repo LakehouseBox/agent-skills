@@ -46,7 +46,7 @@ statement at a time (`query_rw`).
 
 ```sh
 lhbox new                     # a catalog named lakehouse, write access, no account; the key is saved, never shown
-lhbox table import data.csv --catalog lakehouse --namespace raw --name t   # or lhbox duckdb (DuckDB 1.5.5+)
+lhbox table import raw.t data.csv   # its only catalog; or lhbox duckdb (the duckdb binary, 1.5.5+)
 lhbox claim                   # when the person is there: a link and a code to give them
 lhbox claim --resume --wait   # after they approve: this machine's new key, saved in place
 ```
@@ -90,8 +90,8 @@ SELECT * FROM <catalog>.<namespace>.<table> LIMIT 10;
 3. **No `CREATE OR REPLACE TABLE`**: `DROP TABLE`, then `CREATE TABLE`.
 4. **A 409, or `CommitFailedException … branch "main" has changed`**, means another writer (often maintenance)
    committed first: wait a few seconds and run the statement again. It is not a permission problem.
-5. **One statement over many files is one commit**: `lhbox table import 'data/*.parquet' --namespace raw --name
-   trips`, never one statement per file.
+5. **One statement over many files is one commit**: `lhbox table import raw.trips
+   'data/*.parquet'`, never one statement per file.
 6. **`provisioning`** on a new catalog means retry in 30 s, not "cannot write".
 7. **Geometry** needs a format-version 3 table created first (`lhbox table create <catalog>.<ns>.<table>
    --format-version 3 --column id:long:required:identifier --column geom:geometry`), then `INSERT`; a CTAS with a

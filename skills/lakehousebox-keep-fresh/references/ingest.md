@@ -10,7 +10,7 @@ Status: enabled on the service.
 A device, a webhook, a cron job or an agent with no query engine posts JSON arrays to one URL with a send-only key. The platform stores each batch unchanged, appends what is waiting to the Iceberg table on a rolling policy, stamps when each row arrived, and puts the rows that do not fit the table's schema where the producer can read them. No transforms, no schema evolution, no ordering across batches, no user code: the table's current schema is the contract.
 
 ```
-lhbox table create garden --namespace garden --name events --column x:long:required --column who:string
+lhbox table create garden.garden.events --column x:long:required --column who:string
 lhbox sink create garden --table garden.events --name events_in --save ~/events-sink.json
 lhbox sink send events_in batch.json --send-key-file ~/events-sink.json     # or any HTTP client, below
 lhbox sink get events_in                                                    # lag, last roll, rejects
@@ -166,8 +166,6 @@ POST   /internal/sinks/{id}/roll  the roller's report
 CLI: lhbox sink create --catalog <catalog> --table <ns>.<table> --name <name> [--roll-seconds N] [--roll-bytes N] [--inactivity-seconds N] [--key COL[,COL]] (--save FILE | --show-key), sink update <sink> (--key COL[,COL] | --no-key), sink dedupe <sink> [--wait] [--yes], sink list [--catalog <catalog>] [--all], sink get <sink>, sink delete <sink> [--force] [--yes], sink send [<sink>] <file|-> (--send-key-file FILE | --send-key K | LHBOX_SEND_KEY) [--batch-id ID]. lhbox connect mentions sinks in its notes (sinks_note, ingest_url in GET /v1/connection) once the flag is on. Audit events: sink.create, sink.delete, sink.roll.
 
 ## Measured (2026-09-21, the local stack, the control plane of PR 1 + the roller of PR 2)
-
-Recorded in platform/STATE.md (the two "ingest sink" entries):
 
 | step | result |
 |---|---|

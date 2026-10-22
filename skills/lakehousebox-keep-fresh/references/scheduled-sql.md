@@ -78,7 +78,7 @@ QUALIFY row_number() OVER (PARTITION BY quake_id ORDER BY __ingest_ts DESC) = 1
 
 ## What the query can do
 
-It is one SELECT: CTEs, joins, UNPIVOT, LATERAL, window functions and QUALIFY are all fine. It reads http(s) URLs (public, or with a connection's credential) with DuckDB 1.5.5's readers: read_json, read_ndjson, read_csv, read_parquet, read_text, read_blob, or FROM 'https://…'. Several URLs may be read in one call (a list, or a list comprehension over page numbers), and a URL may contain current_date. LakehouseBox writes the rows; the query never writes. It runs on an executor of its own, whose only way out is a proxy that allows:
+It is one SELECT: CTEs, joins, UNPIVOT, LATERAL, window functions and QUALIFY are all fine. It reads http(s) URLs (public, or with a connection's credential) with DuckDB 2.0.0's readers: read_json, read_ndjson, read_csv, read_parquet, read_text, read_blob, or FROM 'https://…'. Several URLs may be read in one call (a list, or a list comprehension over page numbers), and a URL may contain current_date. LakehouseBox writes the rows; the query never writes. It runs on an executor of its own, whose only way out is a proxy that allows:
 
 - GET and HEAD, to ports 80 and 443 of public addresses, checked again on every redirect;
 

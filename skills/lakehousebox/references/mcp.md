@@ -86,6 +86,7 @@ There is no query quota and nothing is metered. Instead, every query gets 20 sec
 | queries_per_org | 4 of an organisation's queries run at once | the rest wait their turn (at most 8 waiting, at most 20 s), then 429 busy |
 | queries_per_principal | 4 queries running or waiting per key (or person) | 429 busy at once |
 | query_requests_per_second | 5 requests a second per key to query and get_object, bursts of 10 (a person's sessions and tokens share one) | 429 rate_limited, answered by the API without running anything |
+| unclaimed catalogs (lhbox new, before lhbox claim) | their queries share one small pool: 2 running and 2 waiting across every unclaimed organisation, a wait of at most 5 s | 429 busy (limit: pool_workers); lhbox duckdb has no such limit, and a claimed account leaves the pool |
 
 Organisations take turns on the host, so one tenant's burst never starves the others. Every busy answer carries retry_after_seconds (and a Retry-After header on the API) and a limit naming which limit was full; queued_ms in a successful answer says how long the query waited. Honour retry_after_seconds: right after a busy, the API answers that key's next requests to the same tool busy itself for up to 2 seconds (answered_by: "api", the host's limit as last_limit), so a resend loop never reaches the queue. lhbox whoami (GET /v1/usage) lists all five with enforced: true. Heavier work belongs in your own DuckDB (lhbox duckdb): the same catalogs, your compute, no limit but your machine's.
 

@@ -7,13 +7,13 @@ Written for the agent, not the person: paste https://lakehousebox.com/docs/agent
 
 ## 0. Quick path
 
-You are an agent setting up LakehouseBox for a person. Credentials never appear in the conversation: the CLI saves the key it receives to ~/.config/lhbox/credentials.json and every command reads it from there. LakehouseBox is a managed Apache Iceberg lakehouse operated in Europe: one catalog per organisation to start (an Iceberg REST catalog with its own storage; organisation -> catalog -> namespace -> table), DuckDB as the engine you run locally. The default catalog is named after your organisation's handle, dashes as underscores (handle acme-corp, catalog acme_corp; the examples below use it).
+You are an agent setting up LakehouseBox for a person. Credentials never appear in the conversation: the CLI saves the key it receives to ~/.config/lhbox/credentials.json and every command reads it from there. LakehouseBox is a managed Apache Iceberg lakehouse operated in Europe: one catalog per organisation to start (an Iceberg REST catalog with its own storage; organisation -> catalog -> namespace -> table), DuckDB as the engine you run locally. The default catalog is named after your organisation's handle, dashes as underscores (handle acme-corp, catalog acme_corp; the examples below use it). Read the real name from lhbox catalog list rather than assuming it: lhbox new names its catalog lakehouse, and a claimed one may become lakehouse_2.
 
 ```
 curl -fsSL https://lakehousebox.com/install.sh | sh          # one Python 3 file, no dependencies
 lhbox login                                            # prints a link and a code; the person approves once in the browser
 lhbox doctor                                           # PASS/FAIL per check; exit 1 on FAIL
-pip install 'duckdb>=2.0.0'                                # 2.0.0 recommended; writes need 1.5.5 or newer; doctor names which interpreter to upgrade
+brew install duckdb                                    # the duckdb shell lhbox duckdb opens (elsewhere: https://duckdb.org/install); 2.0.0 recommended, 1.5.5+ to write
 lhbox duckdb                                           # the DuckDB shell with the catalog attached (the recipe is never on screen)
 ```
 
@@ -42,11 +42,11 @@ Rules that save a retry (details and the other engines in section 7):
 
 - Credentials: the recipe holds the catalog's key; the engine mints catalog tokens and per-table storage credentials (each about an hour) and refreshes them itself. Never copy the key elsewhere; re-run lhbox connect after lhbox catalog rotate.
 
-- provisioning is not a failure: a new catalog takes about a minute; retry (section 8).
+- provisioning is not a failure: a new catalog is usually ready in seconds, longer on a busy host; retry (section 8).
 
 - Someone else's public catalog is --catalog <handle>/<catalog> (for example commons/pubdata), read-only, attached as <handle>_<catalog>.
 
-From Python instead of the shell: lhbox --json connect --engine duckdb --show-secrets returns the recipe (read it in code, do not print it); its sql field is the ATTACH block. Without --show-secrets the secret is ******** and the block starts with an error() that says so. Files from the CLI in one commit: lhbox table import 'data/*.parquet' --namespace raw --name trips (CSV too, by extension or --format csv).
+From Python instead of the shell: lhbox --json connect --engine duckdb --show-secrets returns the recipe (read it in code, do not print it); its sql field is the ATTACH block. Without --show-secrets the secret is ******** and the block starts with an error() that says so. Files from the CLI in one commit: lhbox table import raw.trips 'data/*.parquet' (CSV too, by extension or --format csv). DuckDB from Python (pip install 'duckdb>=2.0.0') is what lhbox table import and lhbox connect recipes use; the lhbox duckdb shell needs the duckdb binary.
 
 Files that are not tables (rasters, PMTiles, PDFs, photos, the source downloads) go in the catalog's file bucket with the CLI, no aws CLI or boto3 needed, written as aws s3 would be with the catalog as lhbox://<catalog>/: lhbox file cp ./tiles.pmtiles lhbox://garden/public/ --cache-control "public, max-age=86400" (a folder with --recursive; a large file goes up in parallel parts), lhbox file sync ./site lhbox://garden/site/ (only what changed), then lhbox file ls lhbox://garden/, lhbox file cp lhbox://garden/<key> ., lhbox file rm lhbox://garden/<key> (put and get do the same as cp up and down; Files).
 
@@ -65,7 +65,7 @@ Until a person claims it, the catalog holds at most 1 GB, nothing in it can be m
 
 What to say to the person: "Open this link, type the code XXXX-XXXX when it asks, and approve the connection; tick write if I should create tables or load data" (always give the code: the page asks the person to type it). No account yet: the same page creates one.
 
-Slow operations are normal: catalog create and catalog rotate take about a minute (four identity writes of ~10 s each on the store today) and print progress while they run; a catalog may answer provisioning for a while: retry, do not conclude "cannot write" (section 8).
+catalog create and catalog rotate print progress while they run; a catalog may answer provisioning for a while: retry, do not conclude "cannot write" (section 8).
 
 ## 1. Install the CLI
 
@@ -104,11 +104,11 @@ lhbox new (POST /v1/agent/identity, no body and no key) makes an organisation no
 
 Until it is claimed:
 
-- 72 hours, then the organisation and its data are deleted, with no notice. lhbox status shows the time left.
+- 72 hours, then the organisation and its data are deleted; no email is sent (nobody's address is known), and every lhbox command warns in the last day. lhbox status shows the time left.
 
 - 1 GB, one catalog, nothing public (no public catalogs, no public files).
 
-- The key reads, and writes data only: tables, files, queries, AGENTS.md. New keys or tokens, grants, publishing, sinks, scheduled SQL, hosted agents and invitations answer 403 claim_required.
+- The key reads, and writes data only: tables, files, queries, AGENTS.md. New keys or tokens, grants, publishing, sinks, scheduled SQL, hosted agents and invitations answer 403 claim_required (a scheduled-SQL preview, lhbox sink preview, runs).
 
 - At most 5 such catalogs an hour and 20 a day from one network address; past that, 429 rate_limited.
 
@@ -129,7 +129,7 @@ lhbox duckdb                          # or: the duckdb shell already attached (t
                                           # init file, never on screen); `lhbox duckdb -- -c "SELECT ..."` runs one statement
 ```
 
-doctor fails loudly on the one thing the rest of this page cannot fix (the credential, the grant, the DuckDB version) before you paste anything. Its write-policy line says the bucket accepts the identity and writes nothing; only lhbox doctor --write-probe proves the store takes a write (it PUTs and DELETEs a 0-byte _lhbox/_probe/data/probe.parquet as the recipe's identity and quotes the store's error verbatim when it refuses). The DuckDB line checks the interpreter running lhbox first, then python3 on PATH, then the duckdb binary, and names which one to upgrade and how. connect prints the SQL to attach the catalog: its REST endpoint, the storage endpoint and the catalog credential, whose secret is shown as ******** (the key id is not secret); it warns on stderr when the DuckDB on this machine is older than 1.5.5. To run it without the secret reaching your screen or the conversation, pipe it straight into DuckDB: lhbox connect --show-secrets --human | duckdb (or use lhbox duckdb, below). --show-secrets prints the secret; use it only in a pipe or when the person asks. The Python samples in the recipe read the pair from the environment variables its credential_env field names (LHBOX_<ALIAS>_CLIENT_ID, …_CLIENT_SECRET; the human output prints the export line). Do not copy the credential anywhere else; re-run lhbox connect when it expires. lhbox catalog list shows every catalog's name, id and status when you need to pick one, lhbox catalog get <name> one catalog with its storage figure; if the person needs a new one, lhbox catalog create <name> (about a minute; section 8). When stdout is not a terminal, connect prints a JSON object and the SQL is its sql field; lhbox connect --human prints the SQL alone.
+doctor fails loudly on the one thing the rest of this page cannot fix (the credential, the grant, the DuckDB version) before you paste anything. Its write-policy line says the bucket accepts the identity and writes nothing; only lhbox doctor --write-probe proves the store takes a write (it PUTs and DELETEs a 0-byte _lhbox/_probe/data/probe.parquet as the recipe's identity and quotes the store's error verbatim when it refuses). The DuckDB line checks the interpreter running lhbox first, then python3 on PATH, then the duckdb binary, and names which one to upgrade and how. connect prints the SQL to attach the catalog: its REST endpoint, the storage endpoint and the catalog credential, whose secret is shown as ******** (the key id is not secret); it warns on stderr when the DuckDB on this machine is older than 1.5.5. To run it without the secret reaching your screen or the conversation, pipe it straight into DuckDB: lhbox connect --show-secrets --human | duckdb (or use lhbox duckdb, below). --show-secrets prints the secret; use it only in a pipe or when the person asks. The Python samples in the recipe read the pair from the environment variables its credential_env field names (LHBOX_<ALIAS>_CLIENT_ID, …_CLIENT_SECRET; the human output prints the export line). Do not copy the credential anywhere else; re-run lhbox connect when it expires. lhbox catalog list shows every catalog's name, id and status when you need to pick one, lhbox catalog get <name> one catalog with its storage figure; if the person needs a new one, lhbox catalog create <name> (usually seconds; section 8). When stdout is not a terminal, connect prints a JSON object and the SQL is its sql field; lhbox connect --human prints the SQL alone.
 
 Two ways to keep the credential out of the conversation altogether: lhbox duckdb opens the duckdb binary with the catalog attached (the recipe travels through a 0600 init file that is removed the moment duckdb has read it), and lhbox duckdb --persist writes two persistent DuckDB secrets (lhbox_<alias>, lhbox_<alias>_s3) so that any later session -- the shell, or import duckdb in python -- needs only the one ATTACH line it prints. The trade-off of --persist: the catalog credential then lives on disk in DuckDB's secret directory (~/.duckdb/stored_secrets, 0600), readable by any DuckDB this user runs; lhbox catalog rotate <name> or DROP PERSISTENT SECRET lhbox_<alias> revokes it.
 
@@ -152,8 +152,8 @@ If the CREATE fails with a 403 or AccessDenied, the connection is read only (the
 Then the same check from the CLI side, creating a table from files in one commit:
 
 ```
-lhbox table import 'data/*.parquet' --namespace scratch --name import_check   # many files, ONE statement, ONE commit
-lhbox table get --catalog acme_corp --namespace scratch --name import_check   # snapshots: 1, rows: the total
+lhbox table import scratch.import_check 'data/*.parquet'      # many files, ONE statement, ONE commit
+lhbox table get acme_corp.scratch.import_check                 # snapshots: 1, rows: the total
 ```
 
 table import runs DuckDB on this machine (the duckdb python module of the interpreter running lhbox if importable, else the duckdb binary; --python PATH or LHBOX_PYTHON names another interpreter, for instance the venv where you installed duckdb>=1.5.5) over read_parquet([every file], union_by_name=true) -- or read_csv for CSV files, detected by extension or forced with --format csv -- and reports rows, files, bytes, seconds, commits (1) and which path it took; --full adds the generated SQL statement. Use table import (or one statement over the whole list) for more than one file: one statement per file is one commit per file (44 files were 44 commits and 44 waits, 2026-09-20).
@@ -173,13 +173,13 @@ CREATE TABLE acme_corp.sales.orders AS
 -- to redo it: DROP TABLE acme_corp.sales.orders; then CREATE TABLE again (CREATE OR REPLACE is not supported)
 ```
 
-The same from the CLI, CSV or Parquet, one commit for the whole set: lhbox table import 'path/*.csv' --namespace <schema> --name <name> (CSV by extension, or --format csv), lhbox table import 'path/*.parquet' … for Parquet; --mode append adds to a table that exists; a GeoParquet keeps its geo metadata as geo.* table properties. For anything else DuckDB reads (read_json, a database attached next to the catalog), the same one-statement shape. Iceberg tables, partitioning optional. Then answer their question with SQL.
+The same from the CLI, CSV or Parquet, one commit for the whole set: lhbox table import <schema>.<name> 'path/*.csv' (CSV by extension, or --format csv), lhbox table import <schema>.<name> 'path/*.parquet' for Parquet; --mode append adds to a table that exists; a GeoParquet keeps its geo metadata as geo.* table properties. For anything else DuckDB reads (read_json, a database attached next to the catalog), the same one-statement shape. Iceberg tables, partitioning optional. Then answer their question with SQL.
 
 - Try an example dataset: attach the public data catalog read-only, lhbox duckdb --catalog commons/pubdata (weather, holidays, countries, airports and more, as commons_pubdata.<ns>.<table>; the list and a card per dataset: https://lakehousebox.com/pubdata/registry.json; over MCP, open_public_catalog("commons/pubdata")). Or DuckDB reads public Parquet over HTTPS and lhbox table import https://…/file.parquet … loads one into their own catalog; show a few queries.
 
 - Continue an existing project: SHOW ALL TABLES, describe what is there, and pick up from it.
 
-- A producer with no engine (a device, a webhook, a job posting events): lhbox sink create --catalog <catalog> --table <ns>.<table> --name <name> --save <file> gives it one URL and a send-only key; it POSTs JSON arrays and the platform commits them on a rolling policy (https://lakehousebox.com/docs/ingest/). The table must exist first (lhbox table create), unpartitioned.
+- A producer with no engine (a device, a webhook, a job posting events): lhbox sink create --catalog <catalog> --table <ns>.<table> --name <name> --save <file> gives it one URL and a send-only key; it POSTs JSON arrays and the platform commits them on a rolling policy (https://lakehousebox.com/docs/ingest/). The table must exist first (lhbox table create), unpartitioned or, at format version 3, partitioned by time.
 
 lhbox table list and lhbox table get show tables, schemas, row counts and properties from the API side; lhbox usage shows the free tier (5 GB), the headroom and which limits are enforced -- like whoami, a short JSON object when piped (--full for the API's whole document, --human for tables). lhbox catalog measure <name> measures a catalog's storage now instead of at the next reading (the store is read every few minutes; Iceberg metadata files are not counted, and the object count is approximate). A geometry column needs a format-version 3 table created first (section 7).
 
@@ -243,13 +243,13 @@ Formats. Every table has its own Iceberg format version: 2 by default (the catal
 
 ## 8. Slow paths and what they look like
 
-The store performs several identity writes per catalog operation, ~10 s each today, so some commands take a minute; the CLI prints progress while it waits. Measured 2026-09-21 against api.lakehousebox.com:
+Creating, rotating and deleting a catalog write its credentials at the store; the CLI prints progress while it waits. Measured against api.lakehousebox.com (the catalog-key timings of 2026-09-21 predate the store change of 2026-09-22 that made credential writes much faster; those have not been re-timed since):
 
 | operation | measured | what the CLI shows | what to do |
 |---|---|---|---|
-| catalog create <name> | ~42 s on an idle store, 60–90 s under load | progress on stderr, then the catalog (status: ready, or provisioning with retry_after_seconds: 30) | wait; lhbox catalog list shows it as soon as it exists |
-| catalog rotate <name> | ~41 s | progress, then the new credential state | fetch a fresh recipe afterwards (connect) |
-| signup (creates the first catalog) | ~55 s | the signup call returns once the catalog exists | the person waits once |
+| catalog create <name> | 1.2 s (2026-09-24); lhbox new 1.3 s (2026-10-12) | progress on stderr, then the catalog (status: ready, or provisioning with retry_after_seconds: 30) | wait; lhbox catalog list shows it as soon as it exists |
+| catalog rotate <name> | ~41 s (2026-09-21, before the change) | progress, then the new credential state | fetch a fresh recipe afterwards (connect) |
+| signup (creates the first catalog) | ~55 s (2026-09-21, before the change) | the signup call returns once the catalog exists | the person waits once |
 | first query on a table after ATTACH | ~0.5 s, then ~0.05 s | nothing special | nothing |
 | CSV 14 MB → Iceberg table (read_csv CTAS) | ~2 s | one commit | nothing |
 

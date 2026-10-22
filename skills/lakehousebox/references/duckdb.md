@@ -89,11 +89,11 @@ CREATE TABLE … AS, INSERT, UPDATE, DELETE, MERGE and DROP TABLE work against t
 ### Importing files: one commit for many Parquet or CSV files
 
 ```
-lhbox table import 'data/*.parquet' --namespace demo --name cities                       # a new table (--catalog <name> with several)
-lhbox table import more/*.parquet --namespace demo --name cities --mode append            # into it
-lhbox table import 'data/*.parquet' --namespace demo --name places --format-version 3     # geometry stays typed
-lhbox table import 'exports/*.csv' --namespace demo --name orders                        # CSV, detected by the extension (or --format csv)
-lhbox table import 'data/*.parquet' --python ~/venv/bin/python --namespace demo --name cities --full   # that venv's DuckDB; print the SQL
+lhbox table import demo.cities 'data/*.parquet'                        # a new table (<catalog>.demo.cities with several)
+lhbox table import demo.cities more/*.parquet --mode append             # into it
+lhbox table import demo.places 'data/*.parquet' --format-version 3      # geometry stays typed
+lhbox table import demo.orders 'exports/*.csv'                          # CSV, detected by the extension (or --format csv)
+lhbox table import demo.cities 'data/*.parquet' --python ~/venv/bin/python --full   # that venv's DuckDB; print the SQL
 ```
 
 table import runs DuckDB on your machine (the duckdb python module of --python PATH or LHBOX_PYTHON when given, else of the interpreter running lhbox, else the duckdb binary; 1.5.5 or newer) over read_parquet([every file], union_by_name=true), or read_csv when every file ends in .csv or --format csv says so, in one statement, so the whole set is one Iceberg commit; importing files one statement at a time is one commit per file (44 files were 44 commits and 44 waits). Globs expand on your side; s3:// and https:// sources are read by DuckDB's httpfs. The report says rows, files, bytes, seconds, commits (1) and the path taken (--full adds the generated SQL statements): format version 2 (the catalog's default unless changed) is DuckDB's own CREATE TABLE with the inferred column types, then one INSERT; format version 3 (--format-version 3, or the catalog's default) is created through POST /v1/tables with the schema DuckDB inferred, geometry columns typed, then filled with one INSERT. Either way the table gets write.target-file-size-bytes = 134217728 and write.parquet.compression-codec = zstd before its first row and the rows are written ORDER BY the first DATE/TIMESTAMP column (--order-by names another, --no-order keeps the files' order), so a query on that column skips whole files: how tables are laid out (https://lakehousebox.com/docs/performance/). Measured 2026-09-21: three Parquet files, 3000 rows, one commit, 3.96 s from a laptop; append 1.21 s. Everything else about imports: importing files (https://lakehousebox.com/docs/import/).
@@ -126,7 +126,7 @@ Put the whole file list in one statement: 40 files in one statement took 2.4 s, 
 ### Geometry columns: create the table first, then INSERT
 
 ```
-lhbox table create --catalog acme_corp --namespace demo --name places --format-version 3     --column id:long:required:identifier --column name:string --column geom:geometry
+lhbox table create acme_corp.demo.places --format-version 3 --column id:long:required:identifier --column name:string --column geom:geometry
 -- then, in DuckDB with the recipe pasted (INSTALL spatial; LOAD spatial;):
 INSERT INTO acme_corp.demo.places SELECT id, name, ST_Point(lon, lat) FROM read_csv('places.csv');
 SELECT id, ST_AsText(geom) FROM acme_corp.demo.places LIMIT 3;   -- POINT (…)
