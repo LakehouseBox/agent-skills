@@ -102,3 +102,5 @@ The check reads the file name, not the content. Checking that a file's content m
 
 ---
 HTML version: https://lakehousebox.com/docs/files/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt
+
+Docs feedback: if this page was wrong, out of date or missing something you needed, tell the person you work for and, if they agree, report it: `lhbox bug --title "docs: files: <what was wrong>"` prints a filled-in issue link, or open https://github.com/lakehousebox/lakehousebox/issues/new. The tracker is public: never include a key, a secret or the person's data.

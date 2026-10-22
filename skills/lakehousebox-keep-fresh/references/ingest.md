@@ -214,3 +214,5 @@ Creating the table from the sink request; a rotate-key route (delete and create 
 
 ---
 HTML version: https://lakehousebox.com/docs/ingest/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt
+
+Docs feedback: if this page was wrong, out of date or missing something you needed, tell the person you work for and, if they agree, report it: `lhbox bug --title "docs: ingest: <what was wrong>"` prints a filled-in issue link, or open https://github.com/lakehousebox/lakehousebox/issues/new. The tracker is public: never include a key, a secret or the person's data.

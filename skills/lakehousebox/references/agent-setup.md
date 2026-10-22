@@ -175,7 +175,7 @@ CREATE TABLE acme_corp.sales.orders AS
 
 The same from the CLI, CSV or Parquet, one commit for the whole set: lhbox table import <schema>.<name> 'path/*.csv' (CSV by extension, or --format csv), lhbox table import <schema>.<name> 'path/*.parquet' for Parquet; --mode append adds to a table that exists; a GeoParquet keeps its geo metadata as geo.* table properties. For anything else DuckDB reads (read_json, a database attached next to the catalog), the same one-statement shape. Iceberg tables, partitioning optional. Then answer their question with SQL.
 
-- Try an example dataset: attach the public data catalog read-only, lhbox duckdb --catalog commons/pubdata (weather, holidays, countries, airports and more, as commons_pubdata.<ns>.<table>; the list and a card per dataset: https://lakehousebox.com/pubdata/registry.json; over MCP, open_public_catalog("commons/pubdata")). Or DuckDB reads public Parquet over HTTPS and lhbox table import https://…/file.parquet … loads one into their own catalog; show a few queries.
+- Try an example dataset: attach the public data catalog read-only, lhbox duckdb --catalog commons/pubdata (weather, holidays, countries, airports and more, as commons_pubdata.<ns>.<table>; the list and a card per dataset: https://lakehousebox.com/pubdata/registry.json; over MCP, open_public_catalog("commons/pubdata"); prompts and starter queries: https://lakehousebox.com/docs/sample-data/). Or DuckDB reads public Parquet over HTTPS and lhbox table import https://…/file.parquet … loads one into their own catalog; show a few queries.
 
 - Continue an existing project: SHOW ALL TABLES, describe what is there, and pick up from it.
 
@@ -278,3 +278,5 @@ Rules:
 
 ---
 HTML version: https://lakehousebox.com/docs/agent-setup/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt
+
+Docs feedback: if this page was wrong, out of date or missing something you needed, tell the person you work for and, if they agree, report it: `lhbox bug --title "docs: agent-setup: <what was wrong>"` prints a filled-in issue link, or open https://github.com/lakehousebox/lakehousebox/issues/new. The tracker is public: never include a key, a secret or the person's data.
