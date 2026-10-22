@@ -81,9 +81,9 @@ SELECT * FROM <catalog>.<namespace>.<table> LIMIT 10;
 
 ## Rules that save a retry
 
-1. **Versions.** DuckDB 1.5.5 or newer to write, 1.5.6 or newer for spatial filters with `&&`; reads work on any 1.5.
-   An old `duckdb` binary often sits earlier on `PATH` than the Python module: check `duckdb --version`, or
-   `pip install 'duckdb>=1.5.6'`.
+1. **Versions.** DuckDB 2.0.0 recommended. 1.5.5 or newer to write, 1.5.6 or newer for spatial filters with `&&`; reads
+   work on any 1.5. An old `duckdb` binary often sits earlier on `PATH` than the Python module: check `duckdb --version`,
+   or `pip install 'duckdb>=2.0.0'`.
 2. **ATTACH.** Let `lhbox duckdb` or `lhbox connect` write it. By hand, DuckDB attaches the bare bucket name
    (`ATTACH '<handle>--<catalog>'`); `ATTACH 's3://…'` attaches read-only and every INSERT fails. PyIceberg and Spark
    want the opposite, `warehouse='s3://<bucket>/'`.

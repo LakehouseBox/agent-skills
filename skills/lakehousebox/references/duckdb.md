@@ -13,18 +13,18 @@ This is a copy of https://lakehousebox.com/docs/engines/duckdb/index.md taken wh
 |---|---|
 | Geometry, geography | geometry, read and written, pruned with &&; no geography (cannot open such a table) |
 |---|---|
-| Last verified | 2026-10-03 (DuckDB 1.5.6 (and DuckDB-WASM 1.5.6 in the browser)) |
+| Last verified | 2026-10-03 (DuckDB 2.0.0 and 1.5.6 (and DuckDB-WASM 1.5.6 in the browser)) |
 |---|---|
 
 DuckDB attaches a LakehouseBox catalog as a database: every namespace is a schema, every Iceberg table a table you SELECT from, INSERT into, update and delete from. DuckDB talks to the catalog over the Iceberg REST protocol and reads and writes the Parquet files itself, with storage credentials the catalog vends per table; LakehouseBox is never in the query path. It is the engine lhbox itself uses: lhbox duckdb opens a shell with your catalog attached, and lhbox table import runs DuckDB on your machine to turn files into a table. The account page's SQL explorer and Import dialog run the same engine compiled to WebAssembly (DuckDB-WASM 1.5.6) in your browser tab.
 
 ## Before you start
 
-- DuckDB 1.5.5 or newer, and 1.5.6 if you filter by geometry (below). 1.5.0 writes manifest lists the catalog's maintenance cannot read (gotchas (https://lakehousebox.com/docs/engines/)). lhbox connect and lhbox duckdb warn when the DuckDB they find is older; lhbox doctor shows which one that is (the duckdb Python module or the binary). The newest runs on this page used 1.5.6.
+- DuckDB 2.0.0 recommended; 1.5.5 or newer works, and 1.5.6 or 2.0.0 if you filter by geometry (below). 1.5.0 writes manifest lists the catalog's maintenance cannot read (gotchas (https://lakehousebox.com/docs/engines/)). lhbox connect and lhbox duckdb warn when the DuckDB they find is older; lhbox doctor shows which one that is (the duckdb Python module or the binary). Most runs on this page used 1.5.6; those on 2.0.0 say so.
 
 - Extensions. The recipe installs and loads iceberg and httpfs. Geometry functions need spatial: INSTALL spatial; LOAD spatial;.
 
-- Not DuckDB 2.0 yet. 2.0 is not released; its nightly builds keep the rest of what this page describes in our tests, but have lost spatial pruning through Iceberg (Known limitations).
+- DuckDB 2.0.0 keeps what this page describes in our tests, spatial pruning included; tables it writes stay readable from 1.5.6 (Known limitations).
 
 - In Python, TIMESTAMP WITH TIME ZONE values need the pytz module (gotchas (https://lakehousebox.com/docs/engines/)).
 
@@ -136,7 +136,7 @@ A geometry column needs an Iceberg format-version 3 table, and DuckDB's own CREA
 
 Measured against the service: a million rows (18 MB of Parquet) in about 2.3 s from a laptop, three data files, one commit; format-version 2.
 
-### Filter with &&, and use DuckDB 1.5.6
+### Filter with &&, and use DuckDB 1.5.6 or 2.0.0
 
 DuckDB skips data files (by the geometry bounds in the table's manifests) and row groups (by the native geometry statistics) for the bounding-box operator &&, never for ST_Intersects alone. Put both in the query: && narrows the data, ST_Intersects gives the exact answer.
 
@@ -188,13 +188,13 @@ As measured with DuckDB 1.5.6 (2026-10-03) unless dated otherwise:
 
 - No rollback: use PyIceberg.
 
-- Spatial filters prune only with &&, and only on 1.5.6 without the NULL caveat.
+- Spatial filters prune only with &&, and only on 1.5.6 without the NULL caveat (2.0.0 prunes; the caveat is not measured on it yet).
 
 - DuckDB now and then commits a 0-row data file (1 of 44 files for the 81-million-row places, single-threaded). It costs one manifest entry and nothing else.
 
 - Other engines and DuckDB's geometry tables. Spark 4.1 with Iceberg 1.12 reads every value; Trino 483 reads them without spatial pruning; Snowflake fails on large DuckDB-written point and polygon tables (lines read) (Snowflake (https://lakehousebox.com/docs/engines/snowflake/)); iceberg-go 0.7.0 cannot read them ("only parquet format is implemented, got parquet").
 
-- DuckDB 2.0 nightlies before 19 October lose spatial pruning through Iceberg. On 2.0.0.dev2609250715 (2026-09-29) a point lookup that 1.5.6 answers from 5.0–6.7 MB read 793 MB, every file; on 2.0.0.dev2610011535 the Overture box questions read 1.1–4.0 GB instead of 2.5–9.3 MB. Two fixes, both from our reports: the Iceberg scan (duckdb/duckdb-iceberg#1464) and DuckDB itself (duckdb/duckdb#27249, merged for 2.0 on 2026-10-18). On 2.0.0.dev2610192346 (2026-10-20) the same box questions read 6.1–9.3 MB with the same answers. Stay on 1.5.6 until 2.0.0 is released. The rest held on the nightlies in our tests: their version-2 and version-3 writes, updates and deletes, and maintenance of their tables.
+- DuckDB 2.0.0 (released 2026-10-21) prunes with && through Iceberg; the 2.0 nightlies before 19 October did not. On 2.0.0.dev2609250715 (2026-09-29) a point lookup that 1.5.6 answers from 5.0–6.7 MB read 793 MB, every file; on 2.0.0.dev2610011535 the Overture box questions read 1.1–4.0 GB instead of 2.5–9.3 MB. Two fixes, both from our reports, are in 2.0.0: the Iceberg scan (duckdb/duckdb-iceberg#1464) and DuckDB itself (duckdb/duckdb#27249). On 2.0.0 a box query on a public rail table reads 11.5 MiB in 12 GETs (1.5.6: 9.4 MiB) with the same answer (2026-10-21). The rest of our contract held on 2.0.0 (2026-10-21): its version-2 and version-3 writes, updates and deletes read the same in 1.5.6, and the store maintains its tables.
 
 - The browser build cannot read a GeoParquet file DuckDB itself wrote (Invalid Error: stoi: no conversion, DuckDB-WASM 1.5.5 and 1.5.6, 2026-09-29), so such a file may not preview in the account page's Import dialog; a GDAL-written GeoParquet reads. Import it with lhbox table import instead.
 

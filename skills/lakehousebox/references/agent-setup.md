@@ -13,7 +13,7 @@ You are an agent setting up LakehouseBox for a person. Credentials never appear 
 curl -fsSL https://lakehousebox.com/install.sh | sh          # one Python 3 file, no dependencies
 lhbox login                                            # prints a link and a code; the person approves once in the browser
 lhbox doctor                                           # PASS/FAIL per check; exit 1 on FAIL
-pip install 'duckdb>=1.5.5'                                # writes need 1.5.5 or newer; doctor names which interpreter to upgrade
+pip install 'duckdb>=2.0.0'                                # 2.0.0 recommended; writes need 1.5.5 or newer; doctor names which interpreter to upgrade
 lhbox duckdb                                           # the DuckDB shell with the catalog attached (the recipe is never on screen)
 ```
 
@@ -32,7 +32,7 @@ Rules that save a retry (details and the other engines in section 7):
 
 - Let lhbox duckdb or lhbox connect write the ATTACH. By hand, DuckDB attaches the bare bucket name from the recipe (ATTACH '<warehouse_name>' …); ATTACH 's3://…' attaches read-only and every INSERT fails. PyIceberg and Spark want the opposite, warehouse='s3://<bucket>/'.
 
-- DuckDB 1.5.5 or newer to write. Older versions write metadata the catalog's maintenance cannot read. Use 1.5.6 or newer for spatial filters with &&: 1.5.5 counts rows with a NULL geometry as && matches (duckdb#24845).
+- DuckDB 2.0.0 recommended; 1.5.5 or newer to write. Older versions write metadata the catalog's maintenance cannot read. Use 1.5.6 or newer for spatial filters with &&: 1.5.5 counts rows with a NULL geometry as && matches (duckdb#24845). Tables 2.0.0 writes stay readable from 1.5.6.
 
 - No CREATE OR REPLACE TABLE: DROP TABLE, then CREATE TABLE.
 
