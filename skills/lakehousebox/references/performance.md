@@ -89,6 +89,37 @@ The store's built-in compactor, until 2026-09-23, wrote its files without column
 
 Geometry tables keep their spatial layout through compaction (since 2026-10-05). A format-version 3 table with one geometry column and no declared sort order is compacted in spatial order: the rows are sorted by the Hilbert index of their bounding-box centre, written in row groups of about 2 MB, and each compacted file records its geometry bounds, so a table that agents keep appending to stays as cheap to query by area as the import left it. Measured on 2.1 M points, a 1 km lookup with && read 0.7–2.3 MB after the import, 9.7–11.3 MB after 30 appends spread over the whole area, and 1.2–3.4 MB once maintenance had compacted the table (28.4 MB before this change); every answer matched a full scan. A table that declares a sort order keeps its own. With several geometry columns, name the one to cluster by in the table property lakehousebox.cluster.geometry; set it to none to keep the files in the order they were written.
 
+Seeing a table's clustering. lhbox table get, GET /v1/table and the MCP tool describe_table show a geometry table's clustering:
+
+- column and maintained: the column maintenance keeps the table in spatial order by. When it does not, reason says why: opted_out (the property is none), sort_order, several_geometry or named_not_found.
+
+- state, measured on the table as it is now, whoever wrote it:
+
+clustered: a point lookup reads at most 4 row groups' worth of bytes and at most half the geometry column;
+
+- partly: at most 12 row groups' worth and three quarters of the column;
+
+- unclustered: more;
+
+- small: two row groups or fewer, so there is little to skip whatever the order;
+
+- also empty, or unknown when the files cannot be read.
+
+- lookup_cost (the bytes a point lookup reads, in row groups of the table's average size) and lookup_share (the share of the geometry column it reads). Each row group's geometry box is read from its file's footer. One probe is placed at the centre of each row group's box (at most 512, evenly chosen), weighted by its rows, and counts every row group whose box contains it. Tables with more than 64 data files are measured on 64 of them (sampled).
+
+- last_spatial_compaction, and the files and rows added since.
+
+What the states looked like on Spain's 2.1 M places:
+
+| table | state | per 1 km lookup |
+|---|---|---|
+| imported in Hilbert order | clustered, cost 1.8 | 0.7–2.3 MB read |
+| after 30 appends spread over the whole country | unclustered, cost 22.7 | 9.7–11.3 MB |
+| after maintenance compacted it | clustered, cost 2.2–2.6 | 1.2–2.3 MB |
+| 12 appends after a compaction | clustered, cost 3.5–4.0 | 16 % more than just compacted |
+| the same rows in random order | unclustered, share 1.0 | 31.7 MB |
+| opted out and bin-packed | unclustered, share 1.0 | 28.3 MB |
+
 ## What to expect over the internet
 
 The store answers byte-range requests correctly (206, exactly the bytes asked; HTTP/2), and its own share of a request is small: from Madrid, 45 ms away, a 256 KB range took 345–359 ms on a fresh connection and 69–80 ms on a reused one — one round trip plus about 25 ms of server work, TLS included (§5d). What sets a query's time from far away is therefore the number of requests and whether the connection is reused, not the store.
