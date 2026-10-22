@@ -100,6 +100,11 @@ SELECT * FROM <catalog>.<namespace>.<table> LIMIT 10;
 9. **MCP `query`** is one read-only statement with 20 s of compute and at most 2,000 rows back: aggregate and filter
    in SQL. `busy` or `rate_limited` means wait `retry_after_seconds`, then send it again.
 
+10. **A bug in LakehouseBox itself** (not in your SQL, and the error's `remedy` did not help): `lhbox bug --title "<one
+   line>" --what "<the error as printed>"` prints the public tracker's bug form, filled in; show the link to the person
+   and file it yourself only when they ask. Public: never a key, a secret or their data. A security vulnerability goes
+   to https://github.com/lakehousebox/lakehousebox/security/advisories/new instead.
+
 ## Leave something for the next agent
 
 - `lhbox catalog agents-md <catalog>` reads the catalog's AGENTS.md (`read_agents_md` over MCP). When you have

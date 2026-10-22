@@ -274,5 +274,7 @@ Rules:
 
 - Everything is in the open formats it says: Iceberg tables in an S3 bucket the person can take elsewhere.
 
+- A bug in LakehouseBox itself (not in your SQL, and the error's remedy did not help): lhbox bug --title "…" --what "…" prints the public tracker's bug form, filled in with this machine's versions; show the link to the person and file it yourself only when they ask. The tracker is public: no keys, no secrets, none of their data. Details: Report a bug.
+
 ---
 HTML version: https://lakehousebox.com/docs/agent-setup/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt
