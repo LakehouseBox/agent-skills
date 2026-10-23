@@ -91,6 +91,10 @@ Not available:
 
 Pin the types of a JSON source (columns = {…}, or JSON and ->>): inference can change between fetches.
 
+## The engine
+
+A sink runs on one DuckDB engine and keeps it: 2.0 (DuckDB 2.0.0, the default) or 1.5 (DuckDB 1.5.6). The engine is stored when the sink is created (--engine, else the default of that day), so a later change of LakehouseBox's default never changes what an existing sink runs. Moving a sink (lhbox sink update <sink> --engine 1.5) previews its query on the new engine against the table first, and is refused if it does not run or fit there. Previews take --engine too. Every run in lhbox sink runs names its engine.
+
 ## Sources that want a credential: connections
 
 An API key never goes in the SQL. Store it once as a connection of the catalog, bound to a URL prefix, and write the plain URL in the query. The executor adds the credential to every request under that prefix, and to nothing else:
@@ -160,6 +164,7 @@ lhbox sink runs madrid_air                                             # state, 
 lhbox sink pause madrid_air                                            # hold the schedule
 lhbox sink resume madrid_air                                           # start it again
 lhbox sink update madrid_air --sql @v2.sql                             # a new query
+lhbox sink update madrid_air --engine 1.5                              # another DuckDB engine, previewed first
 ```
 
 ## When it fails
@@ -175,6 +180,7 @@ Every error names what to change and carries a remedy.
 | auth_required | a 401 where no connection applies |
 | connection_conflict | a header connection used with a connection on another host or port |
 | budget_exceeded, rate_limited, unknown_column, query_timeout, output_too_large | what to change, in its remedy |
+| engine_unavailable | the sink's engine could not run this time; retried like any transient failure |
 | 403 claim_required | an unclaimed catalog: a person claims it first |
 
 ## Routes
@@ -182,17 +188,19 @@ Every error names what to change and carries a remedy.
 The full contracts are in the API reference (https://lakehousebox.com/docs/api/).
 
 ```
-POST  /v1/sql/preview          {warehouse, sql, table?} -> rows (<= 50), row_count, columns{name, duckdb_type, type},
-                               problems, create_table_schema, fits_table / table_error, egress{requests, bytes_down, hosts}
-POST  /v1/sinks                {name, warehouse, table, sql, every, offset?, paused?, create_table?, key?}   write level
-PATCH /v1/sinks/{id}           {sql?, every?, offset?, paused?, key?}   a new query is previewed against the table first
+POST  /v1/sql/preview          {warehouse, sql, table?, engine?} -> rows (<= 50), row_count, columns{name, duckdb_type, type},
+                               problems, create_table_schema, fits_table / table_error, egress{requests, bytes_down, hosts},
+                               engine, engine_version
+POST  /v1/sinks                {name, warehouse, table, sql, every, offset?, paused?, create_table?, key?, engine?}   write level
+PATCH /v1/sinks/{id}           {sql?, every?, offset?, paused?, key?, engine?}   a new query or engine is previewed against
+                               the table first
 POST  /v1/sinks/{id}/run       one run now (a paused sink too); 409 run_already_queued
 POST  /v1/sql/connections     {warehouse, name, url_prefix, kind: bearer|header|basic, header_name?, value}
 GET   /v1/sql/connections     ?warehouse=  names, prefixes, kinds; never a value
 PUT   /v1/sql/connections/{name}?warehouse=   {value, header_name?}
 DELETE /v1/sql/connections/{name}?warehouse=  pauses the SQL sinks naming its prefix or host (connection_deleted)
 GET   /v1/sinks/{id}/runs      state (queued, running, retry_wait, materialised, empty, failed, skipped), committed
-                               {snapshot_id}, rows, requests, bytes_down, elapsed_ms, error{code, message, remedy, …}
+                               {snapshot_id}, rows, requests, bytes_down, elapsed_ms, engine, error{code, message, remedy, …}
 ```
 
 ## On the account page
