@@ -158,6 +158,18 @@ A table is read only from your catalogs. DuckDB's own system views (pg_catalog.*
 
 The spatial extension loads when the SQL asks for it: an ST_ function or a geometry type. Most queries do not pay for it. ST_* geometry functions work. The spatial file readers (ST_Read and the like) are refused. Geometry columns come back as WKT text, with the column's GEOMETRY type.
 
+Four reviewed community extensions load the same way, only for a query that uses them, on both engines:
+
+- h3: H3 cells (h3_latlng_to_cell, h3_cell_to_parent, h3_cell_to_boundary_wkt, distances and areas). The functions whose output grows with an argument, such as h3_grid_disk, h3_cell_to_children and h3_polygon_wkt_to_cells, are refused.
+
+- splink_udfs: soundex, double_metaphone, unaccent, strip_diacritics.
+
+- urlpattern: url_hostname, url_parse, urlpattern_test and the rest.
+
+- yaml: yaml_to_json, yaml_extract, parse_yaml and the YAML type. Its file readers and settings are refused.
+
+Need another extension? Tell us at hello@lakehousebox.com or with lhbox bug, and we will evaluate it.
+
 Queries from different organisations take turns. A query that waits too long for a turn answers busy, with a time to retry. There is a time limit: for anything heavier, run your own DuckDB (lhbox duckdb) where your agent can reach us.
 
 ### Where to compute: your machine when it can reach us, ours when it cannot
