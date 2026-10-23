@@ -36,7 +36,7 @@ lhbox sink resume docs_quakes                                          # start t
 lhbox sink update docs_quakes --key quake_id                           # one row per quake
 ```
 
-The preview shows the rows and each column's Iceberg type. With --table, it also says whether they fit an existing table.
+The preview shows the rows and each column's Iceberg type. With --table, it also says whether they fit an existing table. It carries at most 50 rows and 50,000 characters per value (--limit only chooses how many of those to print); when it cut either, the answer says so (truncated, truncated_by, rows_shown, values_truncated). A run keeps every row and the whole value.
 
 --create-table makes the table from the query's columns. --every 1h --offset 7m runs the query at seven minutes past every hour (UTC). --paused holds the schedule until you have seen one run.
 
@@ -275,7 +275,8 @@ The full contracts are in the API reference (https://lakehousebox.com/docs/api/)
 
 ```
 POST  /v1/sql/preview          {warehouse, sql, table?, engine?, format_version?} -> rows (<= 50), row_count,
-                               columns{name, duckdb_type, type}, problems, create_table_schema, create_table_format_version,
+                               rows_shown, truncated, truncated_by, max_rows_applied, max_chars_applied,
+                               values_truncated[{row, column, length}], columns{name, duckdb_type, type}, problems, create_table_schema, create_table_format_version,
                                format_version_source, fits_table / table_error, egress{requests, bytes_down, hosts},
                                engine, engine_version
 POST  /v1/sinks                {name, warehouse, table, sql, every, offset?, paused?, create_table?, format_version?,
