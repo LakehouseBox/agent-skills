@@ -3,15 +3,9 @@ This is a copy of https://lakehousebox.com/docs/files/index.md taken when this s
 
 # Files: what a catalog's file bucket takes
 
-Every catalog has two places for data: its tables, and a file bucket for the files around them (the source downloads a table was built from, rasters, tiles, photos from a camera, a data card). LakehouseBox stores data, so the file bucket takes data formats. An upload of any other kind of file is refused with an error that says so; if your data needs a format that is not on the list, write to hello@lakehousebox.com and we will look at adding it.
+Every catalog has two places for data: its tables, and a file bucket for the files around them. Those are the source downloads a table was built from, rasters, tiles, photos from a camera, a data card. This page shows how to move files in and out with lhbox, and which file types the bucket takes.
 
-Tables are not affected: they hold Iceberg tables, as always.
-
-## Upload, download, list and delete with lhbox
-
-The CLI does it without the aws CLI or boto3. Every byte goes between your machine and the store through links the API signs for each upload; the catalog's key never leaves the API. You need write on the catalog to upload or delete, and read to list or download.
-
-The commands follow aws s3: the catalog side is written lhbox://<catalog>/<key or prefix> (the catalog's name or id), the other side is a local path.
+## The short path
 
 ```
 lhbox file cp ./tiles.pmtiles lhbox://garden/public/ --cache-control "public, max-age=86400"
@@ -24,31 +18,80 @@ lhbox file sync lhbox://garden/site/ ./site                    # down, skipping 
 lhbox file rm lhbox://garden/public/old.pmtiles                # --recursive deletes a folder
 ```
 
-lhbox file put PATH [KEY] --catalog garden and lhbox file get KEY [DEST] --catalog garden do the same as cp up and down, with the key written without the lhbox:// part (put and get take lhbox:// addresses too). An s3:// URL is refused with the lhbox:// form to use: the bucket behind a catalog is not a name you need.
+LakehouseBox stores data, so the file bucket takes data formats (the list). An upload of any other kind of file is refused with an error that says so. Tables are not affected: they hold Iceberg tables, as always.
 
-- Keys. For one file, the key is the name you give. A key ending in / is a folder, and the file's name is added to it. Without a key, the file's name is used. A folder's contents go under the prefix you give (cp and sync); put without a key uses the folder's name as the prefix. A folder is uploaded recursively with or without --recursive. Hidden files (.DS_Store, .git/) are skipped.
+## Upload, download, list and delete with lhbox
 
-- Downloads. A key ending in /, or --recursive, is a folder: everything under it is written into the local directory with the relative paths kept (data means data/, never data2/). A key that would land outside that directory (one holding ..) stops the download before anything is written.
+The CLI needs no aws CLI or boto3. Every byte goes between your machine and the storage, through links the API signs for each upload. The catalog's key never leaves the API. You need write on the catalog to upload or delete, and read to list or download.
 
-- --exclude and --include take globs matched against the path relative to the source folder or prefix (* matches across /). They apply in order and the last one that matches wins, as in aws s3: --exclude "*" --include "*.csv" takes only the CSV files. cp, sync, put and rm --recursive take them.
+The commands follow aws s3. The catalog side is written lhbox://<catalog>/<key or prefix>, with the catalog's name or id; the other side is a local path.
 
-- Headers kept with the file. The content type follows the file's name, or --content-type; a compressed file such as data.csv.gz is application/gzip. --cache-control, --content-disposition (for example attachment; filename="report.csv"; the file name must be a type the bucket takes), --content-language and --metadata name=value (or --meta; several as a=1,b=2, or JSON {"a": "1"}; sent as x-amz-meta-name) are stored with the file. A published folder passes them on to readers: see Public catalogs. Content-Encoding is not set: publish compressed data as .csv.gz.
+lhbox file put PATH [KEY] --catalog garden does the same as cp up, and lhbox file get KEY [DEST] --catalog garden the same as cp down. They take the key without the lhbox:// part, and take lhbox:// addresses too. An s3:// URL is refused with the lhbox:// form to use: the bucket behind a catalog is not a name you need.
 
-- Large files go up in parts. A file larger than 64 MiB (--part-size, in MiB, at least 5) is sent in parts, four at a time (--parallel). A part that fails is retried on its own with a new link. If the upload cannot finish, it is cancelled and nothing is kept. A file can be up to 5 TB. An upload that would take the organisation over its storage limit is refused before it starts, or cancelled when it completes.
+### Keys and folders
 
-- sync skips every file whose other copy has the same size and checksum (the ETag), in both directions, so it can be run again after an interruption. cp and put do the same with --skip-unchanged. sync never deletes: there is no --delete, and lhbox file rm removes files. --dryrun (or --dry-run) lists what would be copied or deleted.
+- Uploading one file, the key is the name you give. A key ending in / is a folder, and the file's name is added to it. Without a key, the file's name is used.
 
-- Deleting. lhbox file rm asks for confirmation only when a person is at a terminal; a script or an agent deletes without --yes, as aws s3 rm does.
+- Uploading a folder, its contents go under the prefix you give (cp and sync). put without a key uses the folder's name as the prefix. A folder is uploaded recursively, with or without --recursive.
 
-- aws s3 flags that do not apply (--acl, --sse, --storage-class, --expires, --content-encoding, --endpoint-url, --delete, …) are refused with the reason and what to use instead. --quiet, --only-show-errors and --no-progress are accepted and change nothing.
+- Hidden files (.DS_Store, .git/) are skipped.
 
-- Output. When the output is piped, JSON goes to stdout, for example {"uploaded": [{"key", "size", "etag", "method": "put" | "multipart", "parts"}], "skipped": [...], "count", "bytes", "seconds"} (a download: "downloaded"). Progress goes to stderr when stderr is a terminal, or always with --progress. A refused file (415 for a type the bucket does not take) is named in one error envelope.
+- Downloading, a key ending in /, or --recursive, is a folder. Everything under it is written into the local directory with the relative paths kept: data means data/, never data2/.
+
+- A key that would land outside that directory (one holding ..) stops the download before anything is written.
 
 - A download writes the whole file before it renames it into place, and reports its sha256.
 
-Measured on 2026-10-20 against lakehousebox.com from a laptop: a 150 MiB file went up in 3 parts in 4.2 s and came back in 2.7 s with the same sha256. Re-running with --skip-unchanged skipped it. With lhbox 0.6.63, lhbox file sync of a five-file folder (one file of 70 MB) sent everything the first time and nothing the second (5 skipped, 0.11 s); sync back down gave a folder identical to the original (diff -r).
+### Options
 
-Other ways in still work. Any S3 tool can write the file bucket with the catalog's own credential from the connection recipe (lhbox connect; blob_example_python is a boto3 client). The API's upload links are POST /v1/warehouses/{id}/blobs/upload for one PUT and …/blobs/multipart for parts (API). A device that should only write gets an uploader key.
+| option | what it does |
+|---|---|
+| --exclude, --include | globs matched against the path relative to the source folder or prefix (* matches across /). They apply in order and the last one that matches wins, as in aws s3: --exclude "*" --include "*.csv" takes only the CSV files. cp, sync, put and rm --recursive take them. |
+| --content-type | the content type; otherwise it follows the file's name, and a compressed file such as data.csv.gz is application/gzip |
+| --cache-control | stored with the file |
+| --content-disposition | stored with the file, for example attachment; filename="report.csv"; the file name must be a type the bucket takes |
+| --content-language | stored with the file |
+| --metadata name=value (or --meta) | stored as x-amz-meta-name; several as a=1,b=2, or JSON {"a": "1"} |
+| --part-size | in MiB, at least 5: a file larger than this (64 MiB by default) goes up in parts |
+| --parallel | parts sent at a time (four by default) |
+| --skip-unchanged | cp and put skip a file whose other copy has the same size and checksum |
+| --dryrun (or --dry-run) | lists what would be copied or deleted |
+| --progress | progress on stderr always, not only when stderr is a terminal |
+| --yes | confirms lhbox file rm at a terminal |
+
+A published folder passes the stored headers on to readers: see Public catalogs. Content-Encoding is not set: publish compressed data as .csv.gz.
+
+### Large files, sync and deleting
+
+- Large files go up in parts. A part that fails is retried on its own, with a new link. If the upload cannot finish, it is cancelled and nothing is kept. A file can be up to 5 TB.
+
+- An upload that would take the organisation over its storage limit is refused before it starts, or cancelled when it completes.
+
+- sync skips every file whose other copy has the same size and checksum (the ETag), in both directions. So it can be run again after an interruption.
+
+- sync never deletes: there is no --delete, and lhbox file rm removes files.
+
+- Deleting. lhbox file rm asks for confirmation only when a person is at a terminal. A script or an agent deletes without --yes, as aws s3 rm does.
+
+- aws s3 flags that do not apply are refused, with the reason and what to use instead: --acl, --sse, --storage-class, --expires, --content-encoding, --endpoint-url, --delete, …. --quiet, --only-show-errors and --no-progress are accepted and change nothing.
+
+### Output
+
+When the output is piped, JSON goes to stdout. A download says "downloaded" where an upload says "uploaded":
+
+```
+{"uploaded": [{"key", "size", "etag", "method": "put" | "multipart", "parts"}], "skipped": [...], "count", "bytes", "seconds"}
+```
+
+Progress goes to stderr when stderr is a terminal, or always with --progress. A refused file (415 for a type the bucket does not take) is named in one error envelope.
+
+### Other ways in
+
+- Any S3 tool can write the file bucket with the catalog's own credential, from the connection recipe (lhbox connect; blob_example_python is a boto3 client).
+
+- The API's upload links are POST /v1/warehouses/{id}/blobs/upload for one PUT, and …/blobs/multipart for parts (API).
+
+- A device that should only write gets an uploader key.
 
 ## What the file bucket takes
 
@@ -70,35 +113,65 @@ The type is the file name's last extension, in any case (.parquet, .PARQUET).
 
 Also taken, whatever the name:
 
-- Zarr stores: under a folder whose name ends in .zarr/, the Zarr metadata files (.zarray, .zattrs, .zgroup, .zmetadata, zarr.json) and chunks (0.0.1, c/0/3, c.0.0), which have no extension.
+- Zarr stores: under a folder whose name ends in .zarr/, the Zarr metadata files (.zarray, .zattrs, .zgroup, .zmetadata, zarr.json) and chunks, which have no extension (0.0.1, c/0/3, c.0.0).
 
-- Small files: any file under 100 kB, so a pipeline's markers (COMPLETE, _SUCCESS, EDITION), folder markers (folder/) and small sidecar files keep working. Web pages, scripts and programs (.html, .js, .svg, .exe and the like) are refused at any size. A copy (CopyObject) and the start of a multipart upload do not count as small: their size is not known when the type is checked.
+- Small files: any file under 100 kB. So a pipeline's markers (COMPLETE, _SUCCESS, EDITION), folder markers (folder/) and small sidecar files keep working.
 
-Files already in a file bucket stay where they are, whatever their type; the rule applies to new uploads.
+- Web pages, scripts and programs (.html, .js, .svg, .exe and the like) are refused at any size.
+
+- A copy (CopyObject) and the start of a multipart upload do not count as small: their size is not known when the type is checked.
+
+Files already in a file bucket stay where they are, whatever their type. The rule applies to new uploads.
 
 ## What is refused, and the error
 
-Everything else: video, audio, web pages and scripts (.html, .js, .svg), executables, and files with an extension not on the list. The upload answers HTTP 415 with the S3 error code UnsupportedFileType, before any byte is stored:
+Everything else is refused: video, audio, web pages and scripts (.html, .js, .svg), executables, and files with an extension not on the list. The upload answers HTTP 415 with the S3 error code UnsupportedFileType, before any byte is stored:
 
 ```
 <Error><Code>UnsupportedFileType</Code><Message>LakehouseBox stores data, and this file type is not one a catalog's files accept. …</Message></Error>
 ```
 
-Form uploads (S3's POST Object, used by browser forms) and other POST requests are refused with 501 NotImplemented: upload with PUT or a multipart upload, as every S3 client and SDK does by default. Multi-object deletes still work.
+Form uploads (S3's POST Object, used by browser forms) and other POST requests are refused with 501 NotImplemented. Upload with PUT or a multipart upload, as every S3 client and SDK does by default. Multi-object deletes still work.
 
-The rule applies to every credential that can write files: the catalog's own credential and an uploader key. The FTP and SFTP drop box refuses video, audio, web pages and programs when the device uploads them, so the device sees the error (FTP 553). Any other file the bucket does not take is accepted by the drop box and then refused when it is passed on to the bucket. It is removed from the drop box and not retried.
+The rule applies to every credential that can write files: the catalog's own credential and an uploader key.
+
+The FTP and SFTP drop box refuses video, audio, web pages and programs when the device uploads them, so the device sees the error (FTP 553). Any other file the bucket does not take is accepted by the drop box, then refused when it is passed on to the bucket. It is removed from the drop box and not retried.
 
 ## What a public folder serves
 
-A catalog that publishes a folder of its file bucket serves only that folder's data files to readers without an account. Photos, PDFs, spreadsheets and archives stay readable with your own credentials, and photos can be served publicly for organisations that ask for it. The list is on Public catalogs. The published folder is also served from our CDN (public-files.lakehousebox.com), which keeps copies for up to an hour: the same page says what that means for a file you overwrite.
+A catalog that publishes a folder of its file bucket serves only that folder's data files to readers without an account. Photos, PDFs, spreadsheets and archives stay readable with your own credentials. Photos can be served publicly for organisations that ask for it. The list is on Public catalogs.
+
+The published folder is also served from our CDN (public-files.lakehousebox.com), which keeps cached copies. The same page says for how long, and what that means for a file you overwrite.
 
 ## Asking for a format
 
-If your data comes in a format the list does not have, write to hello@lakehousebox.com with the extension and what reads it. The list grows when a format is data that an engine or an agent reads.
+The person: if their data comes in a format the list does not have, writes to hello@lakehousebox.com with the extension and what reads it. The list grows when a format is data that an engine or an agent reads.
+
+## When it fails
+
+| what you see | what it means | what to do |
+|---|---|---|
+| 415 UnsupportedFileType | the extension is not on the list | use a type on the list, or ask for the format |
+| 501 NotImplemented | a form upload or another POST | upload with PUT or a multipart upload |
+| FTP 553 from the drop box | video, audio, a web page or a program | send a type the bucket takes |
+| an s3:// URL refused | lhbox file takes lhbox://<catalog>/… | use the form the error names |
+| an aws s3 flag refused | it does not apply here | the error names what to use instead |
+| an upload refused, or cancelled at completion | it would take the organisation over its storage limit | free space, or ask for a higher limit |
+| a download stopped before writing | a key holds .. and would land outside the directory | nothing was written |
 
 ## Not yet
 
 The check reads the file name, not the content. Checking that a file's content matches its extension is not built yet.
+
+## Numbers and dates
+
+| what | figure | measured |
+|---|---|---|
+| a 150 MiB file, from a laptop to lakehousebox.com | up in 3 parts in 4.2 s, back in 2.7 s with the same sha256; re-running with --skip-unchanged skipped it | 2026-10-20 |
+| lhbox file sync of a five-file folder (one file of 70 MB), lhbox 0.6.63 | everything the first time, nothing the second (5 skipped, 0.11 s); sync back down gave a folder identical to the original (diff -r) | 2026-10-20 |
+| parts | above 64 MiB by default, four at a time; a part at least 5 MiB | current |
+| largest file | 5 TB | current |
+| "small file", taken whatever its name | under 100 kB | current |
 
 ---
 HTML version: https://lakehousebox.com/docs/files/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt

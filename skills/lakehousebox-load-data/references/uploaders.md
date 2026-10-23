@@ -3,19 +3,21 @@ This is a copy of https://lakehousebox.com/docs/uploaders/index.md taken when th
 
 # Uploaders: a write-only credential for a catalog's files
 
-An uploader is a scoped, long-lived, revocable key that can only drop files into a catalog's file bucket. Use one for a relay, a camera, a field device, a partner that sends you files or a CI job that publishes artefacts: anything that must write and must never read, list what others wrote, or come near the tables and the catalog.
+An uploader is a scoped, long-lived, revocable key that can only drop files into a catalog's file bucket. Use one for a relay, a camera, a field device, a partner that sends you files or a CI job that publishes artefacts. That is anything that must write, and must never read, list what others wrote, or come near the tables and the catalog.
 
 ```
 lhbox catalog uploader create garden --name camera-north --prefix photos/north/ --save ~/camera-north.json
-lhbox catalog uploader list   garden
-lhbox catalog uploader revoke garden --uploader camera-north
+lhbox catalog uploader list   garden                              # the catalog's uploaders, never a secret
+lhbox catalog uploader revoke garden --uploader camera-north      # the key stops working at once
 ```
 
-create refuses to run without --save FILE (written with mode 0600, nothing printed) or --show-key (the secret printed once), so no uploader is ever made whose secret nobody received. With --json, --save masks the secret everywhere in the answer. You need write on the catalog to create or revoke an uploader, and read to list them.
+create refuses to run without --save FILE or --show-key, so no uploader is made whose secret nobody received. --save writes the file with mode 0600 and prints nothing. --show-key prints the secret once. With --json, --save masks the secret everywhere in the answer.
 
-The catalog's own credential (lhbox connect) is for engines and for you, never for a device: give a device an uploader instead.
+You need write on the catalog to create or revoke an uploader, and read to list them.
 
-The file bucket takes data file types (photos, documents, archives and data formats): an upload of another type is refused with 415 UnsupportedFileType. The list is on File types (https://lakehousebox.com/docs/files/).
+The catalog's own credential (lhbox connect) is for engines and for you, never for a device. Give a device an uploader instead.
+
+The file bucket takes data file types: photos, documents, archives and data formats. An upload of another type is refused with 415 UnsupportedFileType. The list is on File types (https://lakehousebox.com/docs/files/).
 
 ## What the key can and cannot do
 
@@ -28,13 +30,96 @@ The file bucket takes data file types (photos, documents, archives and data form
 
 The bucket's name, the endpoint and the prefix are in the file --save writes. A device must list with its own prefix as ?prefix=: a listing without one is refused.
 
-Prefixes. No prefix means the whole file bucket, except the root keys starting with _ and the root AGENTS.md, which no uploader may write (a whole-bucket lister still sees the key names there). A prefix may not start with _. A prefix without a trailing slash confines to keys that start with it: photos covers photos.jpg and photos/a.jpg both. Allowed characters: letters, digits, . _ - / = @ :; no leading slash, no empty or dot segments, no * ? $.
+Prefixes. No prefix means the whole file bucket, except the root keys starting with _ and the root AGENTS.md. No uploader may write those, though a whole-bucket lister still sees the key names there.
 
-Expiry. --expires-at sets a time after which the uploader shows status: expired; within the hour after it, its key is removed and its drop-box login refused, as if revoked.
+- A prefix may not start with _.
+
+- A prefix without a trailing slash confines to keys that start with it: photos covers photos.jpg and photos/a.jpg both.
+
+- Allowed characters: letters, digits, . _ - / = @ :. No leading slash, no empty or dot segments, no * ? $.
+
+Expiry. --expires-at sets a time after which the uploader shows status: expired. Within the hour after it, its key is removed and its drop-box login refused, as if revoked.
+
+## Using what was uploaded
+
+The uploader cannot read: you do, from the catalog side, with the catalog's own credential. lhbox connect gives it, with the recipe's blob_bucket and blob_example_python:
+
+```
+-- DuckDB, with the S3 secret of the connect recipe (lhbox_s3)
+SELECT filename, size, content
+FROM read_blob('s3://<blob bucket>/photos/north/*.jpg');
+-- Parquet dropped by a partner, straight into a table of the catalog
+INSERT INTO garden.sensors SELECT * FROM read_parquet('s3://<blob bucket>/partner-acme/2026-09/*.parquet');
+```
+
+Index the files in a table: photos in the bucket, one row per photo in a table. An index rule on a sink (https://lakehousebox.com/docs/ingest/) does it as the files arrive. Hand download links out from your side with presigned URLs; the uploader has none to give. Deleting or moving what was uploaded is yours too, with the CLI's file commands (File types (https://lakehousebox.com/docs/files/)).
+
+The account page's catalog view has a Files section. It shows the file bucket as folders and files, with thumbnails for images, a preview and a download link. It also offers upload, new folder, delete, and Query in SQL for CSV, Parquet and JSON files. File bytes go between your browser and the storage through links signed for each file; they never pass through the API.
+
+## Designing prefixes
+
+- One prefix per device or partner (photos/north/, partner-acme/), so revoking one revokes one.
+
+- Put the date in the key, not in the prefix, unless you want the credential to expire with the month. --prefix drops/2026-09/ is a cheap time box.
+
+- Choose a prefix engines can glob: read_parquet('s3://<blob bucket>/partner-acme/*/*.parquet').
+
+- The file bucket counts against the catalog's storage like its tables do (lhbox usage).
+
+- A public folder is world-readable. The admin of a public catalog may publish a folder of its file bucket (lhbox catalog publish <name> --confirm --files public/, Public catalogs (https://lakehousebox.com/docs/public-catalogs/)). Every file under that folder can then be read and listed by anyone, from the moment it lands. An uploader whose prefix is inside the public folder publishes what it drops. Keep device prefixes outside it, unless that is the point.
+
+- Each uploader is one more identity, so make one per device or partner, not one per file.
+
+To delete what uploaders drop after a while (photos/north/ after 90 days), set a lifecycle rule (https://lakehousebox.com/docs/lifecycle/) on the file bucket: lhbox catalog lifecycle set garden --prefix photos/north/ --expire-days 90. The uploader itself cannot set or read rules.
+
+## The drop box: FTP, FTPS and SFTP for devices that speak nothing else
+
+ftp.lakehousebox.com runs on its own host, separate from the one that holds the data. --protocols ftps,sftp (or ftp) on uploader create gives the uploader a generated drop-box login and password. The login is <organisation>.<catalog>.<uploader>, and the password is shown once, like the secret. The answer's dropbox block names the host and the ports: FTP and FTPS on 21 with passive ports 50000-50019, SFTP on 2222.
+
+A device logs in and uploads into any folder. Each finished file is written into the file bucket under the uploader's prefix as the uploader, within seconds. So the same limits hold: it stays inside its prefix and cannot read anything. The drop box is write-only: it lists nothing already uploaded.
+
+FTPS is explicit TLS with a certificate for ftp.lakehousebox.com. Plain FTP is offered for devices without TLS. The password and the files then cross the network unencrypted, and choosing it is your call.
+
+Limits:
+
+- a file of at most 256 MiB;
+
+- password login only, with the generated 24-character password: SSH keys are not accepted;
+
+- passive FTP only;
+
+- at most 10 drop-box uploaders per organisation by default;
+
+- while more than 1 GiB of one uploader's files waits to be stored (the organisation over its storage allowance, say), that uploader's next login is refused until it catches up.
+
+Revoking the uploader refuses its next login at once, and so does --expires-at once passed. To turn uploads into rows of a table, add an index rule (Sinks (https://lakehousebox.com/docs/ingest/), "Files that become rows").
+
+## Revoking and rotating
+
+uploader revoke deletes the key before anything else. A request signed with it is refused at once, and a multipart upload in flight cannot complete. There is no rotate: a lost or leaked secret is revoke, then create (the name is free again). Deleting the catalog removes every uploader with it. Creating and revoking uploaders is recorded in the organisation's audit log: name, prefix, list, key id, never the secret.
+
+## When it fails
+
+| what you see | what it means | what to do |
+|---|---|---|
+| create refuses to run | neither --save FILE nor --show-key was given | add one of them |
+| 415 UnsupportedFileType | the file's type is not one the file bucket takes | see File types (https://lakehousebox.com/docs/files/) |
+| 403 on a listing | no ?prefix=, another prefix, or an uploader without --list | list with its own prefix, from an uploader made with --list |
+| 403 on a read, HEAD or delete | an uploader cannot read or delete, even its own uploads | read from the catalog side, with the catalog's own credential |
+
+## Routes
+
+```
+POST   /v1/warehouses/{id}/uploaders                 {name, prefix?, list?, expires_at?, protocols?}   write level; 201; the secret once
+GET    /v1/warehouses/{id}/uploaders?include_revoked=                                       read level; never a secret
+DELETE /v1/warehouses/{id}/uploaders/{uploader_id|name}                                     write level; the key first
+```
+
+Every field and error is in the API reference (https://lakehousebox.com/docs/api/); every flag in the CLI reference (https://lakehousebox.com/docs/cli/).
 
 ## Measured: what the key is refused
 
-Real answers, measured on 2026-09-21 against the live service (relay = an uploader with prefix photos/, lister = the same with --list, catalog = the catalog's own key, the positive control with the same object key). The run predates the file-type check, so its keys end in .txt; such an upload is refused with 415 today.
+Real answers, measured on 2026-09-21 against the live service. relay is an uploader with prefix photos/, lister the same with --list, and catalog the catalog's own key: the positive control, with the same object key. The run predates the file-type check, so its keys end in .txt; such an upload is refused with 415 today.
 
 | request | answer |
 |---|---|
@@ -50,60 +135,6 @@ Real answers, measured on 2026-09-21 against the live service (relay = an upload
 | relay starts a multipart upload outside its prefix | 403 |
 | relay lists or creates namespaces in the catalog with a token minted from its key / catalog | 404, 403 / 200, 200 |
 | relay uploads after it was revoked / lister, not revoked | 403 / 200 |
-
-## Using what was uploaded
-
-The uploader cannot read; you do, from the catalog side, with the catalog's own credential (lhbox connect; its blob_bucket and blob_example_python):
-
-```
--- DuckDB, with the S3 secret of the connect recipe (lhbox_s3)
-SELECT filename, size, content
-FROM read_blob('s3://<blob bucket>/photos/north/*.jpg');
--- Parquet dropped by a partner, straight into a table of the catalog
-INSERT INTO garden.sensors SELECT * FROM read_parquet('s3://<blob bucket>/partner-acme/2026-09/*.parquet');
-```
-
-Index the files in a table (photos in the bucket, one row per photo in a table: an index rule on a sink (https://lakehousebox.com/docs/ingest/) does it as the files arrive), and hand download links out from your side with presigned URLs; the uploader has none to give. Deleting or moving what was uploaded is yours too, with lhbox file (File types (https://lakehousebox.com/docs/files/)).
-
-The account page's catalog view has a Files section: the file bucket as folders and files, with thumbnails for images, a preview, a download link, upload, new folder, delete, and Query in SQL for CSV, Parquet and JSON files. File bytes go between your browser and the storage through links signed for each file; they never pass through the API.
-
-## Designing prefixes
-
-- One prefix per device or partner (photos/north/, partner-acme/), so revoking one revokes one.
-
-- Put the date in the key, not in the prefix, unless you want the credential to expire with the month (--prefix drops/2026-09/ is a cheap time box).
-
-- Choose a prefix engines can glob: read_parquet('s3://<blob bucket>/partner-acme/*/*.parquet').
-
-- The file bucket counts against the catalog's storage like its tables do (lhbox usage).
-
-- A public folder is world-readable. When the catalog is public and its admin published a folder of the file bucket (lhbox catalog publish <name> --confirm --files public/, Public catalogs (https://lakehousebox.com/docs/public-catalogs/)), every file under that folder can be read and listed by anyone, from the moment it lands. An uploader whose prefix is inside the public folder publishes what it drops; keep device prefixes outside it unless that is the point.
-
-- Each uploader is one more identity, so make one per device or partner, not one per file.
-
-To delete what uploaders drop after a while (photos/north/ after 90 days), set a lifecycle rule (https://lakehousebox.com/docs/lifecycle/) on the file bucket: lhbox catalog lifecycle set garden --prefix photos/north/ --expire-days 90. The uploader itself cannot set or read rules.
-
-## The drop box: FTP, FTPS and SFTP for devices that speak nothing else
-
-ftp.lakehousebox.com runs on its own host, separate from the one that holds the data. --protocols ftps,sftp (or ftp) on lhbox catalog uploader create gives the uploader a generated drop-box login (<organisation>.<catalog>.<uploader>) and password, shown once like the secret. The answer's dropbox block names the host and the ports: FTP and FTPS on 21 with passive ports 50000-50019, SFTP on 2222.
-
-A device logs in and uploads into any folder; each finished file is written into the file bucket under the uploader's prefix as the uploader, within seconds, so the same limits hold: it stays inside its prefix and cannot read anything. The drop box is write-only: it lists nothing already uploaded. FTPS is explicit TLS with a certificate for ftp.lakehousebox.com. Plain FTP is offered for devices without TLS: the password and the files then cross the network unencrypted, and choosing it is your call.
-
-Limits: a file of at most 256 MiB; password login only (the generated 24-character password; SSH keys are not accepted); passive FTP only; at most 10 drop-box uploaders per organisation by default; while more than 1 GiB of one uploader's files waits to be stored (the organisation over its storage allowance, say), that uploader's next login is refused until it catches up. Revoking the uploader refuses its next login at once, and so does --expires-at once passed. To turn uploads into rows of a table, add an index rule (Sinks (https://lakehousebox.com/docs/ingest/), "Files that become rows").
-
-## Revoking and rotating
-
-lhbox catalog uploader revoke deletes the key before anything else, so a request signed with it is refused at once and a multipart upload in flight cannot complete. There is no rotate: a lost or leaked secret is revoke, then create (the name is free again). Deleting the catalog removes every uploader with it. Creating and revoking uploaders is recorded in the organisation's audit log (name, prefix, list, key id; never the secret).
-
-## Routes
-
-```
-POST   /v1/warehouses/{id}/uploaders                 {name, prefix?, list?, expires_at?, protocols?}   write level; 201; the secret once
-GET    /v1/warehouses/{id}/uploaders?include_revoked=                                       read level; never a secret
-DELETE /v1/warehouses/{id}/uploaders/{uploader_id|name}                                     write level; the key first
-```
-
-Every field and error is in the API reference (https://lakehousebox.com/docs/api/); every flag in the CLI reference (https://lakehousebox.com/docs/cli/).
 
 ---
 HTML version: https://lakehousebox.com/docs/uploaders/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt

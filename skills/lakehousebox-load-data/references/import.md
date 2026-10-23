@@ -3,33 +3,42 @@ This is a copy of https://lakehousebox.com/docs/import/index.md taken when this 
 
 # Importing files
 
-Turn Parquet or CSV files into an Iceberg table with one command. lhbox table import reads every file you name in one statement, so the whole set lands as one commit, however many files there are. Importing files one statement at a time costs one commit per file: 44 files were 44 commits and 44 waits. The import runs DuckDB on your machine, reads the files there, and writes the table in your catalog with your catalog's credential, which never appears on screen.
+This page turns Parquet or CSV files into an Iceberg table with one command. lhbox table import reads every file you name in one statement, so the whole set lands as one commit, however many files there are. One statement per file costs one commit, and one wait, per file.
 
-A person can do the same from the account page: a catalog's Tables section has an Import files button that previews the files and writes the table from the browser tab. Both paths write the table the same way: large files, rows sorted by a date column, and a GeoParquet file's metadata kept as table properties.
+## The short path
+
+```
+lhbox doctor                                                                  # finds the DuckDB lhbox will use
+lhbox table import analytics.sensors.readings 'data/2026/*.parquet'          # a new table, one commit
+lhbox table import analytics.sensors.readings 'data/2026-10/*.parquet' --mode append   # more files later, one commit
+lhbox table get analytics.sensors.readings                                    # schema, format version, snapshots, rows
+```
+
+The import runs DuckDB on your machine and reads the files there. It writes the table in your catalog with your catalog's credential, which never appears on screen.
+
+A person can do the same from the account page: see From the account page. Both paths write the table the same way: large files, rows sorted by a date column, and a GeoParquet file's metadata kept as table properties.
 
 ## A first import, end to end
 
-You need DuckDB 1.5.5 or newer on the machine that holds the files: the duckdb Python module of the interpreter running lhbox, or the duckdb binary on your PATH. lhbox doctor shows which one it found.
+You need DuckDB 1.5.5 or newer on the machine that holds the files. That is the duckdb Python module of the interpreter running lhbox, or the duckdb binary on your PATH. lhbox doctor shows which one it found.
 
-1. Import the files as a new table. Name the table as catalog.namespace.table (or namespace.table with --catalog, or with no catalog at all when you have only one). The namespace is created if it does not exist. Quote globs so that lhbox expands them, not your shell:
+- Name the table as catalog.namespace.table. Or use namespace.table with --catalog, or with no catalog at all when you have only one. The namespace is created if it does not exist.
 
-```
-lhbox table import analytics.sensors.readings 'data/2026/*.parquet'
-```
+- Quote globs, so that lhbox expands them, not your shell.
 
-2. Add more files later with --mode append. This is again one commit:
+- Add more files later with --mode append. This is again one commit.
 
-```
-lhbox table import analytics.sensors.readings 'data/2026-10/*.parquet' --mode append
-```
+- Check what landed with lhbox table get: the schema, the format version, the snapshots and the row count.
 
-3. Check what landed. lhbox table get shows the schema, the format version, the snapshots and the row count:
+The import prints one summary line for a person. It prints JSON when its output is piped, or with lhbox --json. The report includes:
 
-```
-lhbox table get analytics.sensors.readings
-```
+- rows, files, bytes and seconds;
 
-The import prints one summary line for a person, and JSON when its output is piped or with lhbox --json. The report includes rows, files, bytes, seconds, commits (counted from the table's snapshots before and after, not assumed), the format_version, the order_by column and the path it took. --full adds the generated SQL statements. A recorded run from a laptop on 2026-09-21 imported three Parquet files (3,000 rows) as one commit in 3.96 s, and appended them again in 1.21 s.
+- commits, counted from the table's snapshots before and after, not assumed;
+
+- the format_version, the order_by column and the path it took.
+
+--full adds the generated SQL statements.
 
 ## What you can import
 
@@ -39,35 +48,50 @@ The import prints one summary line for a person, and JSON when its output is pip
 | CSV: .csv, .tsv, also compressed as .gz, .zst, .bz2 | DuckDB read_csv, columns matched by name across files |
 | Anything else | --format csv or --format parquet says what it is |
 
-- One format per import. A list that mixes CSV and Parquet stops with mixed_formats. Import each format as its own run, and use --mode append for the second one. A file whose extension is not recognised stops with unknown_format unless you pass --format.
+- One format per import. A list that mixes CSV and Parquet stops with mixed_formats. Import each format as its own run, and use --mode append for the second one.
 
-- Sources can be local files, globs (** works: 'data/**/*.parquet'), or URLs that DuckDB reads directly (s3://…, https://…). A pattern that matches nothing is reported; if nothing matches at all, the command stops before anything is written.
+- A file whose extension is not recognised stops with unknown_format, unless you pass --format.
 
-- CSV has no options of its own. DuckDB detects the delimiter, the header and the column types over the whole list. If it guesses wrong, load the file yourself with read_csv(…) and its options (other formats, below).
+- Sources can be local files, globs, or URLs that DuckDB reads directly (s3://…, https://…). ** works in a glob: 'data/**/*.parquet'.
+
+- A pattern that matches nothing is reported. If nothing matches at all, the command stops before anything is written.
+
+- CSV has no options of its own. DuckDB detects the delimiter, the header and the column types over the whole list. If it guesses wrong, load the file yourself with read_csv(…) and its options (below).
 
 ## Creating or appending
 
 - --mode create (the default) makes a new table. If the table already exists, the import stops with table_exists (exit 2) and suggests --mode append.
 
-- --mode append writes into a table that exists. Columns are matched by name; a column the table has and the files lack is written as NULL. A column the files have and the table lacks stops the import (columns_not_in_table) before anything is written.
+- --mode append writes into a table that exists. Columns are matched by name. A column the table has and the files lack is written as NULL.
 
-- Importing needs a write credential on the catalog. With a read-only one the import stops with exit 3.
+- A column the files have and the table lacks stops the import (columns_not_in_table) before anything is written.
 
-- Every column of a table the import creates is optional. For required columns, identifier fields or a hand-written schema, create the table first with lhbox table create (CLI reference (https://lakehousebox.com/docs/cli/)), then import with --mode append.
+- Importing needs a write credential on the catalog. With a read-only one, the import stops with exit 3.
 
-- If DuckDB reports an error during the commit, the import reads the table back before answering. Rows that did land are reported as landed. If it cannot tell, it answers import_outcome_unknown (exit 5) with the lhbox table get to run. Do not blindly re-run an append: a second run writes every row twice.
+- Every column of a table the import creates is optional. For required columns, identifier fields or a hand-written schema, create the table first with lhbox table create (CLI reference (https://lakehousebox.com/docs/cli/)). Then import with --mode append.
+
+When the commit's outcome is unclear. If DuckDB reports an error during the commit, the import reads the table back before answering. Rows that did land are reported as landed. If it cannot tell, it answers import_outcome_unknown (exit 5) with the lhbox table get to run. Do not blindly re-run an append: a second run writes every row twice.
 
 ## Format version
 
-A new table gets the catalog's default format version (2 unless it was changed with lhbox catalog update <catalog> --default-format-version 3). --format-version 2|3 overrides it for one import; it applies only to --mode create.
+A new table gets the catalog's default format version. That is 2, unless it was changed with lhbox catalog update <catalog> --default-format-version 3. --format-version 2|3 overrides it for one import; it applies only to --mode create.
 
-- Version 2 is read by every engine the Engines page has verified, and written by DuckDB, PyIceberg, Spark, Trino and Polars. A geometry column is stored as WKB in a binary column.
+| version | read and written by | geometry |
+|---|---|---|
+| 2 | read by every engine the Engines page has verified; written by DuckDB, PyIceberg, Spark, Trino and Polars | stored as WKB in a binary column |
+| 3 | written by DuckDB 1.5.5+ and by Spark 4.1 with Iceberg 1.12, geometry included; PyIceberg 0.12 reads it but cannot write it | typed columns: geometry, or geometry(EPSG:xxxx); Spark 3.5 has no geometry type |
 
-- Version 3 keeps geometry columns typed (geometry, or geometry(EPSG:xxxx)). DuckDB 1.5.5+ and Spark 4.1 with Iceberg 1.12 write it, geometry included (Spark 3.5 has no geometry type); PyIceberg 0.12 reads it but cannot write it. See Engines (https://lakehousebox.com/docs/engines/).
+See Engines (https://lakehousebox.com/docs/engines/).
 
 ## Sorted rows and large files
 
-Every table the import writes gets the table property write.target-file-size-bytes = 134217728 (128 MiB) before its first row, so DuckDB writes a few large files instead of many small ones, and write.parquet.compression-codec = zstd, so the files are compressed with ZSTD instead of DuckDB's default SNAPPY (smaller, notably for coordinates). An append into a table that already has its own file size keeps its settings.
+Before its first row, every table the import writes gets two table properties:
+
+- write.target-file-size-bytes = 134217728 (128 MiB), so DuckDB writes a few large files instead of many small ones;
+
+- write.parquet.compression-codec = zstd, so files are compressed with ZSTD instead of DuckDB's default SNAPPY. They are smaller, notably for coordinates.
+
+An append into a table that already has its own file size keeps its settings.
 
 The rows are written ORDER BY one column. By default, this is the first DATE or TIMESTAMP column in your files, so a query that filters on that column can skip whole files.
 
@@ -75,13 +99,23 @@ The rows are written ORDER BY one column. By default, this is the first DATE or 
 
 - --no-order keeps the files' own row order.
 
-For why this matters, how much it saves, and how to load very large tables in chunks, see How tables are laid out (https://lakehousebox.com/docs/performance/).
+Why this matters, how much it saves, and how to load very large tables in chunks: How tables are laid out (https://lakehousebox.com/docs/performance/).
 
 ## GeoParquet and geometry columns
 
-When a Parquet file carries GeoParquet metadata, the import keeps it as table properties: geo.encoding, geo.primary_column, geo.crs, geo.columns (with the bounding boxes merged across files), geo.version, and geo.crs.projjson when the file had a PROJJSON CRS. geo.crs is EPSG:xxxx when the file's CRS names an authority code, and OGC:CRS84 when the file names no CRS. The properties are set on version-2 and version-3 tables alike; lhbox table get shows them, and lhbox table set-properties corrects one (--property geo.crs=EPSG:28992).
+When a Parquet file carries GeoParquet metadata, the import keeps it as table properties:
 
-- Into a version-2 table the geometry is WKB: read it back with ST_GeomFromWKB(geom) in DuckDB spatial, or any WKB reader.
+- geo.encoding, geo.primary_column, geo.version;
+
+- geo.columns, with the bounding boxes merged across files;
+
+- geo.crs: EPSG:xxxx when the file's CRS names an authority code, and OGC:CRS84 when the file names no CRS;
+
+- geo.crs.projjson, when the file had a PROJJSON CRS.
+
+The properties are set on version-2 and version-3 tables alike. lhbox table get shows them, and lhbox table set-properties corrects one (--property geo.crs=EPSG:28992).
+
+- Into a version-2 table the geometry is WKB. Read it back with ST_GeomFromWKB(geom) in DuckDB spatial, or any WKB reader.
 
 - Into a version-3 table it stays a typed geometry column with its CRS:
 
@@ -89,50 +123,60 @@ When a Parquet file carries GeoParquet metadata, the import keeps it as table pr
 lhbox table import analytics.geo.parcels 'parcels/*.parquet' --format-version 3
 ```
 
-A version-3 import needs a CRS with an authority code (such as EPSG:25830). A file whose CRS has none stops with geometry_crs_without_authority before the table is created. Import it with --format-version 2 (the full PROJJSON is kept in geo.crs.projjson), or re-tag the file's CRS with its code first.
+A version-3 import needs a CRS with an authority code, such as EPSG:25830. A file whose CRS has none stops with geometry_crs_without_authority before the table is created. Import it with --format-version 2, which keeps the full PROJJSON in geo.crs.projjson. Or re-tag the file's CRS with its code first.
 
 ## Files you laid out yourself: lhbox table add-files
 
-table import reads your rows and writes new files. When you have already written the Parquet files the way you want them (row groups, sort order, compression), for example raster tiles one per row prepared with your own tools such as raquet and queried with your own DuckDB, lhbox table add-files keeps them exactly as they are. It works in two steps: upload the files to the catalog's files with lhbox file put, then add them to a table.
+table import reads your rows and writes new files. lhbox table add-files instead keeps your Parquet files exactly as they are: row groups, sort order, compression. Use it when you already wrote them the way you want. An example is raster tiles, one per row, prepared with your own tools such as raquet and queried with your own DuckDB.
+
+It works in two steps. Upload the files to the catalog's files with lhbox file put, then add them to a table:
 
 ```
 lhbox file put out/ staging/spain/ --catalog analytics
 lhbox table add-files analytics.dem.spain staging/spain/ --sorted-by block
 ```
 
-- The files are copied inside LakehouseBox, not uploaded again: add-files reads only their footers (never the rows), copies them into the table and registers them all in one commit. Then it deletes the uploaded copies; --keep-staged keeps them. A run on 2026-10-20 added 66 files (1.11 GB) in 40 s as one commit, with a peak of 214 MB on the laptop; a cold read of one row afterwards read 1 of the 66 files and 170 KiB.
+- The files are copied inside LakehouseBox, not uploaded again. add-files reads only their footers, never the rows. It copies them into the table and registers them all in one commit.
 
-- What to name: a file (staging/spain/part-0.parquet), a folder (staging/spain/: every .parquet under it) or a pattern in quotes ('staging/spain/*.parquet'; ** also matches subfolders). A file on your machine or a URL is refused with the lhbox file put to run first.
+- Then it deletes the uploaded copies; --keep-staged keeps them.
+
+- What to name: a file (staging/spain/part-0.parquet), a folder (staging/spain/: every .parquet under it), or a pattern in quotes ('staging/spain/*.parquet'; ** also matches subfolders).
+
+- A file on your machine, or a URL, is refused with the lhbox file put to run first.
 
 - Every file must have the same columns and types. With --mode append, they must also fit the table's schema. A mismatch stops the command before anything is copied (schema_mismatch, with the file and both schemas).
 
-- Files written by an Iceberg engine carry field ids and are refused (files_have_field_ids); add them with that engine.
+- Files written by an Iceberg engine carry field ids and are refused (files_have_field_ids). Add them with that engine.
 
-- The report warns, and changes nothing, about:
+- It needs PyIceberg 0.12 or newer with pyarrow, in the interpreter running lhbox (or --python PATH). It needs no DuckDB.
 
-row groups that make a point read expensive: over 64 MB, or over 4 MB of rows averaging more than 2 KB each;
+- The table is format version 2. --full adds each file's footer summary to the JSON.
+
+- If anything fails before the commit, the copies are deleted and your uploaded files stay where they are. Nothing is in the table.
+
+The report warns about these, and changes nothing:
+
+- row groups that make a point read expensive: over 64 MB, or over 4 MB of rows averaging more than 2 KB each;
 
 - unsigned integer columns, which Iceberg does not have (DuckDB reads them; other engines may not);
 
 - with --sorted-by <column>, files whose ranges of that column overlap.
 
-- It needs PyIceberg 0.12 or newer with pyarrow in the interpreter running lhbox (or --python PATH), and no DuckDB. The table is format version 2. --full adds each file's footer summary to the JSON.
-
-- If anything fails before the commit, the copies are deleted, your uploaded files stay where they are, and nothing is in the table.
-
 ## From the account page
 
-Open a catalog, go to Tables and choose Import files. The dialog has three steps:
+The person: opens a catalog, goes to Tables and chooses Import files. The dialog has three steps:
 
-- Choose files: files on your computer (Parquet, CSV, or JSON: .json, .jsonl, .ndjson), or files in S3-compatible cloud storage. For cloud storage, the key you type stays in the tab and is never sent to LakehouseBox, and the bucket's CORS must allow the site to read.
+- Choose files: files on their computer (Parquet, CSV, or JSON: .json, .jsonl, .ndjson), or files in S3-compatible cloud storage. For cloud storage, the key they type stays in the tab and is never sent to LakehouseBox. The bucket's CORS must allow the site to read.
 
 - Preview: the columns, their DuckDB and Iceberg types, and the first rows. For CSV and JSON, Ignore errors drops rows that fail to parse.
 
 - Destination: namespace, table name, Iceberg format version, and Order rows by. If the table exists, the dialog offers to append.
 
-Import into … writes the table from the tab, with your catalog credential, as one commit. Keep the tab open until it finishes. The files travel from your disk through the browser to the store, so a large import is bound by your upload speed. The browser engine is single-threaded with a 4 GB address space, so large sets of files are better imported with the CLI.
+Import into … writes the table from the tab, with the catalog credential, as one commit. Keep the tab open until it finishes.
 
-Under Other ways to run this import, the dialog gives the same import as an lhbox table import command, as DuckDB statements, and as a prompt for your agent (with no credential in it).
+The files travel from the disk through the browser, so a large import is bound by the upload speed. The browser engine is single-threaded with a 4 GB address space. Large sets of files are better imported with the CLI.
+
+Under Other ways to run this import, the dialog gives the same import three ways: as an lhbox table import command, as DuckDB statements, and as a prompt for an agent, with no credential in it.
 
 ## Other formats and your own SQL
 
@@ -146,13 +190,46 @@ CREATE TABLE analytics.events.clicks AS
 INSERT INTO analytics.events.clicks SELECT * FROM read_json('day3.jsonl');
 ```
 
-- A table DuckDB creates itself is format version 2, whatever the catalog's default. It does not get the 128 MiB file size or the sort order: How tables are laid out (https://lakehousebox.com/docs/performance/) shows the CALL set_iceberg_table_properties and the ordered INSERT to add.
+- A table DuckDB creates itself is format version 2, whatever the catalog's default. It does not get the 128 MiB file size or the sort order. How tables are laid out (https://lakehousebox.com/docs/performance/) shows the CALL set_iceberg_table_properties and the ordered INSERT to add.
 
 - CREATE OR REPLACE TABLE is not supported on an Iceberg catalog: DROP TABLE, then CREATE TABLE again.
 
-- For a geometry column, create a version-3 table first, then insert into it: lhbox table create analytics.geo.places --format-version 3 --column id:long --column geom:geometry, then INSERT INTO analytics.geo.places SELECT id, ST_Point(lon, lat) FROM read_csv('places.csv'); with the spatial extension loaded. DuckDB's own CREATE TABLE … AS SELECT cannot make a geometry table.
+- DuckDB's own CREATE TABLE … AS SELECT cannot make a geometry table. Create a version-3 table first, then insert into it with the spatial extension loaded:
+
+```
+lhbox table create analytics.geo.places --format-version 3 --column id:long --column geom:geometry
+```
+
+```
+INSERT INTO analytics.geo.places SELECT id, ST_Point(lon, lat) FROM read_csv('places.csv');
+```
 
 The recipes for PyIceberg, Spark and the other engines are on the Engines (https://lakehousebox.com/docs/engines/) page.
+
+## When it fails
+
+| what you see | what it means | what to do |
+|---|---|---|
+| table_exists (exit 2) | --mode create and the table is there | --mode append, or another name |
+| columns_not_in_table | the files have a column the table lacks | nothing was written; match the files to the table's columns |
+| exit 3 | the credential is read-only | ask for write on the catalog |
+| mixed_formats | CSV and Parquet in one list | one run per format, --mode append for the second |
+| unknown_format | an extension the import does not know | pass --format csv or --format parquet |
+| import_outcome_unknown (exit 5) | the commit's outcome is unclear | run the lhbox table get it names before any re-run |
+| geometry_crs_without_authority | a version-3 import of a CRS with no code | --format-version 2, or re-tag the CRS first |
+| schema_mismatch | add-files: the files do not share one schema, or do not fit the table | fix the files; nothing was copied |
+| files_have_field_ids | add-files: the files were written by an Iceberg engine | add them with that engine |
+
+## Numbers and dates
+
+| what | figure | measured |
+|---|---|---|
+| three Parquet files (3,000 rows) imported as one commit, from a laptop | 3.96 s; appended again in 1.21 s | 2026-09-21 |
+| 44 files loaded one statement each | 44 commits and 44 waits | 2026-09-20 |
+| add-files: 66 files (1.11 GB) as one commit | 40 s, with a peak of 214 MB on the laptop | 2026-10-20 |
+| a cold read of one row after that add-files | read 1 of the 66 files and 170 KiB | 2026-10-20 |
+| target data file size | 128 MiB | current |
+| the browser import's engine | single-threaded, 4 GB address space | current |
 
 ---
 HTML version: https://lakehousebox.com/docs/import/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt

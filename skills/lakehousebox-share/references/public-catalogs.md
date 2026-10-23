@@ -3,9 +3,26 @@ This is a copy of https://lakehousebox.com/docs/public-catalogs/index.md taken w
 
 # Public catalogs: let anyone read a catalog
 
-An admin can make a catalog public. From then on anyone can read its tables, with DuckDB and no account and no credentials, and any LakehouseBox account can attach the whole catalog read-only by name. Writes stay with your organisation: publishing changes who can read, never who can write. Making the catalog private again stops anonymous reads at once.
+An admin can make a catalog public. Anyone can then read its tables with DuckDB, with no account and no credentials, and any LakehouseBox account can attach the whole catalog read-only by name. Publishing changes who can read, never who can write: writes stay with your organisation.
 
-Public is all or nothing for the tables of a catalog: there is no per-table publishing yet. If only some tables should be public, put them in a catalog of their own.
+## The short path
+
+```
+lhbox catalog publish <name> --confirm                   # admin: every table becomes public, read-only
+lhbox catalog public-url <name>                          # the public URL and the no-credentials DuckDB recipe
+lhbox duckdb --catalog <handle>/<catalog>                # any account: attach a public catalog by name
+lhbox catalog unpublish <name>                           # private again, at once
+```
+
+A reader with no account attaches it in DuckDB:
+
+```
+INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
+ATTACH '<handle>/<catalog>' AS <catalog> (TYPE iceberg, ENDPOINT 'https://public-catalog.lakehousebox.com', AUTHORIZATION_TYPE 'none');
+SHOW ALL TABLES;
+```
+
+Public is all or nothing for a catalog's tables: there is no per-table publishing yet. If only some tables should be public, put them in a catalog of their own. Read Risks, stated plainly before you publish.
 
 ## Publish and unpublish
 
@@ -15,12 +32,19 @@ lhbox catalog publish <name> --confirm <name>              # the same, with the 
 lhbox catalog publish <name> --confirm --files public/     # also publish one folder of the file bucket
 lhbox catalog publish <name> --confirm --no-files          # stop publishing the folder; the tables stay public
 lhbox catalog unpublish <name>                             # private again: tables, folder and AGENTS.md
-lhbox catalog public-url <name> [--table <ns>.<table>]     # the public URL and the no-credentials DuckDB recipe
+lhbox catalog public-url <name>                            # the public URL and the no-credentials DuckDB recipe
+lhbox catalog public-url <name> --table <ns>.<table>       # one table's current metadata URL
 ```
 
-By default only an admin of the organisation can publish or unpublish. An admin can open publishing to members (on the catalogs they can write) or turn it off for everyone (publish_catalogs, what members may do (https://lakehousebox.com/docs/access/#what-members-may-do)); turning it off leaves public catalogs public, and an admin can still make any of them private. The account page has the same control in the catalog's Settings. In the API it is POST /v1/catalogs/{id}/public with {"confirm": "<catalog name>"} (and optionally "files": "<prefix>/" or "files": null), and DELETE /v1/catalogs/{id}/public; see the API (https://lakehousebox.com/docs/api/).
+By default, only an admin of the organisation can publish or unpublish. An admin can open publishing to members, on the catalogs they can write. Or an admin can turn it off for everyone: publish_catalogs, in what members may do (https://lakehousebox.com/docs/access/#what-members-may-do). Turning it off leaves public catalogs public, and an admin can still make any of them private.
 
-Publishing again without --files keeps whatever folder is already published. A new --files folder replaces the old one; only one folder can be public at a time.
+The person: an admin runs the command, or uses the same control in the catalog's Settings on the account page.
+
+In the API, publishing is POST /v1/catalogs/{id}/public with {"confirm": "<catalog name>"}. It optionally takes "files": "<prefix>/" or "files": null. DELETE /v1/catalogs/{id}/public unpublishes. See the API (https://lakehousebox.com/docs/api/).
+
+Only one folder can be public at a time. Publishing again without --files keeps whatever folder is already published, and a new --files folder replaces the old one.
+
+lhbox catalog get and lhbox catalog list show public_files_prefix. While the catalog is public, its API row carries public_url, public_files_url, public_files_s3_url and public_agents_md_url; while private, they are null.
 
 ## What becomes public
 
@@ -34,37 +58,63 @@ Publishing again without --files keeps whatever folder is already published. A n
 | writes and deletes, by anyone outside your organisation | no, refused |
 | your other catalogs | no, unchanged |
 
-In the published folder, anyone can download a file, make HTTP range requests (a Cloud-Optimized GeoTIFF read with GDAL fetches only the ranges it needs) and list the files under the folder. Nothing outside the folder can be read or listed, and nothing inside it can be written or deleted anonymously. The folder is one relative prefix ending in /; a prefix with *, ?, $ or .., or a top-level folder starting with _, is refused with 400 invalid_files_prefix before anything changes.
+In the published folder, anyone can download a file and list the files under the folder. They can also make HTTP range requests: a Cloud-Optimized GeoTIFF read with GDAL fetches only the ranges it needs. Nothing outside the folder can be read or listed. Nothing inside it can be written or deleted anonymously.
 
-A reader without an account gets the folder's data files: Parquet, Arrow, Avro, ORC, DuckDB and SQLite files, NetCDF, HDF5 and GRIB, GeoTIFF (COG), VRT, FlatGeobuf, PMTiles, MBTiles, GeoPackage, LAS/LAZ, PBF, shapefile parts and their spatial indexes, KML/GML/GPX, CSV, TSV, JSON and GeoJSON (also compressed with gzip, zstd or bzip2), YAML, Markdown, plain text, SQL, .aux.xml and .crc sidecars, Zarr stores, and files without an extension (_SUCCESS, a Delta log's _last_checkpoint). Every other file in the folder is listed but answers 403 to a reader without credentials: photos, PDFs, spreadsheets, archives, and anything that is not data. You still reach all of them with your own credentials. Each file is sent with a content type that follows its extension, whatever type it was uploaded with.
+The folder is one relative prefix ending in /. A prefix with *, ?, $ or .., or a top-level folder starting with _, is refused with 400 invalid_files_prefix before anything changes.
 
-Photos (.jpg, .jpeg, .png, .webp) are served publicly for organisations that ask for it, for example to show thumbnails next to the rasters of a STAC catalog: write to hello@lakehousebox.com. Until then they are listed but not served.
+A reader without an account gets the folder's data files:
 
-lhbox catalog get and lhbox catalog list show public_files_prefix; the catalog's API row carries public_url, public_files_url, public_files_s3_url and public_agents_md_url while it is public (null while private).
+- Parquet, Arrow, Avro, ORC, DuckDB and SQLite files;
+
+- NetCDF, HDF5 and GRIB;
+
+- GeoTIFF (COG), VRT, FlatGeobuf, PMTiles, MBTiles, GeoPackage, LAS/LAZ, PBF, shapefile parts and their spatial indexes;
+
+- KML/GML/GPX, CSV, TSV, JSON and GeoJSON, also compressed with gzip, zstd or bzip2;
+
+- YAML, Markdown, plain text, SQL, .aux.xml and .crc sidecars, and Zarr stores;
+
+- files without an extension (_SUCCESS, a Delta log's _last_checkpoint).
+
+Every other file in the folder is listed, but answers 403 to a reader without credentials. That covers photos, PDFs, spreadsheets, archives, and anything that is not data. You still reach all of them with your own credentials. Each file is sent with a content type that follows its extension, whatever type it was uploaded with.
+
+Photos (.jpg, .jpeg, .png, .webp) are served publicly for organisations that ask for it, for example to show thumbnails next to the rasters of a STAC catalog. Write to hello@lakehousebox.com. Until then, they are listed but not served.
 
 ### Published files come from the CDN
 
-The published folder is also served from our CDN, at https://public-files.lakehousebox.com/<file bucket>/<key>, and that is the address public_files_url gives. A reader far from our servers gets each range of a Cloud-Optimized GeoTIFF or a PMTiles archive from a nearby edge server instead of from Germany. The same files stay readable at the S3 endpoint, at public_files_s3_url. What to know:
+The published folder is also served from our CDN, at https://public-files.lakehousebox.com/<file bucket>/<key>. That is the address public_files_url gives. A reader far from our servers gets each range of a Cloud-Optimized GeoTIFF or a PMTiles archive from a nearby edge server, instead of from Germany. The same files stay readable at the S3 endpoint, at public_files_s3_url.
 
-- An overwrite reaches the CDN in about a minute. When you overwrite, delete or rename a published file, the CDN's copy of it is removed, usually within two minutes (we measured 37 to 72 seconds). If that removal cannot run, the CDN keeps a copy for at most seven days.
+- An overwrite reaches the CDN in about a minute. When you overwrite, delete or rename a published file, the CDN's copy of it is removed, usually within two minutes. If that removal cannot run, the CDN keeps a copy for at most seven days.
 
-- Browsers keep a file for an hour, unless you set its Cache-Control. A file without a Cache-Control of yours reaches browsers with public, max-age=3600. Set your own per file, the S3 way: Cache-Control on the upload, or on a copy of the file onto itself. It reaches browsers exactly as you wrote it. With max-age=60 browsers keep the file for a minute. With max-age=0 they check for a new version on every read, and the CDN still serves it. public, max-age=31536000, immutable is for a file that never changes under that name. no-store, no-cache or private also take the file off the CDN: every read then comes from our servers in Germany. A Cache-Control without a max-age (public alone, say) gets max-age=3600 added. An s-maxage of yours is replaced by the CDN's own. The CDN's copy follows the rules above whatever you set: up to seven days, and removed when you overwrite. Expires is not passed on by the CDN: use Cache-Control.
+- A browser's copy outlives an overwrite. A browser that read the file keeps its copy for its max-age, an hour by default. Within that time, a reader that read part of a file can get the rest from the new version and mix the two. If readers must see a new version at once, publish it under a new name (v2/…, a date in the path) and point to it. Or give the file a short max-age.
 
-- A browser's copy outlives an overwrite. The CDN's copy goes within minutes, but a browser that read the file keeps its copy for its max-age, an hour by default. Within that time, a reader that read part of a file can get the rest from the new version and mix the two. If readers must see a new version at once, publish it under a new name (v2/…, a date in the path) and point to it, or give the file a short max-age.
+- No ETag. The CDN does not pass a file's ETag; Last-Modified is there. A reader that must not mix two versions across its range requests sends If-Range with the Last-Modified it saw first.
 
 - Your other headers pass as stored: Content-Disposition (for example attachment; filename="report.csv"), Content-Language and x-amz-meta-*. The content type follows the extension, as above.
 
-- Compressed files: publish them as .csv.gz (or .json.gz) without a Content-Encoding. Readers then get the gzip bytes under a name that says so, from the CDN and from the S3 endpoint alike. The CDN sends every file's bytes exactly as stored and never a Content-Encoding. A file you stored with Content-Encoding: gzip therefore reaches CDN readers as gzip bytes typed application/gzip, whatever its name.
+- Compressed files: publish them as .csv.gz (or .json.gz) without a Content-Encoding. Readers then get the gzip bytes under a name that says so, from the CDN and from the S3 endpoint alike. The CDN sends every file's bytes exactly as stored, and never a Content-Encoding. So a file stored with Content-Encoding: gzip reaches CDN readers as gzip bytes typed application/gzip, whatever its name.
 
-- Stopping removes the copies. When you make the catalog private, delete it, stop publishing the folder (--no-files) or publish a different folder, the CDN's copies are removed in the background, usually within a few minutes.
-
-- No ETag. The CDN does not pass a file's ETag; Last-Modified is there. A reader that must not mix two versions of a file across its range requests sends If-Range with the Last-Modified it saw first.
+- Stopping removes the copies. Make the catalog private, delete it, stop publishing the folder (--no-files) or publish a different folder: the CDN's copies are removed in the background, usually within a few minutes.
 
 - Photos are not served by the CDN. Where photos are served publicly, read them from public_files_s3_url.
 
 - AGENTS.md and folder listings are never cached by the CDN.
 
-Setting a file's Cache-Control: upload it with lhbox file cp (or lhbox file put), which needs no other tool (Files). Uploading the file again under the same key replaces its headers.
+### How long browsers keep a file: Cache-Control
+
+| your file's Cache-Control | what browsers get |
+|---|---|
+| none | public, max-age=3600: browsers keep it an hour |
+| max-age=60 | exactly what you wrote: a minute |
+| max-age=0 | they check for a new version on every read; the CDN still serves it |
+| public, max-age=31536000, immutable | for a file that never changes under that name |
+| no-store, no-cache or private | the file also leaves the CDN: every read comes from our servers in Germany |
+| no max-age (public alone, say) | max-age=3600 is added |
+| an s-maxage | replaced by the CDN's own |
+
+Whatever you set, the CDN's own copy follows the rules above: up to seven days, and removed when you overwrite. The CDN does not pass on Expires: use Cache-Control.
+
+Set it per file, the S3 way: Cache-Control on the upload, or on a copy of the file onto itself. lhbox file cp (or lhbox file put) sets it with no other tool (Files). Uploading the file again under the same key replaces its headers.
 
 ```
 lhbox file cp ./tiles.pmtiles lhbox://<catalog>/public/ --cache-control "public, max-age=86400"
@@ -72,9 +122,7 @@ lhbox file cp ./report.csv lhbox://<catalog>/public/ --cache-control "max-age=60
   --content-disposition 'attachment; filename="report.csv"' --content-language en --metadata source=ine
 ```
 
-Measured on 2026-10-20 in a published public/ folder, read through the CDN. The file uploaded with --cache-control "public, max-age=120", a Content-Disposition and --meta source=qa answered cache-control: public, max-age=120, s-maxage=604800, content-disposition: attachment; filename="small.csv" and x-amz-meta-source: qa. A 12 MiB file uploaded in parts kept its headers the same way.
-
-Any S3 tool works too. The bucket is the catalog's blob_bucket and the key pair is the catalog's own credential, both in the connection recipe (GET /v1/connection; blob_example_python is a ready client). A copy of a file onto itself changes the headers without uploading it again:
+Any S3 tool works too. The bucket is the catalog's blob_bucket, and the key pair is the catalog's own credential. Both are in the connection recipe (GET /v1/connection; blob_example_python is a ready client). A copy of a file onto itself changes the headers without uploading it again:
 
 ```
 # on upload
@@ -91,15 +139,17 @@ s3.copy_object(Bucket=bucket, Key=key, CopySource={"Bucket": bucket, "Key": key}
                MetadataDirective="REPLACE", CacheControl="max-age=60")   # REPLACE also resets the file's other headers
 ```
 
-The API's upload links (POST /v1/warehouses/{id}/blobs/upload, and …/blobs/multipart for a large file) take cache_control, content_disposition, content_language and metadata and sign them into the upload. DuckDB's COPY … TO 's3://…' cannot set one: copy the file onto itself afterwards.
+The API's upload links take cache_control, content_disposition, content_language and metadata, and sign them into the upload. They are POST /v1/warehouses/{id}/blobs/upload, and …/blobs/multipart for a large file. DuckDB's COPY … TO 's3://…' cannot set one: copy the file onto itself afterwards.
 
 ## The public page
 
-A public catalog has a page at https://lakehousebox.com/app/<handle>/<catalog>, where <handle> is your organisation's handle. It needs no account. It lists the tables with their columns, shows the catalog's AGENTS.md under "Written by the catalog owner", and gives two recipes: one to read every table with no account, and the lhbox duckdb command to attach it by name. The same content is JSON at GET /v1/public/<handle>/<catalog>, which answers 404 public_catalog_not_found for any catalog that is not public, whether it is private or does not exist.
+A public catalog has a page at https://lakehousebox.com/app/<handle>/<catalog>, where <handle> is your organisation's handle. It needs no account. It lists the tables with their columns, and shows the catalog's AGENTS.md under "Written by the catalog owner". It gives two recipes: one to read every table with no account, and the lhbox duckdb command to attach it by name.
+
+The same content is JSON at GET /v1/public/<handle>/<catalog>. For any catalog that is not public, it answers 404 public_catalog_not_found, whether the catalog is private or does not exist.
 
 ## Reading without an account
 
-DuckDB attaches any public catalog by name, with no account, no key and no secret, through LakehouseBox's public catalog: a read-only Iceberg catalog of every public catalog, served (with the data files) from a CDN.
+DuckDB attaches any public catalog by name through LakehouseBox's public catalog, with no account, key or secret. That is a read-only Iceberg catalog of every public catalog, served (with the data files) from a CDN.
 
 ```
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
@@ -108,30 +158,44 @@ SHOW ALL TABLES;
 SELECT * FROM <catalog>.<ns>.<table> LIMIT 10;
 ```
 
-Any Iceberg REST client attaches it the same way (endpoint https://public-catalog.lakehousebox.com, warehouse <handle>/<catalog>, no authentication). It always reads the current snapshot; a catalog made private stops answering at once at the source and within 30 seconds at the CDN.
+Any Iceberg REST client attaches it the same way: endpoint https://public-catalog.lakehousebox.com, warehouse <handle>/<catalog>, no authentication. It always reads the current snapshot. A catalog made private stops answering at once at the source, and within 30 seconds at the CDN.
 
-One table by its files, for an engine that reads Iceberg files without a catalog: a keyless S3 secret and the table's root. Keep KEY_ID '' and SECRET '': without them DuckDB signs with any AWS_ACCESS_KEY_ID it finds in the environment (many cloud sandboxes set one), and the read fails with "no version-hint could be found".
+One table by its files suits an engine that reads Iceberg files without a catalog. It needs a keyless S3 secret and the table's root. Keep KEY_ID '' and SECRET ''. Without them, DuckDB signs with any AWS_ACCESS_KEY_ID it finds in the environment, and many cloud sandboxes set one. The read then fails with "no version-hint could be found".
 
 ```
 CREATE SECRET lhbox_public (TYPE S3, ENDPOINT 'public-s3.lakehousebox.com', URL_STYLE 'path', USE_SSL true, KEY_ID '', SECRET '');
 SELECT count(*) FROM iceberg_scan('s3://<handle>--<catalog>/<ns>/<table>');   -- the root reads <ns>/<table>/metadata/version-hint.text
 ```
 
-The bucket name is the catalog's own (bucket in lhbox catalog get); catalogs created before 2026-09-21 have a w-<uuid> bucket instead. lhbox catalog public-url <name> --table <ns>.<table> prints a table's current metadata URL, which changes on every commit. The table-root form follows version-hint.text: it is current at once after a change made through LakehouseBox, and within about ten minutes after a commit an engine makes directly. Until then it reads the previous version.
+The bucket name is the catalog's own: read bucket in lhbox catalog get rather than assuming the shape, since older catalogs have a w-<uuid> bucket (Numbers and dates).
+
+lhbox catalog public-url <name> --table <ns>.<table> prints a table's current metadata URL, which changes on every commit. The table-root form follows version-hint.text. It is current at once after a change made through LakehouseBox. After a commit an engine makes directly, it is current within about ten minutes, and reads the previous version until then.
 
 A reader with no account gets no catalog access: the REST catalog stays closed to anonymous callers.
 
 ## Attaching by name, with any account
 
-Anyone with a LakehouseBox account (free) can attach every table of a public catalog read-only in one step:
+Anyone with a LakehouseBox account (free) can attach every table of a public catalog read-only, in one step:
 
 ```
 lhbox duckdb --catalog <handle>/<catalog>
 ```
 
-The catalog is attached as <handle>_<catalog>, so a table reads as <handle>_<catalog>.<namespace>.<table>. The command fetches the catalog's shared public-reader key, which reads that catalog's tables and nothing else: no writes, no other catalog, not the private part of the file bucket. The key is replaced when the owner unpublishes, so it is fetched each time; --persist is refused for a public catalog. See engines (https://lakehousebox.com/docs/engines/) and the CLI (https://lakehousebox.com/docs/cli/).
+The catalog is attached as <handle>_<catalog>, so a table reads as <handle>_<catalog>.<namespace>.<table>. The command fetches the catalog's shared public-reader key. That key reads the catalog's tables and nothing else: no writes, no other catalog, not the private part of the file bucket. The key is replaced when the owner unpublishes, so it is fetched each time, and --persist is refused for a public catalog. See engines (https://lakehousebox.com/docs/engines/) and the CLI (https://lakehousebox.com/docs/cli/).
 
-For an agent on MCP (https://lakehousebox.com/docs/mcp/), the tool open_public_catalog takes <handle>/<catalog> and returns the tables with their row counts, sizes, last update, descriptions and number of columns (one table's columns on request), the catalog's alias, two DuckDB recipes (one that reads a table with no key at all, offered first, and one that attaches the whole catalog read-only), and the catalog's AGENTS.md when it has one, labelled as the owner's words, not instructions. The MCP query tool reads the catalog on our side by that alias, <handle>_<catalog>.<namespace>.<table> (or "<handle>/<catalog>".<namespace>.<table>, in double quotes, when the alias is ambiguous or starts with a digit), so an agent with no shell can query public data too; heavier work belongs in your own DuckDB.
+### Over MCP
+
+For an agent on MCP (https://lakehousebox.com/docs/mcp/), the tool open_public_catalog takes <handle>/<catalog>. It returns:
+
+- the tables, with their row counts, sizes, last update, descriptions and number of columns (one table's columns on request);
+
+- the catalog's alias;
+
+- two DuckDB recipes: one that reads a table with no key at all, offered first, and one that attaches the whole catalog read-only;
+
+- the catalog's AGENTS.md when it has one, labelled as the owner's words, not instructions.
+
+The MCP query tool reads the catalog on our side by that alias, <handle>_<catalog>.<namespace>.<table>. When the alias is ambiguous or starts with a digit, use "<handle>/<catalog>".<namespace>.<table>, in double quotes. So an agent with no shell can query public data too; heavier work belongs in your own DuckDB.
 
 ## Limits: two storage tiers
 
@@ -142,15 +206,15 @@ Storage is counted in two tiers per organisation, and lhbox usage reports both:
 | private catalogs | storage_bytes | 5 GB |
 | public catalogs | public_storage_bytes | 5 GB; up to 50 GB once we review the dataset |
 
-To raise the public allowance to 50 GB, write to hello@lakehousebox.com with the catalog and what it holds: we look at the dataset and raise the limit for your organisation.
+A public catalog's bytes count in the public tier: its tables and its whole file bucket, published folder or not. Publishing moves the catalog's bytes from the private tier to the public one. It also sets the catalog's tier policy to hot. A publish that would take the public tier over its limit is refused with 409 quota_exceeded, naming public_storage_bytes.
 
-A public catalog's bytes (its tables and its whole file bucket, published folder or not) count in the public tier. Publishing moves the catalog's bytes from the private tier to the public one. A publish that would take the public tier over its limit is refused with 409 quota_exceeded, naming public_storage_bytes. Publishing also sets the catalog's tier policy to hot.
+The person: to raise the public allowance to 50 GB, writes to hello@lakehousebox.com with the catalog and what it holds. We look at the dataset and raise the limit for the organisation.
 
 ## Risks, stated plainly
 
 - Everything in a public catalog is readable by anyone, with no account, and can be copied. Unpublishing stops further reads; it cannot recall copies already made.
 
-- History is public too. Every retained metadata.json is readable, not only the current snapshot, so a row you deleted may still be readable in an older snapshot until snapshot and metadata retention removes it. Check what a table held before you publish it, not only what it holds now.
+- History is public too. Every retained metadata.json is readable, not only the current snapshot. So a row you deleted may still be readable in an older snapshot, until snapshot and metadata retention removes it. Check what a table held before you publish it, not only what it holds now.
 
 - Object names can be listed, in the table storage and in the published folder.
 
@@ -158,11 +222,11 @@ A public catalog's bytes (its tables and its whole file bucket, published folder
 
 - Downloads are not limited by you. Anyone can read the data as often as they like. LakehouseBox does not charge for egress today.
 
-- AGENTS.md is public while the catalog is; do not put anything in it you would not publish.
+- AGENTS.md is public while the catalog is. Do not put anything in it you would not publish.
 
 ## The LakehouseBox public data catalog
 
-LakehouseBox publishes a catalog of public datasets itself: commons/pubdata, with weather, air quality, public holidays, countries and regions, places, population, earthquakes, airports and rail data. /public-data (https://lakehousebox.com/public-data) describes the datasets; the catalog's page is lakehousebox.com/app/commons/pubdata. Attach it with no account:
+LakehouseBox publishes a catalog of public datasets itself: commons/pubdata. It holds weather, air quality, public holidays, countries and regions, places, population, earthquakes, airports and rail data. /public-data (https://lakehousebox.com/public-data) describes the datasets; the catalog's page is lakehousebox.com/app/commons/pubdata. Attach it with no account:
 
 ```
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
@@ -170,17 +234,38 @@ ATTACH 'commons/pubdata' AS pubdata (TYPE iceberg, ENDPOINT 'https://public-cata
 SELECT * FROM pubdata.reference.countries LIMIT 10;
 ```
 
-Run on 2026-10-18 with DuckDB 1.5.5 from Madrid and no account: a new DuckDB process attached the catalog and counted this table's 249 rows in 0.2 s, start to finish.
-
 Or attach it with an account, next to your own catalogs, and join its tables with yours:
 
 ```
 lhbox duckdb --catalog commons/pubdata
 ```
 
+## When it fails
+
+| what you see | what it means | what to do |
+|---|---|---|
+| 400 invalid_files_prefix | the --files folder has *, ?, $ or .., or starts with _ at the top level | name one relative prefix ending in /; nothing changed |
+| 409 quota_exceeded naming public_storage_bytes | the publish would take the public tier over its limit | free space, or ask for the 50 GB allowance |
+| 403 org_policy_forbids | the organisation keeps publishing to admins, or to nobody | ask an admin (what members may do (https://lakehousebox.com/docs/access/#what-members-may-do)) |
+| 404 public_catalog_not_found | the catalog is private, or does not exist | check the <handle>/<catalog> name with its owner |
+| 403 on a file in the published folder | it is not a data file (a photo, a PDF, an archive) | read it with your own credentials |
+| "no version-hint could be found" | DuckDB signed with an AWS_ACCESS_KEY_ID from the environment | keep KEY_ID '' and SECRET '' in the secret |
+
 ## Not yet
 
 Publishing single tables rather than a whole catalog, more than one public folder per catalog, and a directory of public catalogs are not built.
+
+## Numbers and dates
+
+| what | figure | measured |
+|---|---|---|
+| CDN copy removed after an overwrite, delete or rename | 37 to 72 seconds; at most seven days if removal cannot run | current |
+| browsers keep a file with no Cache-Control | an hour (max-age=3600) | current |
+| a catalog made private | stops answering at once at the source, within 30 s at the CDN | current |
+| table-root read after a commit made directly by an engine | current within about ten minutes | current |
+| headers through the CDN: a file uploaded with --cache-control "public, max-age=120", a Content-Disposition and --meta source=qa | answered cache-control: public, max-age=120, s-maxage=604800, content-disposition: attachment; filename="small.csv" and x-amz-meta-source: qa; a 12 MiB file uploaded in parts kept its headers the same way | 2026-10-20, a published public/ folder |
+| commons/pubdata with no account: a new DuckDB 1.5.5 process attached the catalog and counted reference.countries' 249 rows | 0.2 s, start to finish, from Madrid | 2026-10-18 |
+| catalogs created before 2026-09-21 | have a w-<uuid> bucket instead of <handle>--<catalog> | current |
 
 ---
 HTML version: https://lakehousebox.com/docs/public-catalogs/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt

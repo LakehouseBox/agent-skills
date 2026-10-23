@@ -3,25 +3,25 @@ This is a copy of https://lakehousebox.com/docs/hosted-agents/index.md taken whe
 
 # Hosted agents: a prompt LakehouseBox runs next to your data
 
-Preview, enabled per organisation on request. Until it is enabled for your organisation, creating or running an agent answers 403 feature_not_enabled and the account page shows no Agents tab. Ask at hello@lakehousebox.com.
+Preview, enabled per organisation on request. Until it is enabled for your organisation, creating or running an agent answers 403 feature_not_enabled, and the account page shows no Agents tab. Ask at hello@lakehousebox.com.
 
-A hosted agent is a prompt that LakehouseBox runs for you, on demand or on a schedule, with read access to the catalogs you choose. It reads your tables with SQL, keeps a few values between runs, can append rows to tables you name, read web hosts you name, email you and the members who subscribe, and use tools of MCP servers you connect. The model runs in the EU (Scaleway, Paris); your agent brings no compute and holds no key.
+A hosted agent is a prompt that LakehouseBox runs for you, on demand or on a schedule. It reads the catalogs you choose with SQL and keeps a few values between runs. It can append rows to tables you name, read web hosts you name, email you and the members who subscribe, and use tools of MCP servers you connect. The model runs in the EU (Scaleway, Paris). Your agent brings no compute and holds no key.
 
-Each agent acts through an identity of its own: it can read exactly the catalogs its definition names and nothing else, whoever created it.
+Each agent acts through an identity of its own. It reads exactly the catalogs its definition names and nothing else, whoever created it.
 
-## Create one
-
-From the account page (Agents, "+ New agent"), or with the CLI:
+## The short path
 
 ```
 lhbox agent create garden_morning --prompt @prompt.md --catalog garden \
     --schedule "0 8 * * *" --tz Europe/Madrid --state-key journal --notify-owner
-lhbox agent run garden_morning --dry-run --wait        # a test run: see what it would do
-lhbox agent run garden_morning --wait                  # a real run
-lhbox agent show garden_morning                        # its definition, schedule, memory and last run
+lhbox agent run garden_morning --dry-run --wait   # a test run: see what it would do
+lhbox agent run garden_morning --wait             # a real run
+lhbox agent show garden_morning                   # its definition, schedule, memory and last run
 ```
 
-lhbox agent update changes any part (only what you pass changes; every change is a new version), --pause and --resume stop and restart its schedule, lhbox agent delete --yes removes it (its runs stay readable).
+The account page does the same: Agents, "+ New agent".
+
+lhbox agent update <name> changes any part of an agent. Only what you pass changes, and every change is a new version. --pause and --resume stop and restart its schedule. lhbox agent delete <name> --yes removes it; its runs stay readable.
 
 ## What an agent can do in a run
 
@@ -37,26 +37,52 @@ lhbox agent update changes any part (only what you pass changes; every change is
 | view_image | look at an image in one of its catalogs' files (only on a model that sees images) |
 | integration tools | the tools of connected MCP servers you allow it, by name |
 
-Emails. Members of the organisation can have an agent's notices sent to them too: "Email me this agent's notices" on its page, or lhbox agent subscribe <name> (unsubscribe to stop). Each person subscribes only themselves, needs a verified address, and must be able to read every catalog the agent reads, since a notice can carry what it read. Every email has its own "Stop emails from this agent" link, and your mail provider's unsubscribe button does the same: on your email as its creator it turns notify_owner off (turn it back on from the page or with lhbox agent update <name> --notify-owner); on a subscriber's email it ends only that person's subscription.
+### Emails
 
-Writing to tables. lhbox agent update <name> --write garden.journal.entries lets the agent append rows there. The table must exist, be in a catalog the agent reads, and you must be able to write there; a table fed by a sink that reshapes rows (a mapping), or by Scheduled SQL, is refused. Rows are checked against the table's columns (an unknown column, a missing required one or a wrong type is refused with the row and column to fix), stored at once and committed to the table within about a minute, the same way as an ingest sink (https://lakehousebox.com/docs/ingest/). A retried call is never stored twice. A test run checks the rows and writes none. --no-writes takes the tables away.
+Members of the organisation can have an agent's notices sent to them too. Each one clicks "Email me this agent's notices" on its page, or runs lhbox agent subscribe <name> (lhbox agent unsubscribe <name> to stop). Each person subscribes only themselves and needs a verified address. They must also be able to read every catalog the agent reads, since a notice can carry what it read.
 
-Reading the web. lhbox agent update <name> --allow-host api.open-meteo.com lets the agent GET https URLs on that host: names only (no IP addresses, no internal names), port 443, redirects followed only to hosts it may read, at most 2 MB read per page and 20,000 characters given to the model. For an API that needs a key, store it once as a web key and name the host it goes to:
+Every email has its own "Stop emails from this agent" link, and your mail provider's unsubscribe button does the same. On your email as its creator, it turns notify_owner off. Turn it back on from the page or with lhbox agent update <name> --notify-owner. On a subscriber's email, it ends only that person's subscription.
+
+### Writing to tables
+
+lhbox agent update <name> --write garden.journal.entries lets the agent append rows there. The table must exist and be in a catalog the agent reads, and you must be able to write there. A table fed by a sink that reshapes rows (a mapping), or by Scheduled SQL, is refused.
+
+Rows are checked against the table's columns. An unknown column, a missing required one or a wrong type is refused, with the row and column to fix. Rows are stored at once and committed to the table within about a minute, the same way as an ingest sink (https://lakehousebox.com/docs/ingest/). A retried call is never stored twice. A test run checks the rows and writes none. --no-writes takes the tables away.
+
+### Reading the web
+
+lhbox agent update <name> --allow-host api.open-meteo.com lets the agent GET https URLs on that host:
+
+- host names only: no IP addresses, no internal names;
+
+- port 443;
+
+- redirects followed only to hosts it may read;
+
+- at most 2 MB read per page, and 20,000 characters given to the model.
+
+For an API that needs a key, store it once as a web key and name the host it goes to:
 
 ```
 lhbox integration add aemet --web-key --host opendata.aemet.es --header api_key --api-key-stdin < key.txt
 lhbox agent update garden_morning --host-credential opendata.aemet.es=aemet
 ```
 
-The key is sent in that header (or, with --key-param NAME, as that query parameter) to that host only. It is never shown to the model, never in a tool's answer or in a run's record, and never sent to another host, even on a redirect. --no-web takes the hosts away.
+The key is sent in that header, to that host only. With --key-param NAME it goes as that query parameter instead. It is never shown to the model, never in a tool's answer and never in a run's record. It is never sent to another host, even on a redirect. --no-web takes the hosts away.
 
-Looking at images. On a model that sees images, view_image shows the agent one image from the files of a catalog it reads (the blob bucket next to its tables), by its key: find the key in the table that indexes the files first (a camera's images table, say). The image is downscaled to 1,024 pixels on its long edge (up to 1,536 if it asks) and sent to the model as part of the run; the run's record keeps its key and size, never the image. A run may look at 6 images, 3 MB together. What is written in a photo is treated as data, never as an instruction.
+### Looking at images
 
-Not yet: agents cannot POST to the web or run Python. To bring outside data in on a schedule without a model, use Scheduled SQL (https://lakehousebox.com/docs/scheduled-sql/).
+On a model that sees images, view_image shows the agent one image by its key. The image comes from the files of a catalog it reads (the file bucket next to its tables). Find the key first in the table that indexes the files (a camera's images table, say).
+
+The image is downscaled to 1,024 pixels on its long edge, or up to 1,536 if the agent asks. It is sent to the model as part of the run. The run's record keeps its key and size, never the image. A run may look at 6 images, 3 MB together. What is written in a photo is treated as data, never as an instruction.
+
+### Not yet
+
+Agents cannot POST to the web or run Python. To bring outside data in on a schedule without a model, use Scheduled SQL (https://lakehousebox.com/docs/scheduled-sql/).
 
 ## Models
 
-Every model runs in the EU, on Scaleway in Paris. Choose one on the agent's page or with lhbox agent update <name> --model <model>; lhbox agent models lists them.
+Every model runs in the EU, on Scaleway in Paris. Choose one on the agent's page or with lhbox agent update <name> --model <model>. lhbox agent models lists them.
 
 | model | sees images | uses your allowance |
 |---|---|---|
@@ -64,29 +90,47 @@ Every model runs in the EU, on Scaleway in Paris. Choose one on the agent's page
 | qwen3.6-35b (Qwen 3.6 35B) | yes | ~0.8× as fast |
 | qwen3.5-397b (Qwen 3.5 397B) | yes | ~1.9× as fast |
 
-The allowance counts tokens of the default model. A run on another model is charged its input and output tokens each weighted by that model's price over the default's, so a model that writes long answers (the Qwen models reason before they answer) uses the allowance faster than the figure above, which is for a typical run (about 12 % output). A run's record shows both its tokens and what it cost the allowance (allowance_tokens).
+The allowance counts tokens of the default model. A run on another model is charged its input and output tokens, each weighted by that model's price over the default's. The figures above are for a typical run, about 12 % output. A model that writes long answers uses the allowance faster than that: the Qwen models reason before they answer. A run's record shows both its tokens and what it cost the allowance (allowance_tokens).
 
 ## Schedules
 
-A schedule is a cron line (five fields) evaluated in a time zone, so summer time is handled. It may not run more often than hourly, nor more times a day than your organisation's runs per day. A run that comes due while the previous one is still going is skipped; after downtime the newest missed run runs once. The account page previews the next five runs.
+A schedule is a cron line of five fields, evaluated in a time zone, so summer time is handled. It may not run more often than hourly. It may not run more times a day than your organisation's runs per day.
 
-Three scheduled runs failing in a row pause the agent and email you. A scheduled run that ends "needs attention" emails you its final message.
+- A run that comes due while the previous one is still going is skipped.
+
+- After downtime, the newest missed run runs once.
+
+- Three scheduled runs failing in a row pause the agent and email you.
+
+- A scheduled run that ends "needs attention" emails you its final message.
+
+The account page previews the next five runs.
 
 ## Test runs
 
-lhbox agent run <name> --dry-run (or "Test run" on the page, or {"dry_run": true} on POST /v1/agents/{agent}/run) runs the agent for real, with these differences:
+lhbox agent run <name> --dry-run runs the agent for real, with a few differences. "Test run" on the page does the same, and so does {"dry_run": true} on POST /v1/agents/{agent}/run.
 
-- its email and its memory writes are recorded in the run, not performed;
+- Its email and its memory writes are recorded in the run, not performed.
 
-- an integration offers it only its read-only tools;
+- An integration offers it only its read-only tools.
 
-- it does not count against the organisation's runs per day (it has its own cap per agent), but its tokens count;
+- It does not count against the organisation's runs per day. It has its own cap per agent. Its tokens do count.
 
-- a paused agent can be tested.
+- A paused agent can be tested.
 
 ## What a run did
 
-lhbox agent runs <name> --detail, GET /v1/agent-runs/{id} and "What it did" on the page show a run's record: every tool call in order (a run_sql call with its SQL, its outcome and the size of its answer, never the answer's data), the email it sent, and its memory before and after. Runs and memory are visible to whoever may run the agent: its creator (a person or a token) and the organisation's admins (people or admin tokens) -- except for an agent that uses, or ever used, your integrations or web keys: then only people, signed in as themselves, run it by hand and read its runs' output, traces and memory (a token sees that the runs happened and how they ended, not what they said). Scheduled runs are not affected.
+lhbox agent runs <name> --detail, GET /v1/agent-runs/{id} and "What it did" on the page show a run's record:
+
+- every tool call in order, such as a run_sql call with its SQL, its outcome and the size of its answer (never the answer's data);
+
+- the email it sent;
+
+- its memory before and after.
+
+Runs and memory are visible to whoever may run the agent. That is its creator (a person or a token) and the organisation's admins (people or admin tokens).
+
+One exception: an agent that uses, or ever used, your integrations or web keys. Then only people, signed in as themselves, run it by hand and read its runs' output, traces and memory. A token sees that the runs happened and how they ended, not what they said. Scheduled runs are not affected.
 
 ## Integrations (MCP servers)
 
@@ -94,13 +138,28 @@ Connect an MCP server once for the organisation, then let each agent use the too
 
 ```
 lhbox integration add linear --mcp https://mcp.linear.app/mcp --wait    # opens a sign-in link; approve in the browser
-lhbox integration add mytool --mcp https://… --api-key-stdin < key.txt # a server that takes an API key
+lhbox integration add mytool --mcp https://… --api-key-stdin < key.txt  # a server that takes an API key
 lhbox agent update garden_morning --integration linear:list_issues,create_issue
 ```
 
-Only you attach your integrations and web keys to an agent, and only you change an agent that uses them (its prompt, catalogs, tables, and detaching them too), signed in as yourself (the account page, or the CLI with your own personal key): a token -- an lhbox login connection, an MCP client -- cannot, even one you made. Attaching shows you the prompt and the tables your accounts will now act on (integration_review; the CLI prints it). A run reaches your accounts only through a definition you saved yourself: if a token wrote the prompt, approve it explicitly (save the prompt, or lhbox agent update NAME --confirm-definition); until then its runs fail with integrations_unavailable and say so. Anyone who manages the agent may still pause or delete it. Do not give your personal API key to an agent: it counts as you.
+The person: opens the sign-in link in a browser where they are signed in to LakehouseBox, and approves.
 
-A server that supports standard MCP sign-in is connected without any setup on your side: LakehouseBox registers itself there. The sign-in link only completes in a browser where you are signed in to LakehouseBox. Credentials are stored encrypted and are never shown or returned; a run gets a short-lived token only for the integrations its agent uses, and can reach only those servers. lhbox integration list, show, reconnect and delete --yes manage them; the account page has the same.
+A server that supports standard MCP sign-in needs no setup on the person's side: LakehouseBox registers itself there. The sign-in link completes only in a browser signed in to LakehouseBox. Credentials are stored encrypted and are never shown or returned. A run gets a short-lived token only for the integrations its agent uses, and can reach only those servers. lhbox integration list, show, reconnect and delete --yes manage them; the account page has the same.
+
+Who may attach them. Only you attach your integrations and web keys to an agent. Only you change an agent that uses them: its prompt, catalogs and tables, and detaching them too. You do it signed in as yourself, on the account page or with the CLI and your own personal key. A token cannot, even one you made: an lhbox login connection or an MCP client.
+
+Attaching shows you the prompt and the tables your accounts will now act on (integration_review). The CLI prints it.
+
+A run reaches your accounts only through a definition you saved yourself. If a token wrote the prompt, approve it explicitly: save the prompt, or run lhbox agent update <name> --confirm-definition. Until then its runs fail with integrations_unavailable and say so. Anyone who manages the agent may still pause or delete it.
+
+Do not give your personal API key to an agent: it counts as you.
+
+## When it fails
+
+| what you see | what it means | what to do |
+|---|---|---|
+| 403 feature_not_enabled | hosted agents are not enabled for this organisation | ask at hello@lakehousebox.com |
+| integrations_unavailable | a token wrote the definition of an agent that uses your integrations | save the prompt yourself, or --confirm-definition |
 
 ## Limits (per organisation, unless said otherwise)
 
@@ -116,7 +175,7 @@ A server that supports standard MCP sign-in is connected without any setup on yo
 | subscribers per agent | 20 |
 | shortest schedule | hourly |
 
-GET /v1/agents shows what is used (lhbox agent list); lhbox agent models lists the models and their price per million tokens. Every route is in the API reference (https://lakehousebox.com/docs/api/) under "Hosted agents".
+GET /v1/agents shows what is used (lhbox agent list). lhbox agent models lists the models and their price per million tokens. Every route is in the API reference (https://lakehousebox.com/docs/api/) under "Hosted agents".
 
 ---
 HTML version: https://lakehousebox.com/docs/hosted-agents/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt

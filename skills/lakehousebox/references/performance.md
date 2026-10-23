@@ -5,44 +5,74 @@ This is a copy of https://lakehousebox.com/docs/performance/index.md taken when 
 
 Every number on this page was measured on 2026-09-23. The defaults it describes are set by POST /v1/tables (API reference (https://lakehousebox.com/docs/api/)), lhbox table import (CLI reference (https://lakehousebox.com/docs/cli/)) and the account page's Import dialog.
 
-For the data engineer who wants to know what a query over a LakehouseBox table will read, and why. Every number here comes from one measured session (2026-09-23); the tables were TPC-H-derived (lineitem at scale 10: 60 million rows, 2.1 GB of Parquet) written and read with DuckDB 1.5.5 and its Iceberg extension over the internet, Nuremberg to Madrid. Results derived from TPC-H are not comparable to published TPC-H results.
+LakehouseBox stores Iceberg tables and is never in the query path. Your engine reads the Parquet files itself, with short-lived credentials the catalog hands it. What a query costs is set by three things: how the files were written, what the engine can skip, and how far the engine is from the store. This page says what the platform sets for you, what you choose, and what to expect.
 
-LakehouseBox stores Iceberg tables and is never in the query path: your engine reads the Parquet files itself, with short-lived credentials the catalog hands it. So what a query costs is decided by how the files were written, by what the engine can skip, and by the distance between the engine and the store. This page says what the platform sets for you, what is yours to choose, and what to expect.
+A number with no date of its own comes from one measured session (2026-09-23). The tables were TPC-H-derived (lineitem at scale 10: 60 million rows, 2.1 GB of Parquet). They were written and read with DuckDB 1.5.5 and its Iceberg extension over the internet, Nuremberg to Madrid. Results derived from TPC-H are not comparable to published TPC-H results.
 
 ## What a query can skip, and what it needs
 
-An Iceberg reader prunes in two places. Files are skipped from the manifest: every data file carries, per column, a lower and an upper bound, and a filter such as WHERE l_shipdate BETWEEN '1994-01-01' AND '1994-12-31' throws out every file whose range does not overlap. Row groups inside a file are skipped from the Parquet footer the same way, and only the columns the query names are fetched at all. Measured (§5d): a seven-column aggregation over every row of a 2,145 MB table read 424 MB — the seven columns' chunks and nothing else; projection pushdown is exact. A one-year filter over four columns read 60 MB of a 385 MB column set when the files were sorted by the date.
+An Iceberg reader prunes in two places:
+
+- Files are skipped by the manifest. Every data file carries a lower and an upper bound per column. A filter such as WHERE l_shipdate BETWEEN '1994-01-01' AND '1994-12-31' drops every file whose range does not overlap.
+
+- Row groups inside a file are skipped by the Parquet footer, the same way.
+
+Only the columns the query names are fetched at all, and that projection is exact. A seven-column aggregation over every row of a 2,145 MB table read 424 MB: the seven columns' chunks and nothing else (§5d). A one-year filter over four columns read 60 MB of a 385 MB column set when the files were sorted by the date.
 
 File pruning needs two things from the writer:
 
-- Sorted files. When rows are written in date order, each file spans a slice of the range and most files fall outside any one filter. When they are not, every file spans the whole range and nothing is skipped: the same one-year query read 17 of 17 files (233 MB) on a table loaded with ORDER BY but with DuckDB's preserve_insertion_order off — DuckDB's parallel writers each took a slice of the sorted stream — and 47 of 342 files (60 MB) once the order was preserved (§5d).
+- Sorted files. Rows written in date order give each file a slice of the range, so most files fall outside any one filter. Unsorted, every file spans the whole range and nothing is skipped. The one-year query read 17 of 17 files (233 MB) on a table loaded with ORDER BY but with DuckDB's preserve_insertion_order off. DuckDB's parallel writers had each taken a slice of the sorted stream. With the order preserved, it read 47 of 342 files (60 MB) (§5d).
 
-- Large files. Sorted files that are tiny still cost a request each. DuckDB's Iceberg writer emits files of about 7 MB unless told otherwise: the 342-file table above made a full scan 5× slower than the same rows in 18 files (1,791 range requests in 45 s against 71 in 8.9 s, for the same 424 MB), because over the internet each request is a round trip (§5d).
+- Large files. Tiny sorted files still cost a request each. DuckDB's Iceberg writer emits files of about 7 MB unless told otherwise. The 342-file table above made a full scan 5× slower than the same rows in 18 files: 1,791 range requests in 45 s against 71 in 8.9 s, for the same 424 MB (§5d). Over the internet, each request is a round trip.
 
-The layout a reader wants is therefore sorted and large, with column statistics in the manifest.
+So a reader wants files that are sorted and large, with column statistics in the manifest.
 
 ## What LakehouseBox sets by default
 
-Every table created through LakehouseBox's own paths — POST /v1/tables, lhbox table create, lhbox table import, the account page's Import dialog, the MCP create_table tool — carries the Iceberg table property write.target-file-size-bytes = 134217728 (128 MiB) from its first commit, unless you set your own value in the create request (properties) or afterwards (PATCH /v1/table, lhbox table set-properties). DuckDB 1.5.5's Iceberg writer honours it: the same 60 million rows came out as 18 files of ~119 MB instead of 342 of ~7 MB, the one-year query read 8 of 18 files (61 MB, against an ideal of ~55) in 4.9 s instead of 7.9 s, and the full scan took 20 s instead of 45 s (§5d, layout table). The import paths set the property before the first row lands; a table your engine creates itself gets whatever your engine chooses, and lhbox table set-properties --property write.target-file-size-bytes=134217728 gives it the same default for its next writes.
+Every table created through LakehouseBox's own paths carries the Iceberg table property write.target-file-size-bytes = 134217728 (128 MiB) from its first commit. Those paths are POST /v1/tables, lhbox table create, lhbox table import, the account page's Import dialog and the MCP create_table tool. Your own value wins: set it in the create request (properties) or later (PATCH /v1/table, lhbox table set-properties).
 
-Not on a partitioned table (--partition): DuckDB 1.5.5 and 1.5.6 refuse every INSERT into a partitioned table that carries this property ("Table property target-file-size-bytes is currently not supported for partitioned tables"), so LakehouseBox leaves it off such a table. If one has it, run SET ignore_target_file_size_for_partitioned_tables = true; in DuckDB before writing (measured 2026-10-06).
+DuckDB 1.5.5's Iceberg writer honours it. On the same 60 million rows (§5d, layout table):
 
-lhbox table import (CLI 0.6.13 and later) also sets write.parquet.compression-codec = zstd before the first row. DuckDB's Iceberg writer otherwise writes SNAPPY, which hardly compresses coordinates: a table of 5,210 country and region polygons took 722 MB as SNAPPY. DuckDB 1.5.6 honours the property when the table carries it before the INSERT; ZSTD is also Iceberg's own default, and every engine reads it.
+|  | DuckDB's own file size | with the 128 MiB property |
+|---|---|---|
+| data files | 342 of ~7 MB | 18 of ~119 MB |
+| the one-year query | 7.9 s | 4.9 s, 8 of 18 files read (61 MB, against an ideal of ~55) |
+| a full scan | 45 s | 20 s |
 
-Two facts about this property, measured: set it with CALL set_iceberg_table_properties('catalog.ns.table', {'write.target-file-size-bytes': '134217728'}) in DuckDB, or through the API — not with ALTER TABLE … SET (write_target_file_size_bytes = …), which stores a property with a different name that the writer ignores. And DuckDB's writer ignores write.parquet.row-group-size-bytes: its files carry 122,880-row row groups (about 4.6 MB) whatever is set, so a seven-column scan of eighteen 120 MB files still merges into ~1,470 requests (§5d). Larger row groups need another writer (below).
+The import paths set the property before the first row lands. A table your engine creates itself gets whatever your engine chooses. lhbox table set-properties --property write.target-file-size-bytes=134217728 gives it the same default for its next writes.
+
+Not on a partitioned table (--partition). DuckDB 1.5.5 and 1.5.6 refuse every INSERT into a partitioned table that carries this property: "Table property target-file-size-bytes is currently not supported for partitioned tables". So LakehouseBox leaves it off such a table. If one has it, run SET ignore_target_file_size_for_partitioned_tables = true; in DuckDB before writing (measured 2026-10-06).
+
+ZSTD compression. lhbox table import (CLI 0.6.13 and later) also sets write.parquet.compression-codec = zstd before the first row. Otherwise DuckDB's Iceberg writer writes SNAPPY, which hardly compresses coordinates. A table of 5,210 country and region polygons took 722 MB as SNAPPY. DuckDB 1.5.6 honours the property when the table carries it before the INSERT. ZSTD is also Iceberg's own default, and every engine reads it.
+
+Two facts about table properties in DuckDB, measured:
+
+- Set the file size with CALL set_iceberg_table_properties('catalog.ns.table', {'write.target-file-size-bytes': '134217728'}) in DuckDB, or through the API. Not with ALTER TABLE … SET (write_target_file_size_bytes = …): that stores a property with a different name, which the writer ignores.
+
+- DuckDB's writer ignores write.parquet.row-group-size-bytes. Its files carry 122,880-row row groups (about 4.6 MB) whatever is set. A seven-column scan of eighteen 120 MB files therefore still merges into ~1,470 requests (§5d). Larger row groups need another writer (below).
 
 ## What you control
 
-The order column at import. lhbox table import and the Import dialog write the rows ORDER BY one column with preserve_insertion_order on. The default is the first DATE or TIMESTAMP column in your files; --order-by <column> (the dialog's "Order rows by") names another, --no-order keeps the files' own order. Choose the column your queries filter on most: a time column for time-series, otherwise the key you slice by. Sorting is what turns the file statistics into skipped files; without it the statistics are still written, but every file covers the whole range.
+### The order column at import
 
-Tables with a geometry column (lhbox table import, CLI 0.4.1). When the files have a geometry column, the CLI writes the rows in Hilbert order of the primary geometry, so nearby features share files and row groups. The order is kept for good; two settings below it are temporary workarounds for DuckDB 1.5 (measured 2026-09-29), and the import report's spatial_layout.temporary says so:
+lhbox table import and the Import dialog write the rows ORDER BY one column, with preserve_insertion_order on. The default is the first DATE or TIMESTAMP column in your files. --order-by <column> (the dialog's "Order rows by") names another, and --no-order keeps the files' own order.
+
+Choose the column your queries filter on most: a time column for time series, otherwise the key you slice by. Sorting is what turns the file statistics into skipped files. Without it the statistics are still written, but every file covers the whole range.
+
+### Tables with a geometry column
+
+When the files have a geometry column, lhbox table import (CLI 0.4.1) writes the rows in Hilbert order of the primary geometry. Nearby features then share files and row groups. The order is kept for good. Two settings below it are temporary workarounds for DuckDB 1.5 (measured 2026-09-29), and the import report's spatial_layout.temporary says so:
 
 | setting | why, today | goes when |
 |---|---|---|
 | one writer thread (SET threads = 1) | DuckDB's parallel Iceberg write spreads an ORDER BY across every file | DuckDB keeps the order in parallel Iceberg writes (in progress for DuckDB 2.0, duckdb-iceberg#1292) |
 | 8 MB row groups for the import's own INSERT | DuckDB's default is ~80 MB (122,880 rows); the table property that shrinks them makes every plain DuckDB INSERT fail while it is set, so the import removes it right after | DuckDB honours write.parquet.row-group-limit, or the bytes property with insertion order kept |
 
-Write spatial filters with &&. DuckDB skips data files (by the manifest's geometry bounds) and row groups (by the native geometry statistics) for the bounding-box operator &&, and never for ST_Intersects alone. Put both in the query: && narrows the data, ST_Intersects gives the exact answer.
+An append into a table that already has bbox_xmin, bbox_ymin, bbox_xmax and bbox_ymax still fills them from the geometry, so a filter on them never misses new rows.
+
+### Spatial filters: write them with &&
+
+DuckDB skips data files (by the manifest's geometry bounds) and row groups (by the native geometry statistics) for the bounding-box operator &&. It never skips them for ST_Intersects alone. Put both in the query: && narrows the data, and ST_Intersects gives the exact answer.
 
 ```
 SELECT * FROM <alias>.<ns>.<table>
@@ -57,11 +87,13 @@ Measured on 1.77 M cadastral parcels (5 data files), one point lookup:
 | written by this import (clustered) | && and ST_Intersects | 5.3–6.7 MB in 3–4 requests |
 | not clustered (the published europe_portolan table, over the public URL) | && and ST_Intersects | 17–96 MB, 1.6–2.6 s (433 MB with ST_Intersects alone) |
 
-Use DuckDB 1.5.6 or newer for &&: 1.5.5 returns rows with a NULL geometry as && matches (duckdb#24845). Combined with ST_Intersects the answer is right on 1.5.5 too. --no-order keeps a file's own order (a file gpio sort hilbert already sorted); --order-by still names a column.
+Use DuckDB 1.5.6 or newer for &&. DuckDB 1.5.5 returns rows with a NULL geometry as && matches (duckdb#24845). Combined with ST_Intersects, the answer is right on 1.5.5 too.
 
-Corrected 2026-09-29: CLI 0.4.1's version of this section said DuckDB does not prune by geometry and offered --bbox-columns for flat bbox columns instead. That holds for ST_Intersects only; && prunes, and 0.4.2 dropped the flag. An append into a table that already has bbox_xmin, bbox_ymin, bbox_xmax and bbox_ymax still fills them from the geometry, so a filter on them never misses new rows.
+--no-order keeps a file's own order, for a file that gpio sort hilbert already sorted. --order-by still names a column.
 
-Loading with your own DuckDB. The same two rules apply to a CREATE TABLE … AS SELECT or INSERT … SELECT you run yourself against the catalog:
+### Loading with your own DuckDB
+
+The same two rules apply to a CREATE TABLE … AS SELECT or INSERT … SELECT you run yourself against the catalog:
 
 ```
 -- the recipe from `lhbox connect --catalog <name>` attaches the catalog as <alias>
@@ -71,31 +103,71 @@ SET preserve_insertion_order = true;                                        -- D
 INSERT INTO <alias>.<ns>.<table> SELECT … FROM read_parquet('…') ORDER BY <date column>;
 ```
 
-A table LakehouseBox created already has the property, so the CALL is only for tables DuckDB created itself. Keep preserve_insertion_order on for the ordered INSERT: with it off, DuckDB writes faster and the sort is lost (§5d).
+A table LakehouseBox created already has the property, so the CALL is only for tables DuckDB created itself. Keep preserve_insertion_order on for the ordered INSERT. With it off, DuckDB writes faster and the sort is lost (§5d).
 
-Loading big tables in chunks. A single ORDER BY over 600 million rows spilled 50 GB on a laptop with 43 GB free and was stopped (§5c). Load a large table one date range per INSERT — a month, a quarter — each ORDER BY the date column: the files are then disjoint by construction, and the one-year query read 4 of 28 files when the table was loaded a calendar quarter at a time (§5d). Each INSERT is one commit; a few dozen is nothing, but a commit per file is not (an Iceberg commit's cost grows with the number of snapshots, so import many files as one statement).
+### Loading big tables in chunks
 
-Writing the Parquet yourself. The best layout measured was not DuckDB's: Parquet files written sorted, with 1-million-row row groups, at ~128 MB each, uploaded to the table's location with the vended credentials and registered with PyIceberg's add_files, which computes the manifest statistics from the footers. The one-year query then read 3 of 15 files in 46 requests and 2.6 s, and the full scan made 198 requests instead of 1,467 (§5d). This is a path for people who already produce Parquet; the import paths above are the default because one engine reads every input format.
+A single ORDER BY over 600 million rows spilled 50 GB on a laptop with 43 GB free, and was stopped (§5c). Load a large table one date range per INSERT (a month, a quarter), each ORDER BY the date column. The files are then disjoint by construction. Loaded a calendar quarter at a time, the table answered the one-year query from 4 of 28 files (§5d).
+
+Each INSERT is one commit. A few dozen is nothing, but a commit per file is not: an Iceberg commit's cost grows with the number of snapshots. So import many files as one statement.
+
+### Writing the Parquet yourself
+
+The best layout measured was not DuckDB's. It was Parquet files written sorted, with 1-million-row row groups, at ~128 MB each. They were uploaded to the table's location with the vended credentials. Then PyIceberg's add_files registered them, computing the manifest statistics from the footers. The one-year query read 3 of 15 files in 46 requests and 2.6 s. The full scan made 198 requests instead of 1,467 (§5d).
+
+This path is for people who already produce Parquet. The import paths above are the default because one engine reads every input format.
 
 ## What compaction does today
 
-Two compactors run on a schedule and merge small files into files of about 128 MB, which is why a bulk load can briefly occupy about twice its bytes (§5c, SF100 addendum).
+Two compactors run on a schedule. They merge small files into files of about 128 MB, which is why a bulk load can briefly occupy about twice its bytes (§5c, SF100 addendum).
 
-Format-version 2 and 3 tables. Both are compacted (format-version 3 since 2026-09-30). LakehouseBox's own maintenance worker, described next, compacts format-version 2 tables only; format-version 3 tables are compacted by the store's compactor, geometry tables in spatial order (below). The catalog's maintenance block says so (compaction_format_versions: [2, 3]).
+Format-version 2 and 3 tables are both compacted (format-version 3 since 2026-09-30). LakehouseBox's own maintenance worker, described next, compacts format-version 2 tables only. Format-version 3 tables are compacted by the store's compactor, geometry tables in spatial order (below). The catalog's maintenance block says so (compaction_format_versions: [2, 3]).
 
-LakehouseBox's own maintenance worker keeps the order. It picks an order column — the table's declared sort order if it has one, else the first DATE/TIMESTAMP column whose bounds every input file records, else the first column with bounds everywhere — sorts the small files by their lower bound on it, merges only consecutive files, and writes each merged file ORDER BY that column in 1,000,000-row row groups (a row group closes early at 256 MiB of rows in memory, so wide tables stay bounded). The merged files therefore keep the tight bounds their inputs had: a table loaded in date order stays skippable by date after compaction, and a seven-column scan needs a handful of range requests per file rather than the ~50 that 200,000-row groups cost. The column used is recorded in the compaction snapshot's summary (lhbox.compaction.order_by). An empty data file (some engines leave one behind a CREATE TABLE AS) is removed by the compaction and never influences the choice; files that carry no bounds on the chosen column are merged among themselves, in their own order, and do not stop the rest of the table from being ordered. Two inputs that both span the whole range and fall into different merged files stay overlapping: the worker does not re-sort the table as a whole.
+### Format-version 2: the order is kept
 
-The store's built-in compactor, until 2026-09-23, wrote its files without column statistics in the manifest entries, so a table it had compacted could not be pruned at the file level whatever order it was loaded in: the one-year query on such a copy read 19 of 19 files (113 MB instead of 61), and at scale 100 it read 1.93 GB where 0.55 GB was the ideal — row-group pruning inside the files still worked, which is why it was not 3.85 GB (§5d). The store now runs with statistics written, its inputs' order kept and several row groups per file (since 2026-09-23); files it compacted before that keep no bounds until the next compaction rewrites them.
+LakehouseBox's own maintenance worker keeps the order:
 
-Automatic spatial clustering: geometry tables keep their spatial layout through compaction (since 2026-10-05). A format-version 3 table with one geometry column and no declared sort order is compacted in spatial order: the rows are sorted by the Hilbert index of their bounding-box centre, written in row groups of about 2 MB, and each compacted file records its geometry bounds, so a table that agents keep appending to stays as cheap to query by area as the import left it. Measured on 2.1 M points, a 1 km lookup with && read 0.7–2.3 MB after the import, 9.7–11.3 MB after 30 appends spread over the whole area, and 1.2–3.4 MB once maintenance had compacted the table (28.4 MB before this change); every answer matched a full scan. A table that declares a sort order keeps its own. With several geometry columns, name the one to cluster by in the table property lakehousebox.cluster.geometry; set it to none to keep the files in the order they were written.
+- It picks an order column: the table's declared sort order if it has one. Else the first DATE/TIMESTAMP column whose bounds every input file records. Else the first column with bounds everywhere.
 
-Over days of appends: three simulated days of scattered agent appends, with maintenance on production's own settings every hour, 1,225 lookups, every answer equal to a full scan.
+- It sorts the small files by their lower bound on that column, and merges only consecutive files.
 
-- A table up to 128 MB is re-sorted whole by every compaction. Compaction starts once 10 small files have collected. Its lookups go back to the import's cost each time: Spain's places read 1.75 MB per lookup after the import and 1.5–2.2 MB after every compaction of the three days. Between compactions it read at most 2.6 MB at 4 appends an hour, and 3.5 MB at 1 an hour (a compaction every 10 hours).
+- It writes each merged file ORDER BY that column, in 1,000,000-row row groups. A row group closes early at 256 MiB of rows in memory, so wide tables stay bounded.
 
-- A table past 128 MB is kept clustered in layers. A compacted file that reaches 128 MB is no longer rewritten, so later appends are clustered among themselves into a new layer that spans the same area. Each layer adds row groups to a lookup. On 13.8 M places over four countries (466 MB), a lookup read 2.5 MB after the import and 6.6 MB after the third day's compactions, and state went from clustered to partly. Merging the layers back into one order is not built yet.
+The merged files therefore keep the tight bounds their inputs had. A table loaded in date order stays skippable by date after compaction. A seven-column scan needs a handful of range requests per file, rather than the ~50 that 200,000-row groups cost. The compaction snapshot's summary records the column used (lhbox.compaction.order_by).
 
-Seeing a table's clustering. lhbox table get, GET /v1/table and the MCP tool describe_table show a geometry table's clustering:
+Three edge cases:
+
+- An empty data file (some engines leave one behind a CREATE TABLE AS) is removed by the compaction. It never influences the choice.
+
+- Files that carry no bounds on the chosen column are merged among themselves, in their own order. They do not stop the rest of the table from being ordered.
+
+- Two inputs that both span the whole range, and fall into different merged files, stay overlapping. The worker does not re-sort the table as a whole.
+
+### Files the store compacted before 2026-09-23
+
+Until 2026-09-23, the store's built-in compactor wrote its files without column statistics in the manifest entries. A table it had compacted could not be pruned at the file level, whatever order it was loaded in. The one-year query on such a copy read 19 of 19 files (113 MB instead of 61). At scale 100 it read 1.93 GB where 0.55 GB was the ideal. Row-group pruning inside the files still worked, which is why it was not 3.85 GB (§5d).
+
+The store now writes statistics, keeps its inputs' order and writes several row groups per file (since 2026-09-23). Files it compacted before that keep no bounds until the next compaction rewrites them.
+
+### Geometry tables: automatic spatial clustering
+
+Geometry tables keep their spatial layout through compaction (since 2026-10-05). A format-version 3 table with one geometry column and no declared sort order is compacted in spatial order. The rows are sorted by the Hilbert index of their bounding-box centre, and written in row groups of about 2 MB. Each compacted file records its geometry bounds. A table that agents keep appending to thus stays as cheap to query by area as the import left it.
+
+Measured on 2.1 M points, a 1 km lookup with && read 0.7–2.3 MB after the import. After 30 appends spread over the whole area it read 9.7–11.3 MB. Once maintenance had compacted the table, it read 1.2–3.4 MB, against 28.4 MB before this change. Every answer matched a full scan.
+
+A table that declares a sort order keeps its own. With several geometry columns, name the one to cluster by in the table property lakehousebox.cluster.geometry. Set it to none to keep the files in the order they were written.
+
+### Geometry tables over days of appends
+
+Three simulated days of scattered agent appends ran with maintenance on production's own settings, every hour. Of 1,225 lookups, every answer was equal to a full scan.
+
+- A table up to 128 MB is re-sorted whole by every compaction. Compaction starts once 10 small files have collected. Each time, its lookups go back to the import's cost. Spain's places read 1.75 MB per lookup after the import, and 1.5–2.2 MB after every compaction of the three days. Between compactions a lookup read at most 2.6 MB at 4 appends an hour. At 1 append an hour (a compaction every 10 hours) it read 3.5 MB.
+
+- A table past 128 MB is kept clustered in layers. A compacted file that reaches 128 MB is no longer rewritten. Later appends are clustered among themselves, into a new layer that spans the same area. Each layer adds row groups to a lookup. On 13.8 M places over four countries (466 MB), a lookup read 2.5 MB after the import and 6.6 MB after the third day's compactions. Its state went from clustered to partly. Merging the layers back into one order is not built yet.
+
+### Seeing a table's clustering
+
+lhbox table get, GET /v1/table and the MCP tool describe_table show a geometry table's clustering:
 
 - column and maintained: the column maintenance keeps the table in spatial order by. When it does not, reason says why: opted_out (the property is none), sort_order, several_geometry or named_not_found.
 
@@ -111,9 +183,11 @@ clustered: a point lookup reads at most 4 row groups' worth of bytes and at most
 
 - also empty, or unknown when the files cannot be read.
 
-- lookup_cost (the bytes a point lookup reads, in row groups of the table's average size) and lookup_share (the share of the geometry column it reads). Each row group's geometry box is read from its file's footer. One probe is placed at the centre of each row group's box (at most 512, evenly chosen), weighted by its rows, and counts every row group whose box contains it. Tables with more than 64 data files are measured on 64 of them (sampled).
+- lookup_cost: the bytes a point lookup reads, in row groups of the table's average size. lookup_share: the share of the geometry column it reads.
 
 - last_spatial_compaction, and the files and rows added since.
+
+How the state is measured: each row group's geometry box is read from its file's footer. One probe is placed at the centre of each row group's box (at most 512, evenly chosen), weighted by its rows. It counts every row group whose box contains it. Tables with more than 64 data files are measured on 64 of them (sampled).
 
 What the states looked like on Spain's 2.1 M places:
 
@@ -128,9 +202,9 @@ What the states looked like on Spain's 2.1 M places:
 
 ## What to expect over the internet
 
-The store answers byte-range requests correctly (206, exactly the bytes asked; HTTP/2), and its own share of a request is small: from Madrid, 45 ms away, a 256 KB range took 345–359 ms on a fresh connection and 69–80 ms on a reused one — one round trip plus about 25 ms of server work, TLS included (§5d). What sets a query's time from far away is therefore the number of requests and whether the connection is reused, not the store.
+The store answers byte-range requests correctly: 206, exactly the bytes asked, over HTTP/2. Its own share of a request is small. From Madrid, 45 ms away, a 256 KB range took 345–359 ms on a fresh connection and 69–80 ms on a reused one (§5d). That is one round trip plus about 25 ms of server work, TLS included. So from far away, a query's time is set by the number of requests and whether the connection is reused, not by the store.
 
-Measured on the 22 TPC-H-derived queries at scale 10 (3.6 GB of Parquet), laptop held to 4 threads and 4 GB (§5c):
+Measured on the 22 TPC-H-derived queries at scale 10 (3.6 GB of Parquet), on a laptop held to 4 threads and 4 GB (§5c):
 
 | how the engine ran | one pass of 22 queries | bytes over the wire |
 |---|---|---|
@@ -138,11 +212,19 @@ Measured on the 22 TPC-H-derived queries at scale 10 (3.6 GB of Parquet), laptop
 | DuckDB over the LakehouseBox catalog, cold: a fresh connection per query | 286 s (about 13 s per query) | 12.4 GB, 2,776 requests |
 | DuckDB over the LakehouseBox catalog, warm: the same connection, DuckDB's file cache | 15.6 s | about none |
 
-Cold means every query re-fetches its columns; a first cold pass that shared the uplink with a 38 GB upload took 547 s, so the home uplink, not the store, set that time (§5c). A reader who keeps one connection open gets the warm number; a reader running where the store is pays the server's ~25 ms per 256 KB range without the 45 ms round trip on top of each. At scale 100 (34.6 GB) the cold pass over the internet took an hour and the warm pass nine minutes, three of the queries spilling at a 16 GB memory limit; the laptop with the data local took one minute (§5c).
+Cold means every query re-fetches its columns. A first cold pass that shared the uplink with a 38 GB upload took 547 s: the home uplink, not the store, set that time (§5c). A reader who keeps one connection open gets the warm number. A reader running where the store is pays the server's ~25 ms per 256 KB range, without the 45 ms round trip on top of each.
+
+At scale 100 (34.6 GB), the cold pass over the internet took an hour and the warm pass nine minutes. Three of the queries spilled at a 16 GB memory limit. With the data local, the laptop took one minute (§5c).
 
 ## The browser explorer's limits
 
-The account page's SQL explorer and Import dialog run DuckDB compiled to WebAssembly inside your browser tab: single-threaded, a 4 GB address space, every data file fetched by the tab itself (§5). It is for looking at a table, checking an import, running a selective query. A full scan of a multi-gigabyte table belongs in native DuckDB, PyIceberg or Spark on a machine near the data — lhbox connect gives the recipe. The Import dialog writes with the same rules as the CLI (the file-size property, the order column) except the spatial layout of a geometry import, which is CLI-only for now, from the tab: the rows travel from your disk through the browser to the store once, so an import is bound by your uplink.
+The account page's SQL explorer and Import dialog run DuckDB compiled to WebAssembly inside your browser tab. It is single-threaded with a 4 GB address space, and the tab fetches every data file itself (§5). Use it to look at a table, check an import or run a selective query. A full scan of a multi-gigabyte table belongs in native DuckDB, PyIceberg or Spark on a machine near the data. lhbox connect gives the recipe.
+
+The Import dialog writes with the same rules as the CLI: the file-size property and the order column. The exception is the spatial layout of a geometry import, which is CLI-only for now. The dialog writes from the tab, so the rows travel from your disk through the browser to the store once. An import is therefore bound by your uplink.
+
+## Corrections
+
+2026-09-29: CLI 0.4.1's version of the geometry section said DuckDB does not prune by geometry. It offered --bbox-columns for flat bbox columns instead. That holds for ST_Intersects only: && prunes. CLI 0.4.2 dropped the flag.
 
 ---
 HTML version: https://lakehousebox.com/docs/performance/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt

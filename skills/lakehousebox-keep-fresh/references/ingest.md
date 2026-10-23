@@ -5,13 +5,13 @@ This is a copy of https://lakehousebox.com/docs/ingest/index.md taken when this 
 
 Measured on 2026-09-21. The routes are in the API reference (https://lakehousebox.com/docs/api/), the commands in the CLI reference (https://lakehousebox.com/docs/cli/); the short version for agents is on agent setup (https://lakehousebox.com/docs/agent-setup/).
 
-Status: enabled on the service.
+A sink gives one URL and a send-only key to a device, a webhook, a cron job or an agent with no query engine. It posts JSON arrays there. The platform stores each batch unchanged and appends what is waiting to the Iceberg table on a rolling policy. It stamps when each row arrived, and puts the rows that do not fit the table's schema where the producer can read them.
 
-A device, a webhook, a cron job or an agent with no query engine posts JSON arrays to one URL with a send-only key. The platform stores each batch unchanged, appends what is waiting to the Iceberg table on a rolling policy, stamps when each row arrived, and puts the rows that do not fit the table's schema where the producer can read them. No transforms, no schema evolution, no ordering across batches, no user code: the table's current schema is the contract.
+There are no transforms, no schema evolution, no ordering across batches and no user code. The table's current schema is the contract.
 
 ```
-lhbox table create garden.garden.events --column x:long:required --column who:string
-lhbox sink create garden --table garden.events --name events_in --save ~/events-sink.json
+lhbox table create garden.garden.events --column x:long:required --column who:string   # the table comes first
+lhbox sink create garden --table garden.events --name events_in --save ~/events-sink.json   # the send key goes to the file
 lhbox sink send events_in batch.json --send-key-file ~/events-sink.json     # or any HTTP client, below
 lhbox sink get events_in                                                    # lag, last roll, rejects
 ```
@@ -28,15 +28,33 @@ curl -X POST https://api.lakehousebox.com/v1/sinks/<sink_id> \
 
 ## What a sink is
 
-One row per table (409 sink_exists for a second): the table's single committer. The table must exist (404 table_not_found with the namespace's tables). A format-version 2 table must be unpartitioned; a format-version 3 table may be partitioned by time (day, hour, month or year of a date or timestamp column), and any other partition is refused (409 partitioned_table_unsupported): its roll writes one file per partition, and an identity or bucket partition would cut every roll into many small files. A geography column, or a geometry column with a CRS of its own, is refused too (409 unsupported_column_type): a sink writes longitude/latitude geometries ("Positions and shapes" below). Creating a sink costs no IAM write and no commit: the answer says iam_writes: [], and the store's identity count does not move (every other create route on the platform costs identity writes). When the table has no description, or columns without one, the answer says so in docs_hint with the command that adds them (lhbox table document): the table is what other people's agents will read, and an undescribed one leaves them guessing what a row is.
+A sink is the table's single committer, so a table has one sink at most (409 sink_exists for a second).
 
-The roll policy, per sink: roll_seconds (default 300, floor 60), roll_bytes (32–64 MiB, default 64), inactivity_seconds (optional: a producer that posts a burst and goes quiet gets its rows committed early), and a fixed count of 1,000 pending batches. Any of them rolls. A roll is a commit, and a commit costs more the more snapshots the table holds: 300–900 s suits a producer under about a megabyte per five minutes; the maintenance sweep (every 6 hours) expires the table back to 20 snapshots and compacts the small files.
+- The table must exist. Otherwise the answer is 404 table_not_found, with the namespace's tables.
 
-The first roll adds an optional __ingest_ts (timestamptz) column and sets the metadata-retention properties (write.metadata.delete-after-commit.enabled=true, write.metadata.previous-versions-max=5), one commit; a table that has both is untouched. The sink never partitions a table itself: create it partitioned (lhbox table create … --partition 'day(ts)', format-version 3) or partition it with your engine.
+- Partitioning. A format-version 2 table must be unpartitioned. A format-version 3 table may be partitioned by time: day, hour, month or year of a date or timestamp column. Any other partition is refused (409 partitioned_table_unsupported). A roll writes one file per partition, so an identity or bucket partition would cut every roll into many small files.
+
+- The sink never partitions a table itself. Create it partitioned (lhbox table create garden.garden.events --format-version 3 --partition 'day(ts)' --column ts:timestamptz:required), or partition it with your engine.
+
+- Geography is refused. A geography column, or a geometry column with a CRS of its own, answers 409 unsupported_column_type. A sink writes longitude/latitude geometries ("Positions and shapes" below).
+
+- Creating a sink costs no IAM write and no commit. The answer says iam_writes: []. The store's identity count does not move (every other create route on the platform costs identity writes).
+
+- Describe the table. When the table or some of its columns have no description, the answer says so in docs_hint, with the command that adds them (lhbox table document). Other people's agents will read this table, and an undescribed one leaves them guessing what a row is.
 
 ## The send key
 
-POST /v1/sinks answers the key once (al_send_<12 hex>_<43 chars>); the row keeps its SHA-256. It is not a principal: it can never become a token, hold a grant, or reach /v1/connection. It is accepted on exactly one route, POST /v1/sinks/{sink_id}; anywhere else it is 403 send_only, and an API key or a token on the send route is 403 send_only too. Revocation is the sink's deletion (the row is the key). The CLI treats it like the uploader's secret: --save FILE (mode 0600, nothing printed) or --show-key (printed once); without either flag sink create stops before calling the API.
+POST /v1/sinks answers the key once: al_send_<12 hex>_<43 chars>. The sink keeps its SHA-256.
+
+- It is not a principal. It can never become a token, hold a grant or reach /v1/connection.
+
+- It is accepted on exactly one route, POST /v1/sinks/{sink_id}. Anywhere else it answers 403 send_only.
+
+- An API key or a token on the send route is 403 send_only too.
+
+- To revoke it, delete the sink: the sink is the key.
+
+- The CLI treats it like an uploader's secret. --save FILE writes it (mode 0600, nothing printed), and --show-key prints it once. Without either flag, sink create stops before calling the API.
 
 ## The send route
 
@@ -50,47 +68,157 @@ POST /v1/sinks/{sink_id}
 
 | answer | when |
 |---|---|
-| 202 {accepted, rejected, reasons[{index, reason: not_an_object, got}], batch_id, bytes, received_at, state: pending} | stored; accepted/rejected are structural (elements that are not objects); the schema check happens at the roll |
+| 202 {accepted, rejected, reasons[{index, reason: not_an_object, got}], batch_id, bytes, received_at, state: pending} | stored. accepted/rejected are structural (elements that are not objects); the schema check happens at the roll |
 | 200 {duplicate: true, batch_id, accepted, rejected, bytes, received_at, state: pending | committed} | the same batch id again: nothing written |
 | 400 not_an_array / empty_batch / missing_idempotency_key / invalid_batch_id | the body or the header |
-| 401 invalid_key | a key that is not this sink's (or a deleted sink's) |
+| 401 invalid_key | a key that is not this sink's, or a deleted sink's |
 | 403 send_only | the wrong kind of credential, either way |
-| 409 sink_disabled (disabled_reason: table_missing) | the table went away; recreate it and make a new sink |
+| 409 sink_disabled (disabled_reason: table_missing) | the table went away: recreate it and make a new sink |
 | 409 quota_exceeded | the organisation is over its storage tier (the gate runs before any write) |
-| 413 batch_too_large (limit_bytes) | over 16 MiB; split the array |
-| 502 storage_error | the store refused the write; nothing recorded; safe to retry with the same batch id |
+| 413 batch_too_large (limit_bytes) | over 16 MiB: split the array |
+| 502 storage_error | the store refused the write and nothing was recorded: safe to retry with the same batch id |
 
-Each element's bytes are stored unchanged, one per line, as one NDJSON object under _sink/<sink_id>/<batch_id>.ndjson in the catalog's blob bucket, written as the catalog's own identity in one small PUT (no IAM write, no catalog call). The object carries Content-Type: application/x-ndjson, x-amz-meta-received (the intake's clock; what __ingest_ts is set from), x-amz-meta-rows, x-amz-meta-sink.
+Each element's bytes are stored unchanged, one per line, as one NDJSON object. It lands under _sink/<sink_id>/<batch_id>.ndjson in the catalog's file bucket. It is written as the catalog's own identity, in one small PUT, with no IAM write and no catalog call. The object carries:
+
+- Content-Type: application/x-ndjson;
+
+- x-amz-meta-received, the intake's clock, which __ingest_ts is set from;
+
+- x-amz-meta-rows and x-amz-meta-sink.
 
 ## The roll
 
-The roller (worker/roll.py, the sink-roller service) ticks every 10 s and, for every sink whose policy says so, in order: reloads the table as the tenant; re-establishes the invariant (any batch the current snapshot's summary already names is deleted from intake before anything new is committed; a delete that fails ends the roll, and lag grows rather than a row being appended twice); does the first-roll changes once; reads the pending batches (at most 1,000); validates row by row against the table's current schema; writes the rejects files; writes one Parquet file with the Iceberg field ids and commits one append whose snapshot summary carries lakehousebox.sink.id, lakehousebox.sink.batches (the consumed ids), lakehousebox.sink.rows, lakehousebox.sink.rejected_rows, lakehousebox.sink.rolled_at (a roll committed before this naming was deployed, on 2026-10-09 or 10, carries the same keys under an earlier prefix, and they still count); deletes the consumed batches; reports; sweeps rejects older than 7 days. A lost race against the compactor or an engine re-commits the same file against the new base (up to 5 attempts, 0.5–8 s backoff); an empty roll (every row rejected) commits nothing.
+The roll policy is set per sink. Whichever limit is reached first rolls:
 
-Exactly-once is recovery, not coordination: a batch in intake is already consumed when a retained snapshot of this sink (lakehousebox.sink.id) names its id and the object was stored before that snapshot (1 h tolerance for clock skew). That is recomputed from the table and the store on every roll. Every retained snapshot counts, not only the latest: until 2026-09-26 (#518) any other commit (the tenant's own write, a compaction) hid a roll that had died before deleting its intake, and its batches were rolled twice. A roller that dies at any step restarts and finds its batches either named in the history (consumed: deleted, and reported so the ledger marks them committed) or in intake (pending: rolled). If another roller committed some of a roll's batches since it read them, the roll commits nothing and the next tick sorts it out. Past the retained history (20 snapshots or 168 h) a roll is still known: right after its commit it writes _sink/<id>/committed/<its data file>.json naming its batch ids, and deletes it after the intake (#526). A roll that dies in between leaves the marker; step 2 reads it like the history (the newer record wins), so a roller down for a week does not roll its leftovers again. A marker that cannot be read ends the tick (lag grows; nothing is rolled twice). A repair is reported again for as long as the ledger still holds its batches pending, and its marker is kept until then; a marker left by a failed delete goes on the sink's next roll. Until the repair is reported, those batches are pending in the ledger and the sink_lag alert fires at 3 x roll_seconds. Duplicate detection at the intake is bounded: ledger rows are pruned 7 days after commit, so a batch id replayed later than that is accepted again.
+- roll_seconds: default 300, floor 60;
+
+- roll_bytes: 32–64 MiB, default 64;
+
+- inactivity_seconds, optional: a producer that posts a burst and goes quiet gets its rows committed early;
+
+- a fixed count of 1,000 pending batches.
+
+A roll is a commit, and a commit costs more the more snapshots the table holds. A roll every 300–900 s suits a producer sending under about a megabyte per five minutes. The maintenance sweep runs every 6 hours: it expires the table back to 20 snapshots and compacts the small files.
+
+The first roll makes one commit. It adds an optional __ingest_ts (timestamptz) column and sets the metadata-retention properties: write.metadata.delete-after-commit.enabled=true and write.metadata.previous-versions-max=5. A table that already has both is left untouched.
+
+Each roll. The roller ticks every 10 s. For every sink whose policy says so, it runs these steps in order:
+
+- It reloads the table as the tenant.
+
+- It re-establishes the invariant. Any batch the current snapshot's summary already names is deleted from the intake before anything new is committed. A delete that fails ends the roll: lag grows rather than a row being appended twice.
+
+- It makes the first-roll changes, once.
+
+- It reads the pending batches, at most 1,000.
+
+- It validates them row by row against the table's current schema, and writes the rejects files.
+
+- It writes one Parquet file with the Iceberg field ids, and commits one append. The snapshot summary carries lakehousebox.sink.id, lakehousebox.sink.batches (the consumed ids), lakehousebox.sink.rows, lakehousebox.sink.rejected_rows and lakehousebox.sink.rolled_at. An older roll carries the same keys under an earlier prefix, and they still count.
+
+- It deletes the consumed batches, reports, and sweeps rejects older than 7 days.
+
+A roll that loses a race against the compactor or an engine re-commits the same file against the new base. It tries up to 5 times, with 0.5–8 s of backoff. An empty roll, where every row was rejected, commits nothing.
+
+### Exactly once
+
+Exactly-once comes from recovery, not coordination. A batch in the intake is already consumed when two things hold:
+
+- a retained snapshot of this sink (lakehousebox.sink.id) names its id;
+
+- the object was stored before that snapshot, with 1 h of tolerance for clock skew.
+
+Every roll recomputes this from the table and the store. Every retained snapshot counts, not only the latest. So a commit by someone else, such as the tenant's own write or a compaction, cannot hide an earlier roll.
+
+- A roller that dies at any step restarts and finds each of its batches in one of two places. Named in the history, a batch is consumed: it is deleted, and reported so the ledger marks it committed. Still in the intake, it is pending, and it is rolled.
+
+- If another roller committed some of a roll's batches since it read them, the roll commits nothing. The next tick sorts it out.
+
+- Past the retained history (20 snapshots or 168 h), a roll is still known. Right after its commit it writes _sink/<id>/committed/<its data file>.json, naming its batch ids. It deletes that marker after the intake.
+
+- A roll that dies between the two leaves the marker. Step 2 reads it like the history, and the newer record wins. So a roller that is down for a week does not roll its leftovers again.
+
+- A marker that cannot be read ends the tick. Lag grows; nothing is rolled twice.
+
+- A repair is reported again for as long as the ledger still holds its batches pending, and its marker is kept until then. A marker left by a failed delete goes on the sink's next roll.
+
+- Until the repair is reported, those batches are pending in the ledger. The sink_lag alert fires at 3 x roll_seconds.
+
+Duplicate detection at the intake has a bound. Ledger rows are pruned 7 days after commit, so a batch id replayed later than that is accepted again.
 
 ## A key: one row per key, not one per send
 
-By default a roll appends, so a producer that sends the same row twice (a republished feed, a retry with a new batch id) stores it twice. A sink with a key (key: ["observation_id"] at creation or by PATCH; lhbox sink create --key observation_id, lhbox sink update <sink> --key observation_id) has each roll replace the rows that share the key instead:
+By default a roll appends. A producer that sends the same row twice (a republished feed, a retry with a new batch id) stores it twice. A sink with a key has each roll replace the rows that share the key instead. Set the key at creation or by PATCH (key: ["observation_id"]):
 
-- The latest wins. A keyed sink rolls its batches in the order they arrived. Inside a roll, the row received last wins (among rows of one batch, the last one); a row already in the table with the same key is replaced.
+```
+lhbox sink create garden --table garden.observations --name observations_in --key observation_id --save ~/obs-sink.json
+lhbox sink update observations_in --key observation_id   # an existing sink
+```
+
+- The latest wins. A keyed sink rolls its batches in the order they arrived. Inside a roll, the row received last wins; among the rows of one batch, the last one. A row already in the table with the same key is replaced.
 
 - A row with a null in a key column is a row reject (key_null).
 
-- One commit per roll, as for an append. The snapshot drops the files whose rows are all replaced, rewrites the ones that are partly replaced, and adds the roll's rows. It names the batches in the same lakehousebox.sink.* summary, so exactly-once by recovery is unchanged.
+- One commit per roll, as for an append. The snapshot drops the files whose rows are all replaced, rewrites those partly replaced, and adds the roll's rows. It names the batches in the same lakehousebox.sink.* summary, so exactly-once by recovery is unchanged.
 
-- Cost: each roll reads the key columns of the table's files, except those whose bounds rule the keys out (string and integer keys), and rewrites only the files that hold a replaced row. A key that follows arrival time (a feed republishing today's rows) rewrites nothing: the last run's file is dropped whole. A key spread over every file would rewrite the table on every roll. Past 256 MiB of rewritten files in one roll, nothing is committed and the sink is disabled (upsert_rewrite_too_large).
+- Cost. Each roll reads the key columns of the table's files, except those whose bounds rule the keys out (string and integer keys). It rewrites only the files that hold a replaced row.
 
-- A key needs a format-version 2, unpartitioned table, and columns of a key type: string, integer, date, time, timestamp, uuid, decimal or boolean, never a float. A key the roller cannot apply disables the sink with an upsert_* reason and leaves the batches waiting. Changing the key (PATCH {key}, or null to append again) makes the sink active again.
+A key that follows arrival time (a feed republishing today's rows) rewrites nothing: the last run's file is dropped whole.
 
-- Rows stored before the key was set keep their duplicates, except where a later roll carries the same key again. lhbox sink dedupe <sink> (POST /v1/sinks/{id}/dedupe) asks the roller to keep only the latest row per key in the whole table, once: by __ingest_ts (the row received last wins; a tie goes to the later commit), one commit at the next tick, refused past 1 GiB of rewritten files or 10 million rows. GET /v1/sinks/{id} shows dedupe.last when it is done (or why not), and --wait waits for it. A request already waiting is answered as it is; after a dedupe, the next one waits an hour.
+- A key spread over every file would rewrite the table on every roll.
+
+- Past 256 MiB of rewritten files in one roll, nothing is committed and the sink is disabled (upsert_rewrite_too_large).
+
+- What a key needs: a format-version 2, unpartitioned table, and columns of a key type. The key types are string, integer, date, time, timestamp, uuid, decimal and boolean, never a float.
+
+- A key the roller cannot apply disables the sink with an upsert_* reason and leaves the batches waiting. Changing the key makes the sink active again: PATCH {key}, or null to append again (lhbox sink update <sink> --no-key).
+
+- Rows stored before the key was set keep their duplicates, except where a later roll carries the same key again.
+
+To clean those up, lhbox sink dedupe <sink> (POST /v1/sinks/{id}/dedupe) asks the roller to keep only the latest row per key in the whole table, once.
+
+- The latest is by __ingest_ts: the row received last wins, and a tie goes to the later commit.
+
+- It is one commit, at the next tick. It is refused past 1 GiB of rewritten files or 10 million rows.
+
+- GET /v1/sinks/{id} shows dedupe.last when it is done, or why not. --wait waits for it.
+
+- A request already waiting is answered as it is. After a dedupe, the next one waits an hour.
 
 ## Rejects
 
-A row is rejected, never a batch, with a reason: missing_required (field), unknown_field (field: dropping a field silently is the one failure a producer cannot see), type_mismatch (field, expected, got, detail: for a geometry column the detail says what is wrong, such as "latitude outside [-90, 90]"), bad_point (a mapping's point found only one of its two fields, or one that is not a number), unsupported_type (a geography column, a geometry with a CRS of its own, or one inside a struct, list or map), not_an_object. On a format-version 3 table, a batch whose rows the writer refuses even after these checks goes to rejects whole as batch_unwritable with the writer's error, after the roll's other batches were committed one by one: one batch never holds the others back. A batch the roller cannot parse at all goes to rejects whole as batch_unreadable and the sink goes on. An intake object larger than its writer may send (16 MiB for a producer's batch, 256 MiB for a scheduled SQL run's Parquet) goes to rejects whole, unread, as batch_too_large. The files are _sink/<sink_id>/rejects/<batch_id>.ndjson, one JSON object per rejected row with the original row and the batch id; the catalog's read recipe reads them (read_json in DuckDB, s3://<blob bucket>/_sink/<sink_id>/rejects/*.ndjson). GET /v1/sinks/{id} shows rejects {rows_total, batches_with_rejects, last_at, prefix}. Values: timestamps as RFC 3339 strings, dates as YYYY-MM-DD, decimals as strings or numbers, binary as base64, nested structs, lists and maps as JSON.
+A row is rejected, never a batch, with one of these reasons:
+
+| reason | what it means |
+|---|---|
+| missing_required (field) | a required column has no value |
+| unknown_field (field) | a field the table does not have. Dropping it silently is the one failure a producer cannot see |
+| type_mismatch (field, expected, got, detail) | the wrong type. For a geometry column the detail says what is wrong, such as "latitude outside [-90, 90]" |
+| bad_point | a mapping's point found only one of its two fields, or one that is not a number |
+| unsupported_type | a geography column, a geometry with a CRS of its own, or one inside a struct, list or map |
+| not_an_object | an element that is not a JSON object |
+
+Three cases reject a whole batch, and the sink goes on:
+
+- batch_unwritable, on a format-version 3 table: the writer refuses the batch's rows even after these checks. The rejects keep the writer's error. The roll's other batches are committed one by one first, so one batch never holds the others back.
+
+- batch_unreadable: the roller cannot parse the batch at all.
+
+- batch_too_large: an intake object larger than its writer may send, unread. The limit is 16 MiB for a producer's batch and 256 MiB for a scheduled SQL run's Parquet.
+
+The rejects files are _sink/<sink_id>/rejects/<batch_id>.ndjson. Each holds one JSON object per rejected row, with the original row and the batch id. The catalog's read recipe reads them: read_json in DuckDB, on s3://<blob bucket>/_sink/<sink_id>/rejects/*.ndjson. GET /v1/sinks/{id} shows rejects {rows_total, batches_with_rejects, last_at, prefix}.
+
+How to send values:
+
+- timestamps as RFC 3339 strings, and dates as YYYY-MM-DD;
+
+- decimals as strings or numbers, and binary as base64;
+
+- nested structs, lists and maps as JSON.
 
 ## Positions and shapes: geometry columns
 
-A bus that reports where it is every few seconds, a delivery van, a phone, a tracker: a sink feeds a format-version 3 table with a geometry column, partitioned by day, and the maintenance keeps it fast to query by area:
+Think of a bus that reports where it is every few seconds, a delivery van, a phone or a tracker. A sink can feed them into a format-version 3 table with a geometry column, partitioned by day. The maintenance keeps it fast to query by area.
 
 ```
 lhbox table create fleet.transit.positions --format-version 3 --partition 'day(ts)' \
@@ -103,15 +231,45 @@ lhbox sink create fleet --table transit.positions --name positions_in --mapping 
 # a producer then posts [{"id": "bus-12", "lon": -3.7038, "lat": 40.4168, "t": 1791244740, "speed": 7.5}, ...]
 ```
 
-- What a geometry column takes: a GeoJSON geometry object ({"type": "Point", "coordinates": [-3.70, 40.42]}, lines, polygons and their multi forms, collections), WKT text (POINT (-3.70 40.42), with or without SRID=4326;), or hex WKB as PostGIS prints it. A mapping's point makes the GeoJSON point from two fields named for the longitude and the latitude (and z, a height), as numbers or numeric strings; the axes are always named, because swapped axes are the usual producer bug. The column is plain geometry, the default CRS (longitude/latitude in degrees, as GPS gives them): a longitude outside [-180, 180] or a latitude outside [-90, 90] rejects the row, so does a GeoJSON Feature (send its geometry; its properties are other columns), an unclosed ring, M coordinates or another SRID.
+What a geometry column takes:
 
-- How it is written: a format-version 3 table is committed by DuckDB (PyIceberg, which commits format-version 2 tables, cannot write version 3), one append per roll, one file per day partition, the day computed in UTC whatever the sender's zone. Exactly once still holds: before the commit the roll writes an intent naming its batches, the commit sets the table property lakehousebox.sink.roll in the same transaction, and a roll that dies is confirmed or abandoned from that property on the next tick. A commit that races another (an engine's, the maintenance's) is refused by the catalog and retried; one whose answer was lost is recognised from the property and not written twice; one whose outcome is unknown is never retried at once (it may still land): the sink waits up to 10 minutes for the property to name it before rolling those batches again.
+- a GeoJSON geometry object: {"type": "Point", "coordinates": [-3.70, 40.42]}, lines, polygons, their multi forms and collections;
 
-- Writing such a table yourself: with DuckDB, SET TimeZone = 'UTC'; before the INSERT. DuckDB 1.5.6 computes the day of a timestamptz in the session's time zone, not in UTC as Iceberg defines it: from a session in Los Angeles, rows of 2026-10-05 UTC were filed under 2026-10-04 and a filter on 2026-10-05 found none of them.
+- WKT text, POINT (-3.70 40.42), with or without SRID=4326;;
 
-- What the maintenance does with it: today stays as it was written, in time order, so "where is every vehicle now" reads only the newest files. Once a day has ended (plus two hours for late batches), the maintenance compacts it in spatial order (a Hilbert curve over the points, small row groups with geometry statistics), so a query for one area of one past day reads a small part of it. Measured on a fleet day of 1,000 buses (1.44 M fixes): the last ten minutes read 0.04 MB of today's files, where a day compacted in spatial order would have read 2.51 MB; an area query on a past day read 2.74 MB after its compaction instead of 19.4 MB. Measured on a throwaway store (platform/lab/spatial_sink_probe.py, 2026-10-05): twelve batches of 2,000 scattered positions over two days rolled as one snapshot in 0.7 s; after compaction four lookups of about 2 km read 0.81 MB instead of 1.97 MB, with the same answers.
+- hex WKB, as PostGIS prints it.
 
-- Questions it answers well, with DuckDB through the catalog's recipe:
+A mapping's point makes the GeoJSON point from two fields, one for the longitude and one for the latitude. A third, z, is a height. They may be numbers or numeric strings. The axes are always named, because swapped axes are the usual producer bug.
+
+The column is plain geometry, in the default CRS: longitude and latitude in degrees, as GPS gives them. These reject the row:
+
+- a longitude outside [-180, 180], or a latitude outside [-90, 90];
+
+- a GeoJSON Feature (send its geometry; its properties are other columns);
+
+- an unclosed ring, M coordinates, or another SRID.
+
+How it is written. DuckDB commits a format-version 3 table; PyIceberg commits format-version 2 tables and cannot write version 3. Each roll is one append, with one file per day partition. The day is computed in UTC, whatever the sender's zone.
+
+Exactly-once still holds:
+
+- Before the commit, the roll writes an intent naming its batches.
+
+- The commit sets the table property lakehousebox.sink.roll in the same transaction.
+
+- A roll that dies is confirmed or abandoned from that property on the next tick.
+
+- A commit that races another (an engine's, the maintenance's) is refused by the catalog and retried.
+
+- A commit whose answer was lost is recognised from the property, and not written twice.
+
+- A commit whose outcome is unknown is never retried at once, because it may still land. The sink waits up to 10 minutes for the property to name it before rolling those batches again.
+
+Writing such a table yourself. With DuckDB, run SET TimeZone = 'UTC'; before the INSERT. DuckDB 1.5.6 computes the day of a timestamptz in the session's time zone, not in UTC as Iceberg defines it. From a session in Los Angeles, rows of 2026-10-05 UTC were filed under 2026-10-04, and a filter on 2026-10-05 found none of them.
+
+What the maintenance does with it. Today stays as it was written, in time order. So "where is every vehicle now" reads only the newest files. Once a day has ended, plus two hours for late batches, the maintenance compacts it in spatial order. It uses a Hilbert curve over the points, with small row groups carrying geometry statistics. Then a query for one area of one past day reads a small part of it. The figures are under "Numbers and dates".
+
+Questions it answers well, with DuckDB through the catalog's recipe:
 
 ```
 -- where every vehicle was last seen in the past ten minutes (reads only the newest files)
@@ -122,13 +280,19 @@ SELECT vehicle_id, ts FROM lake.transit.positions
 WHERE ts >= current_date AND geometry && ST_MakeEnvelope(-3.71, 40.41, -3.69, 40.43);
 ```
 
-&& is the operator that prunes; ST_Intersects alone reads everything. One vehicle's whole day reads most of the day's row groups in a space-ordered layout: for many such questions, keep a per-vehicle table of your own.
+&& is the operator that prunes; ST_Intersects alone reads everything. In a space-ordered layout, one vehicle's whole day reads most of the day's row groups. For many such questions, keep a per-vehicle table of your own.
 
-- Not done for you (yet): a latest-position table kept up to date, a per-vehicle tracks table, deleting old days on a schedule (run DELETE FROM … WHERE ts < … yourself; positions of people are personal data, keep them only as long as you need them), GTFS-Realtime feeds (protobuf, polled rather than pushed), and the query-string form of phone tracker apps.
+Not done for you (yet):
+
+- a latest-position table kept up to date, or a per-vehicle tracks table;
+
+- deleting old days on a schedule. Run DELETE FROM … WHERE ts < … yourself: positions of people are personal data, so keep them only as long as you need them;
+
+- GTFS-Realtime feeds (protobuf, polled rather than pushed), and the query-string form of phone tracker apps.
 
 ## Files that become rows: index rules
 
-A camera that uploads a photo every 15 minutes, a partner that drops CSV files: the files land in the catalog's blob bucket (an uploader, blob-uploader.md), and an index rule makes each one a row of a table, so an engine can ask what arrived:
+A camera that uploads a photo every 15 minutes, a partner that drops CSV files: the files land in the catalog's file bucket, through an uploader. An index rule makes each file a row of a table, so an engine can ask what arrived:
 
 ```
 lhbox index create garden --name photos --prefix camera/ --table garden.images --rename last_modified=uploaded_at \
@@ -138,15 +302,98 @@ lhbox index create garden --name photos --prefix camera/ --table garden.images -
                  {"type": "path_parts", "pattern": "^camera/(?P<camera_id>[^/]+)/"}]'
 ```
 
-- Extractors, a closed list: basic (bucket, object_key, filename, size_bytes, etag, content_type, last_modified, indexed_at, and uploader from the object's x-amz-meta-uploader), image (width and height from the first 64 KiB of a JPEG or PNG, exif_taken_at from EXIF), filename_time (a time from the file name, in a named zone, optionally falling back to the upload time), path_parts (named groups of the key), constant. --rename stores an extracted column under the table's name. The table must exist and hold every required column the rule cannot fill (400 missing_columns); extracted columns the table lacks are not stored, and the answer lists them.
+Extractors come from a closed list:
 
-- How it runs: the rule owns an internal sink on the table, so the rows are committed by the roller like any sink's, with the same rejects and meter; one sink or index per table. The prefix is listed every poll_seconds (default 60) signed as the catalog itself, from a watermark, and the rows are committed at the sink's next roll (default every 300 s; --roll-seconds, floor 60, and --inactivity-seconds commit sooner): a new file is a row within about poll_seconds + roll_seconds.
+| extractor | the columns it fills |
+|---|---|
+| basic | bucket, object_key, filename, size_bytes, etag, content_type, last_modified, indexed_at, and uploader from the object's x-amz-meta-uploader |
+| image | width and height from the first 64 KiB of a JPEG or PNG, and exif_taken_at from EXIF |
+| filename_time | a time from the file name, in a named zone, optionally falling back to the upload time |
+| path_parts | the named groups of the key |
+| constant | a fixed value |
 
-- What it is not: append-only. A deleted file keeps its row, an overwritten one gets a second row with its new etag. _sink/, _index/ and directory markers are never indexed. The plan's blob_indexes limits the rules (10 on the free plan).
+- --rename stores an extracted column under the table's name for it.
+
+- The table must exist, and hold every required column the rule cannot fill (400 missing_columns).
+
+- Extracted columns the table lacks are not stored, and the answer lists them.
+
+How it runs. The rule owns an internal sink on the table, so the roller commits its rows like any sink's, with the same rejects and meter. A table has one sink or one index.
+
+- The prefix is listed every poll_seconds (default 60), from a watermark, signed as the catalog itself.
+
+- The rows are committed at the sink's next roll: by default every 300 s. --roll-seconds (floor 60) and --inactivity-seconds commit sooner.
+
+- So a new file is a row within about poll_seconds + roll_seconds.
+
+What it is not. An index is append-only. A deleted file keeps its row, and an overwritten one gets a second row with its new etag. _sink/, _index/ and directory markers are never indexed. The plan's blob_indexes limits the rules: 10 on the free plan.
 
 ## What it costs and where it is counted
 
-Pending intake is metered twice: the storage meter reads the store's own per-bucket figure (since 2026-09-26, every few minutes, and POST /v1/warehouses/{id}/measure), which counts every byte in the blob bucket, _sink/ included (the listing meters before that date skipped it), and the bytes accepted at the intake are counted as ingest_bytes per project in GET /v1/usage (month_to_date, batches, rows_accepted, rows_rejected, by_sink; enforced: false). The same rows are metered once more as Parquet once committed, where they are stored. The store's hard bucket quota counts every byte in the blob bucket, intake included: an organisation at the edge of its allowance is stopped by the bucket going read-only before the meter would say so (409 quota_exceeded).
+Pending intake is metered twice:
+
+- The storage figure reads the store's own per-bucket figure, every few minutes, or at once with POST /v1/warehouses/{id}/measure. It counts every byte in the file bucket, _sink/ included.
+
+- ingest_bytes counts the bytes accepted at the intake, per project, in GET /v1/usage: month_to_date, batches, rows_accepted, rows_rejected and by_sink (enforced: false).
+
+The same rows are metered once more as Parquet once committed, where they are stored.
+
+The store's hard bucket quota also counts every byte in the file bucket, intake included. An organisation at the edge of its allowance is stopped by the bucket going read-only before the meter would say so (409 quota_exceeded).
+
+## Devices that cannot set headers: the device route and the mapping
+
+Some producers cannot send a JSON array with Authorization and Idempotency-Key. A weather gateway posts a form over plain HTTP, a webhook posts one JSON object, a script posts CSV. A sink can carry a device route for them:
+
+```
+lhbox sink create garden --table garden.sensor_readings --name weather_in \
+     --device --require-field PASSKEY=<the gateway's passkey> --preset ecowitt --save ~/weather-sink.json
+lhbox sink test weather_in captured-post.txt         # what the mapping makes of a body; nothing is stored
+```
+
+- The URL is the credential. It is POST /d/<token>, the token 22 characters (131 bits). It is shown once and kept as a hash. It is accepted on that route only: anywhere else it is 403 device_only.
+
+- A new URL: lhbox sink device-token <sink> --save FILE replaces it, and the old one is refused at once. --revoke removes the route; the send key goes on working.
+
+- Bodies: form-urlencoded (also with no Content-Type), one JSON object, a JSON array, NDJSON, or CSV with a header. At most 256 KiB. Each becomes the intake NDJSON above, one object per record. Form and CSV values are strings.
+
+- No header needed. The batch id is the Idempotency-Key when one is sent, else it is derived from the body. So a device's retry of the same post answers 200 duplicate.
+
+- A pinned body secret (--require-field FIELD=VALUE) is checked, and refused with 401 invalid_device_secret. The CLI sends only its SHA-256. With --strip FIELD it is removed before anything is stored, so a device's secret never lands in the bucket or in a rejects file. Errors never echo the body.
+
+- Abuse limits: 6 posts a minute per sink sustained, in bursts of up to 30 (429 rate_limited with Retry-After). GET /v1/sinks/{id} counts every refusal by reason in device.refused.
+
+- The plan: the plan's device_sinks limits how many sinks of an organisation carry a device route: 10 on the free plan, 409 limit_exceeded beyond it. GET /v1/usage shows it.
+
+### The mapping
+
+The mapping turns what a device sends into the table's rows, at each roll. The intake stays raw, so a corrected mapping re-reads every batch not yet rolled. It is a JSON document with no code in it. It is validated against the table's columns when it is set: 400 unknown_target_column names the column.
+
+| key | what it does |
+|---|---|
+| flatten | nested JSON objects and lists become dotted fields first (a.b.c, list.0.x), so every other key can name them |
+| drop, rename, select | field operations, by field name |
+| constants | constant values, which may be templates ${PARAM} |
+| carry | a column copied from a field of each record onto every row it makes, such as a device id: {"sensor_id": "esp8266id"} |
+| timestamp | from a field in RFC 3339, epoch seconds or milliseconds, or a strptime pattern in a named zone. It has a skew guard and a fallback to the time the batch arrived |
+| melt | one wide record into many long rows, through ordered rules matching field names. Each rule sets columns and converts the value with a unit conversion from a fixed list (°F→°C, inHg→hPa, in→mm, mph→m/s, km/h→m/s and a few more). Fields no rule names are kept as raw rows, dropped, or rejected |
+| pairs | a body that nests its readings as a list of name/value objects reaches melt this way: {"from": "sensordatavalues", "name": "value_type", "value": "value"} turns each element into a field |
+
+A JSON number bound for a text column is stored as its text. (The iSpindel sends its chip id as a number.)
+
+lhbox sink mapping <sink> shows the mapping. --preset or --mapping FILE changes it, and --clear removes it.
+
+The presets:
+
+| preset | what it reads | the rows it makes |
+|---|---|---|
+| ecowitt | the Ecowitt gateway's "Customized" upload | (event_time, sensor_id, sensor_type, metric_name, metric_value, metric_unit), in metric units. It reproduces a reference implementation's output row for row on ten recorded posts |
+| sensor-community | the Sensor.Community (airrohr) firmware's "Send data to own API" post | the same six columns as ecowitt, one row per reading. The chip id is sensor_id, pressure is in hPa, and event_time is when the post arrived (the firmware sends none) |
+| ispindel | the iSpindel hydrometer's HTTP / HTTPS Post JSON, and GravityMon's iSpindel-format post | one wide row per reading: (event_time, device_name, device_id, gravity, temperature, temp_units, angle, battery, rssi, interval, velocity, corr_gravity, gravity_unit, run_time). The time is when it arrived; the temperature is in the unit the device sends (temp_units). Pin the device's token with --require-field token=… |
+| ttn | The Things Stack's (The Things Network's) JSON webhook uplink | long rows (event_time, device_id, dev_eui, application_id, metric_name, metric_value): one row per number of uplink_message.decoded_payload, plus rx_rssi and rx_snr of the first gateway listed. event_time comes from received_at. Checked against bodies The Things Stack 3.36.2 posted |
+
+## Scheduled SQL: a sink that runs a query
+
+LakehouseBox itself can feed a sink: one DuckDB SELECT over http(s) URLs, run on a schedule, its rows committed to the table. It has its own page: Scheduled SQL.
 
 ## Routes and commands
 
@@ -163,9 +410,39 @@ GET    /internal/sinks            the roller's view (bootstrap secret; never ser
 POST   /internal/sinks/{id}/roll  the roller's report
 ```
 
-CLI: lhbox sink create --catalog <catalog> --table <ns>.<table> --name <name> [--roll-seconds N] [--roll-bytes N] [--inactivity-seconds N] [--key COL[,COL]] (--save FILE | --show-key), sink update <sink> (--key COL[,COL] | --no-key), sink dedupe <sink> [--wait] [--yes], sink list [--catalog <catalog>] [--all], sink get <sink>, sink delete <sink> [--force] [--yes], sink send [<sink>] <file|-> (--send-key-file FILE | --send-key K | LHBOX_SEND_KEY) [--batch-id ID]. lhbox connect mentions sinks in its notes (sinks_note, ingest_url in GET /v1/connection) once the flag is on. Audit events: sink.create, sink.delete, sink.roll.
+The sink commands are create, update, dedupe, list, get, delete and send. Every flag is in the CLI reference. A send takes its key from --send-key-file FILE, --send-key K or LHBOX_SEND_KEY, and its batch id from --batch-id ID.
 
-## Measured (2026-09-21, the local stack, the control plane of PR 1 + the roller of PR 2)
+lhbox connect mentions sinks in its notes: sinks_note, and ingest_url in GET /v1/connection. The audit log records sink.create, sink.delete and sink.roll.
+
+## Not in v1
+
+- Creating the table from the sink request.
+
+- A rotate-key route: delete and create rotates.
+
+- NDJSON request bodies.
+
+- MCP tools, after the REST and CLI have run for a week.
+
+- A partition at the first roll: create the table partitioned instead.
+
+- A per-table max_snapshots override for sinks at the 60 s floor.
+
+- The sidecar id list, for sinks needing more than 1,000 batches per roll.
+
+## Numbers and dates
+
+Status: enabled on the service.
+
+| what | figure | date |
+|---|---|---|
+| the lakehousebox.sink.* summary keys | a roll committed before them, on 2026-10-09 or 10, carries the same keys under an earlier prefix | 2026-10-10 |
+| every retained snapshot counts for exactly-once | before this, any other commit (the tenant's own write, a compaction) hid a roll that had died before deleting its intake, and its batches were rolled twice | 2026-09-26 |
+| the storage figure reads the store's own per-bucket figure, every few minutes | the listing meters before that date skipped _sink/ | 2026-09-26 |
+| a fleet day of 1,000 buses (1.44 M fixes) | the last ten minutes read 0.04 MB of today's files, where a day compacted in spatial order would have read 2.51 MB. An area query on a past day read 2.74 MB after its compaction instead of 19.4 MB | 2026-10-05 |
+| twelve batches of 2,000 scattered positions over two days, on a throwaway store | rolled as one snapshot in 0.7 s. After compaction, four lookups of about 2 km read 0.81 MB instead of 1.97 MB, with the same answers | 2026-10-05 |
+
+### Measured (2026-09-21, the local stack, the control plane of PR 1 + the roller of PR 2)
 
 | step | result |
 |---|---|
@@ -178,39 +455,11 @@ CLI: lhbox sink create --catalog <catalog> --table <ns>.<table> --name <name> [-
 | the ledger | e2e-1/2/3 committed with the snapshot id |
 | ingest_bytes | 150 / 3 batches / 9 accepted / 3 rejected |
 
-Two facts the run taught, both in the code now: PyIceberg's S3 filesystem uploads every file in parts and the store refuses UploadPart to the tenant's static identity under the bucket-policy data grant, so the roll's data file goes through one signed PUT and the table's own metadata files go through vended credentials, exactly as every engine's do; and the intake's boto3 client sends a signed payload (request_checksum_calculation="when_required") because the store refuses the streaming-unsigned-trailer shape under that grant (STATE 2026-09-21 16:40Z).
+The run taught two facts, both in the code now:
 
-## Devices that cannot set headers: the device route and the mapping
+- PyIceberg's S3 filesystem uploads every file in parts, and the store refuses UploadPart to the tenant's static identity under the bucket-policy data grant. So the roll's data file goes through one signed PUT. The table's own metadata files go through vended credentials, exactly as every engine's do.
 
-A weather gateway that posts a form over plain HTTP, a webhook that posts one JSON object, a script that posts CSV: none of them can send a JSON array with Authorization and Idempotency-Key. A sink can carry a device route for them:
-
-```
-lhbox sink create garden --table garden.sensor_readings --name weather_in \
-     --device --require-field PASSKEY=<the gateway's passkey> --preset ecowitt --save ~/weather-sink.json
-lhbox sink test weather_in captured-post.txt         # what the mapping makes of a body; nothing is stored
-```
-
-- The URL is the credential. POST /d/<token>, the token 22 characters (131 bits), shown once and kept as a hash, accepted on that route only (anywhere else it is 403 device_only). lhbox sink device-token <sink> --save FILE replaces it (the old one is refused at once); --revoke removes the route and the send key goes on.
-
-- Bodies: form-urlencoded (also with no Content-Type), one JSON object, a JSON array, NDJSON, CSV with a header; at most 256 KiB. Each becomes the intake NDJSON above, one object per record; form and CSV values are strings.
-
-- No header needed. The batch id is the Idempotency-Key when sent, else derived from the body, so a device's retry of the same post answers 200 duplicate.
-
-- A pinned body secret (--require-field FIELD=VALUE; the CLI sends only its SHA-256) is checked (401 invalid_device_secret) and removed, with --strip FIELD, before anything is stored: a device's secret never lands in the bucket or in a rejects file. Errors never echo the body.
-
-- Abuse limits: 6 posts a minute per sink sustained, bursts of 30 (429 rate_limited with Retry-After); every refusal is counted by reason in GET /v1/sinks/{id} device.refused.
-
-- The plan: how many sinks of an organisation carry a device route is the plan's device_sinks (10 on the free plan; 409 limit_exceeded beyond it); GET /v1/usage shows it.
-
-The mapping turns what a device sends into the table's rows, at each roll (the intake stays raw, so a corrected mapping re-reads every batch not yet rolled). It is a JSON document, validated against the table's columns when it is set (400 unknown_target_column names the column), with no code in it: flatten (nested JSON objects and lists become dotted fields first, a.b.c and list.0.x, so every other key can name them), drop, rename, select, constants (templates ${PARAM}), carry (a column copied from a field of each record onto every row it makes, such as a device id), a timestamp (from a field in RFC 3339, epoch seconds or milliseconds, or a strptime pattern in a named zone, with a skew guard and a fallback to the time the batch arrived), and melt: one wide record into many long rows through ordered rules matching field names, each setting columns and converting the value with a unit conversion from a fixed list (°F→°C, inHg→hPa, in→mm, mph→m/s, km/h→m/s and a few more), fields no rule names kept as raw rows, dropped, or rejected. A body that nests its readings as a list of name/value objects reaches melt through pairs ({"from": "sensordatavalues", "name": "value_type", "value": "value"} turns each element into a field), and carry ({"sensor_id": "esp8266id"}) copies a body field such as the device id onto every row. The sensor-community preset is the Sensor.Community (airrohr) firmware's "Send data to own API" post as the same six columns as ecowitt, one row per reading, the chip id as sensor_id, pressure in hPa, event_time the time the post arrived (the firmware sends none; fixtures in platform/worker/tests/fixtures/sensor-community/). The ecowitt preset is the Ecowitt gateway's "Customized" upload as (event_time, sensor_id, sensor_type, metric_name, metric_value, metric_unit) rows in metric units; it reproduces a reference implementation's output row for row on ten recorded posts (platform/worker/tests/fixtures/ecowitt/). The ispindel preset is the iSpindel hydrometer's HTTP / HTTPS Post JSON, and GravityMon's iSpindel-format post, as one wide row per reading (event_time, device_name, device_id, gravity, temperature, temp_units, angle, battery, rssi, interval, velocity, corr_gravity, gravity_unit, run_time), the time being when it arrived and the temperature in the unit the device sends (temp_units); pin the device's token with --require-field token=… (platform/worker/tests/fixtures/ispindel/). A JSON number bound for a text column is stored as its text (the iSpindel sends its chip id as a number). The ttn preset is The Things Stack's (The Things Network's) JSON webhook uplink as long rows (event_time, device_id, dev_eui, application_id, metric_name, metric_value): one row per number of uplink_message.decoded_payload plus rx_rssi and rx_snr of the first gateway listed, event_time from received_at (platform/worker/tests/fixtures/ttn/, with bodies The Things Stack 3.36.2 posted). lhbox sink mapping <sink> shows it, --preset/--mapping FILE changes it, --clear removes it.
-
-## Scheduled SQL: a sink that runs a query
-
-A sink can also be fed by LakehouseBox itself: one DuckDB SELECT over http(s) URLs, run on a schedule, its rows committed to the table. It has its own page: platform/docs/scheduled-sql.md, published at /docs/scheduled-sql/ (https://lakehousebox.com/docs/scheduled-sql/).
-
-## Not in v1
-
-Creating the table from the sink request; a rotate-key route (delete and create rotates); NDJSON request bodies; MCP tools (after the REST and CLI have run for a week); a partition at the first roll (create the table partitioned instead); a per-table max_snapshots override for sinks at the 60 s floor; the sidecar id list for sinks needing more than 1,000 batches per roll.
+- The intake's boto3 client sends a signed payload (request_checksum_calculation="when_required"). The store refuses the streaming-unsigned-trailer shape under that grant.
 
 ---
 HTML version: https://lakehousebox.com/docs/ingest/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt

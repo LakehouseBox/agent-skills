@@ -5,11 +5,9 @@ This is a copy of https://lakehousebox.com/docs/scheduled-sql/index.md taken whe
 
 The routes are in the API reference (https://lakehousebox.com/docs/api/), every flag in the CLI reference (https://lakehousebox.com/docs/cli/).
 
-Give LakehouseBox one DuckDB SELECT that reads http(s) URLs, and a schedule. At every run LakehouseBox runs the query, casts the rows to your table's types and commits them. There is no cron job, server or engine of your own to keep running: "read this feed every 20 minutes and keep this table populated" is one command. The query runs on LakehouseBox's executor, not on your machine, and an agent can set the whole thing up with the CLI.
+Give LakehouseBox one DuckDB SELECT that reads http(s) URLs, and a schedule. At every run LakehouseBox runs the query, casts the rows to your table's types and commits them. "Read this feed every 20 minutes and keep this table populated" is one command, with no cron job, server or engine of your own to keep running.
 
-A scheduled-SQL sink is a kind of ingest sink (https://lakehousebox.com/docs/ingest/): it has no send key, and LakehouseBox is the producer.
-
-Availability. Scheduled SQL is live and on for every organisation on the free plan: two scheduled-SQL sinks (the plan limit sql_sinks; lhbox usage --full shows yours and the per-run budgets). A catalog an agent made without an account (lhbox new) gets it when a person claims it; until then sink create, run and resume answer 403 claim_required. Preview works before the claim too: the query runs once and nothing is written, so an agent can hand over a query it has seen run. Without the feature (before the claim, or where it was turned off) a preview may make at most 25 requests and download 16 MiB, runs one at a time, and shares a capacity kept for such previews (busy: 429 with retry_after_seconds). An organisation may make 10 such previews an hour (the plan limit sql_previews_per_hour; a preview that did not run is not counted). Its answer carries sink_create, saying what creating the sink still needs (not_enabled or claim_required), and no stored connection credential is sent.
+The query runs on LakehouseBox's executor, not on your machine, and an agent can set the whole thing up with the CLI. A scheduled-SQL sink is a kind of ingest sink (https://lakehousebox.com/docs/ingest/): it has no send key, and LakehouseBox is the producer.
 
 ## A first sink, end to end
 
@@ -28,57 +26,52 @@ FROM (SELECT unnest(features) AS f
                      columns = {features: 'JSON[]'}))
 ```
 
-1. Preview it. The query runs once on the executor and nothing is written: you see the rows, each column's Iceberg type, and (with --table) whether they fit an existing table.
-
 ```
-$ lhbox sink preview --catalog analytics --sql @quakes.sql --limit 3
-Preview: 7 rows in 65 ms (1 request, 11108 bytes from earthquake.usgs.gov); nothing written.
-column      duckdb                    iceberg
-quake_id    VARCHAR                   string
-event_time  TIMESTAMP WITH TIME ZONE  timestamptz
-magnitude   DOUBLE                    double
-...
-```
-
-2. Create the sink. --create-table makes the table from the query's columns; --every 1h --offset 7m runs it at seven minutes past every hour (UTC). --paused holds the schedule until you have seen one run.
-
-```
-$ lhbox sink create --catalog analytics --name docs_quakes --table docs_example.quakes \
+lhbox sink preview --catalog analytics --sql @quakes.sql --limit 3    # runs once, writes nothing
+lhbox sink create --catalog analytics --name docs_quakes --table docs_example.quakes \
       --sql @quakes.sql --every 1h --offset 7m --create-table --paused
-SQL sink docs_quakes created: every 3600 s (offset 420 s) into table docs_example.quakes of catalog analytics (paused).
-  table:          created, format version 2, from the query's columns
+lhbox sink run docs_quakes --wait                                      # one run now, until committed
+lhbox sink runs docs_quakes                                            # state, rows, requests, bytes, errors
+lhbox sink resume docs_quakes                                          # start the schedule
+lhbox sink update docs_quakes --key quake_id                           # one row per quake
 ```
 
-3. Run it once, now, and look at the run.
+The preview shows the rows and each column's Iceberg type. With --table, it also says whether they fit an existing table.
 
-```
-$ lhbox sink run docs_quakes --wait
-Run 5dceb624: committed, 7 rows.
-$ lhbox sink runs docs_quakes
-run       trigger  slot                      state      rows  requests  bytes  ms  error
-5dceb624  manual   2026-09-29T16:50:12.974Z  committed  7     1         11108  62
-```
+--create-table makes the table from the query's columns. --every 1h --offset 7m runs the query at seven minutes past every hour (UTC). --paused holds the schedule until you have seen one run.
 
-4. Start the schedule: lhbox sink resume docs_quakes.
-
-5. Keep one row per quake. This feed covers a whole hour, so a quake is read by several runs. Give the sink a key and each run replaces the rows that share it, the latest one winning (see a key (https://lakehousebox.com/docs/ingest/#a-key-one-row-per-key-not-one-per-send)):
-
-```
-lhbox sink update docs_quakes --key quake_id
-```
-
-Without a key, runs append and a quake read by two runs is stored twice. Every row carries __ingest_ts, the time its run was committed, so a reader can still keep the latest row per key:
+This feed covers a whole hour, so a quake is read by several runs. With a key, each run replaces the rows that share it, and the latest one wins (see a key (https://lakehousebox.com/docs/ingest/#a-key-one-row-per-key-not-one-per-send)). Without a key, runs append, and a quake read by two runs is stored twice. Every row carries __ingest_ts, the time its run was committed. A reader can use it to keep the latest row per key:
 
 ```
 SELECT * FROM analytics.docs_example.quakes
 QUALIFY row_number() OVER (PARTITION BY quake_id ORDER BY __ingest_ts DESC) = 1
 ```
 
-(The output above is a real run on 2026-09-29 against the live service; ... marks lines left out. The sink and the table were deleted afterwards.)
+What each command printed in a real run is at the end of this page.
+
+## Who can use it
+
+Scheduled SQL is live and on for every organisation on the free plan. The plan allows two scheduled-SQL sinks (the plan limit sql_sinks). lhbox usage --full shows yours and the per-run budgets.
+
+A catalog an agent made without an account (lhbox new) gets it when a person claims it. Until then, sink create, run and resume answer 403 claim_required.
+
+Preview works before the claim too. The query runs once and nothing is written, so an agent can hand over a query it has seen run. Without the feature (before the claim, or where it was turned off), a preview is smaller:
+
+- at most 25 requests and 16 MiB downloaded;
+
+- one at a time, in a capacity kept for such previews: when it is busy, 429 with retry_after_seconds;
+
+- 10 such previews an hour per organisation (the plan limit sql_previews_per_hour); a preview that did not run is not counted.
+
+Its answer carries sink_create, saying what creating the sink still needs (not_enabled or claim_required). No stored connection credential is sent.
 
 ## What the query can do
 
-It is one SELECT: CTEs, joins, UNPIVOT, LATERAL, window functions and QUALIFY are all fine. It reads http(s) URLs (public, or with a connection's credential) with DuckDB 2.0.0's readers: read_json, read_ndjson, read_csv, read_parquet, read_text, read_blob, or FROM 'https://…'. Several URLs may be read in one call (a list, or a list comprehension over page numbers), and a URL may contain current_date. LakehouseBox writes the rows; the query never writes. It runs on an executor of its own, whose only way out is a proxy that allows:
+It is one SELECT: CTEs, joins, UNPIVOT, LATERAL, window functions and QUALIFY are all fine. It reads http(s) URLs, public or with a connection's credential. The readers are DuckDB 2.0.0's: read_json, read_ndjson, read_csv, read_parquet, read_text, read_blob, or FROM 'https://…'.
+
+Several URLs may be read in one call: a list, or a list comprehension over page numbers. A URL may contain current_date. LakehouseBox writes the rows; the query never writes.
+
+The query runs on an executor of its own, whose only way out is a proxy that allows:
 
 - GET and HEAD, to ports 80 and 443 of public addresses, checked again on every redirect;
 
@@ -100,7 +93,7 @@ Pin the types of a JSON source (columns = {…}, or JSON and ->>): inference can
 
 ## Sources that want a credential: connections
 
-An API key never goes in the SQL. Store it once as a connection of the catalog, bound to a URL prefix, and write the plain URL in the query; the executor adds the credential to every request under that prefix and to nothing else:
+An API key never goes in the SQL. Store it once as a connection of the catalog, bound to a URL prefix, and write the plain URL in the query. The executor adds the credential to every request under that prefix, and to nothing else:
 
 ```
 lhbox sink connection create weather --catalog <catalog> --url-prefix https://api.example.org/v1/ --bearer --value-env WEATHER_TOKEN
@@ -111,39 +104,51 @@ lhbox sink connection replace weather --catalog <catalog> --value @new-token.txt
 lhbox sink connection delete weather --catalog <catalog> --yes    # pauses the SQL sinks that name its prefix or host
 ```
 
-- Kinds: bearer (Authorization: Bearer …), header (a header you name, e.g. X-API-Key), basic (user:password).
+Kinds. bearer (Authorization: Bearer …), header (a header you name, e.g. X-API-Key), basic (user:password).
 
-- The prefix is https://, a host name, a path ending in /; two connections of a catalog may not overlap. The credential is not sent on a redirect to another host. The host is the boundary: DuckDB compares URLs as text, so a path prefix does not keep the credential from other paths of the same host (/v1/../admin/).
+The prefix is https://, a host name, and a path ending in /. Two connections of a catalog may not overlap. The credential is not sent on a redirect to another host. The host is the boundary: DuckDB compares URLs as text, so a path prefix does not keep the credential from other paths of the same host (/v1/../admin/).
 
-- A query that uses a header connection reads only that connection's own origin (its https host and port): DuckDB would send a custom header on to wherever a redirect points. A query that also uses a connection on another host or port is refused before it runs (connection_conflict; other paths of the same host are fine); another host, plain http on the same host, or a redirect to either, is refused while it runs (egress_refused). Read other sources in another SQL sink. A query that uses only bearer or basic connections has no such limit.
+A header connection keeps the query on its own origin (its https host and port), because DuckDB would send a custom header on to wherever a redirect points.
 
-- A connection belongs to the catalog, not to the one who stored it: every member and agent that can write to the catalog can run a scheduled query that sends it to its host (none can read the value back). Give the key the narrowest rights the source offers; a key that only some writers should use goes in a catalog of its own.
+- A query that also uses a connection on another host or port is refused before it runs (connection_conflict). Other paths of the same host are fine.
 
-- Who stores it is up to you: an agent with the CLI (--value-env VAR, --value @FILE or @-; a person at a terminal with neither is asked, hidden), or a person on the account page (the catalog's Sinks tab, Connections: paste the key, and the agent only ever needs the connection's name). Never on the command line itself.
+- Another host, plain http on the same host, or a redirect to either, is refused while it runs (egress_refused).
 
-- The value is write-only (no route, command or page shows it again) and is stored encrypted.
+- Read other sources in another SQL sink.
 
-- A source that answers 401 fails the run with auth_failed, naming the connection (not retried: replace the value); a 401 where no connection applies is auth_required. A 403 is retried like any source error (it is as often a rate limit or a challenge as a bad key) and names the connection.
+- A query that uses only bearer or basic connections has no such limit.
 
-- Keys in the query string (?api_key=…) and OAuth client credentials are not supported yet.
+A connection belongs to the catalog, not to the one who stored it. Every member and agent that can write to the catalog can run a scheduled query that sends it to its host. None can read the value back. Give the key the narrowest rights the source offers. A key that only some writers should use goes in a catalog of its own.
+
+Who stores it is up to you. An agent with the CLI uses --value-env VAR, --value @FILE or @-. A person at a terminal with neither is asked for it, hidden. Or a person stores it on the account page: the catalog's Sinks tab, Connections, paste the key. The agent then only ever needs the connection's name. Never put the value on the command line itself.
+
+The person: on the catalog's Sinks tab, under Connections, clicks Add a connection and pastes the key.
+
+The value is write-only. No route, command or page shows it again, and it is stored encrypted.
+
+When the source refuses. A source that answers 401 fails the run with auth_failed, naming the connection. It is not retried: replace the value. A 401 where no connection applies is auth_required. A 403 is retried like any source error and names the connection: it is as often a rate limit or a challenge as a bad key.
+
+Keys in the query string (?api_key=…) and OAuth client credentials are not supported yet.
 
 ## The table
 
-The query's columns are matched to the table's by name and cast to its types before anything is stored. A column the table lacks, a required column missing, or a value that does not cast fails the run with the column and a sample value named. create_table makes the table from the query's columns (format version 2). A sink feeds an unpartitioned format-version-2 table. The create answer's docs_hint names what the table lacks (a description, column descriptions) and the command that adds them: lhbox table document <catalog>.<ns>.<table> --doc "…" --column name="…".
+The query's columns are matched to the table's by name and cast to its types before anything is stored. A column the table lacks, a required column missing, or a value that does not cast fails the run. The error names the column and a sample value.
+
+create_table makes the table from the query's columns (format version 2). A sink feeds an unpartitioned format-version-2 table. The create answer's docs_hint names what the table lacks (a description, column descriptions) and the command that adds them: lhbox table document <catalog>.<ns>.<table> --doc "…" --column name="…".
 
 ## The schedule
 
-every is at least 5 minutes by default, and offset places the runs inside the interval: every 20m offset 2m runs at :02, :22 and :42 UTC.
+every is at least 5 minutes by default. offset places the runs inside the interval: every 20m offset 2m runs at :02, :22 and :42 UTC.
 
-- Each slot runs once and becomes one batch, committed whole by the next roll (seconds later).
+- Each slot runs once and becomes one batch, committed whole by the next roll, seconds later.
 
 - A slot that comes while the previous run is still going is skipped. Slots missed while LakehouseBox was down are counted, not run late.
 
-- A failure the next attempt may fix (the source or the executor unavailable, a timeout) is retried within the slot after 30 s, 2 min and 8 min.
+- A failure the next attempt may fix is retried within the slot after 30 s, 2 min and 8 min. That covers the source or the executor being unavailable, and a timeout.
 
 - A sink whose runs all failed for 24 hours pauses itself (paused_reason: failing). So does one whose table is gone (table_missing), or whose organisation lost the feature (not_enabled).
 
-- Runs append, unless the sink has a key (--key): then each run replaces the rows that share it. Without a key, a source that republishes rows lands them again at every run: read the latest per key with QUALIFY row_number() OVER (PARTITION BY <key> ORDER BY __ingest_ts DESC) = 1.
+- Runs append, unless the sink has a key (--key): then each run replaces the rows that share it. Without a key, a source that republishes rows lands them again at every run. Read the latest per key with QUALIFY row_number() OVER (PARTITION BY <key> ORDER BY __ingest_ts DESC) = 1.
 
 ## The commands
 
@@ -152,12 +157,25 @@ lhbox sink preview --catalog <catalog> --sql @madrid.sql --table air.madrid     
 lhbox sink create --catalog <catalog> --name madrid_air --table air.madrid --sql @madrid.sql --every 20m --offset 2m --create-table
 lhbox sink run madrid_air --wait                                       # one run now, until committed
 lhbox sink runs madrid_air                                             # state, rows, requests, bytes, errors
-lhbox sink pause madrid_air   /   lhbox sink resume madrid_air   /   lhbox sink update madrid_air --sql @v2.sql
+lhbox sink pause madrid_air                                            # hold the schedule
+lhbox sink resume madrid_air                                           # start it again
+lhbox sink update madrid_air --sql @v2.sql                             # a new query
 ```
 
-## Errors
+## When it fails
 
-Every error names what to change: egress_refused (the host and the reason), budget_exceeded, rate_limited, type_mismatch (column, expected type, a sample), unknown_column, sql_error (DuckDB's message), query_timeout, output_too_large, auth_failed (the connection), auth_required, each with a remedy.
+Every error names what to change and carries a remedy.
+
+| error | what it names |
+|---|---|
+| egress_refused | the host and the reason |
+| type_mismatch | the column, the expected type, a sample |
+| sql_error | DuckDB's message |
+| auth_failed | the connection the source refused with 401: replace its value |
+| auth_required | a 401 where no connection applies |
+| connection_conflict | a header connection used with a connection on another host or port |
+| budget_exceeded, rate_limited, unknown_column, query_timeout, output_too_large | what to change, in its remedy |
+| 403 claim_required | an unclaimed catalog: a person claims it first |
 
 ## Routes
 
@@ -179,7 +197,36 @@ GET   /v1/sinks/{id}/runs      state (queued, running, retry_wait, materialised,
 
 ## On the account page
 
-A catalog's Sinks tab lists its SQL sinks next to the other sinks: the schedule, the last runs, and Run now and Pause / Resume. The same tab holds the catalog's Connections (Add a connection), so a person can paste an API key there and an agent only ever uses the connection's name. Creating the sink itself is done with the CLI or the API.
+A catalog's Sinks tab lists its SQL sinks next to the other sinks: the schedule, the last runs, Run now and Pause / Resume. The same tab holds the catalog's Connections (Add a connection). A person can paste an API key there, and an agent only ever uses the connection's name. Creating the sink itself is done with the CLI or the API.
+
+## Measured: the first sink, 2026-09-29
+
+A real run against the live service; ... marks lines left out. The sink and the table were deleted afterwards.
+
+```
+$ lhbox sink preview --catalog analytics --sql @quakes.sql --limit 3
+Preview: 7 rows in 65 ms (1 request, 11108 bytes from earthquake.usgs.gov); nothing written.
+column      duckdb                    iceberg
+quake_id    VARCHAR                   string
+event_time  TIMESTAMP WITH TIME ZONE  timestamptz
+magnitude   DOUBLE                    double
+...
+```
+
+```
+$ lhbox sink create --catalog analytics --name docs_quakes --table docs_example.quakes \
+      --sql @quakes.sql --every 1h --offset 7m --create-table --paused
+SQL sink docs_quakes created: every 3600 s (offset 420 s) into table docs_example.quakes of catalog analytics (paused).
+  table:          created, format version 2, from the query's columns
+```
+
+```
+$ lhbox sink run docs_quakes --wait
+Run 5dceb624: committed, 7 rows.
+$ lhbox sink runs docs_quakes
+run       trigger  slot                      state      rows  requests  bytes  ms  error
+5dceb624  manual   2026-09-29T16:50:12.974Z  committed  7     1         11108  62
+```
 
 ---
 HTML version: https://lakehousebox.com/docs/scheduled-sql/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt

@@ -16,15 +16,37 @@ This is a copy of https://lakehousebox.com/docs/engines/duckdb/index.md taken wh
 | Last verified | 2026-10-03 (DuckDB 2.0.0 and 1.5.6 (and DuckDB-WASM 1.5.6 in the browser)) |
 |---|---|
 
-DuckDB attaches a LakehouseBox catalog as a database: every namespace is a schema, every Iceberg table a table you SELECT from, INSERT into, update and delete from. DuckDB talks to the catalog over the Iceberg REST protocol and reads and writes the Parquet files itself, with storage credentials the catalog vends per table; LakehouseBox is never in the query path. It is the engine lhbox itself uses: lhbox duckdb opens a shell with your catalog attached, and lhbox table import runs DuckDB on your machine to turn files into a table. The account page's SQL explorer and Import dialog run the same engine compiled to WebAssembly (DuckDB-WASM 1.5.6) in your browser tab.
+DuckDB attaches a LakehouseBox catalog as a database. Every namespace is a schema, and every Iceberg table is a table you SELECT from, INSERT into, update and delete from. DuckDB talks to the catalog over the Iceberg REST protocol. It reads and writes the Parquet files itself, with storage credentials the catalog vends per table, so LakehouseBox is never in the query path.
+
+DuckDB is also the engine lhbox itself uses. lhbox duckdb opens a shell with your catalog attached, and lhbox table import runs DuckDB on your machine to turn files into a table. The account page's SQL explorer and Import dialog run the same engine compiled to WebAssembly (DuckDB-WASM 1.5.6) in your browser tab.
+
+## The short path
+
+```
+lhbox duckdb --catalog acme_corp                  # a duckdb shell with acme_corp attached, credential hidden
+lhbox table import demo.cities 'data/*.parquet'   # or: many files into one new table, one commit
+```
+
+In the shell:
+
+```
+SHOW ALL TABLES;
+CREATE SCHEMA IF NOT EXISTS acme_corp.demo;
+CREATE TABLE acme_corp.demo.orders AS SELECT * FROM read_csv(['a.csv', 'b.csv'], union_by_name=true);   -- all the files, one commit
+SELECT count(*) FROM acme_corp.demo.orders;
+```
+
+The examples use the catalog acme_corp. Yours has its own name: run lhbox catalog list and use what it shows.
 
 ## Before you start
 
-- DuckDB 2.0.0 recommended; 1.5.5 or newer works, and 1.5.6 or 2.0.0 if you filter by geometry (below). 1.5.0 writes manifest lists the catalog's maintenance cannot read (gotchas (https://lakehousebox.com/docs/engines/)). lhbox connect and lhbox duckdb warn when the DuckDB they find is older; lhbox doctor shows which one that is (the duckdb Python module or the binary). Most runs on this page used 1.5.6; those on 2.0.0 say so.
+- DuckDB 2.0.0 recommended; 1.5.5 or newer works. Filtering by geometry needs 1.5.6 or 2.0.0 (below). 1.5.0 writes manifest lists the catalog's maintenance cannot read (gotchas (https://lakehousebox.com/docs/engines/)).
+
+- lhbox connect and lhbox duckdb warn when the DuckDB they find is older. lhbox doctor shows which one that is: the duckdb Python module or the binary.
+
+- Most runs on this page used 1.5.6; those on 2.0.0 say so. In our tests DuckDB 2.0.0 keeps what this page describes, spatial pruning included. Tables it writes stay readable from 1.5.6 (Known limitations).
 
 - Extensions. The recipe installs and loads iceberg and httpfs. Geometry functions need spatial: INSTALL spatial; LOAD spatial;.
-
-- DuckDB 2.0.0 keeps what this page describes in our tests, spatial pruning included; tables it writes stay readable from 1.5.6 (Known limitations).
 
 - In Python, TIMESTAMP WITH TIME ZONE values need the pytz module (gotchas (https://lakehousebox.com/docs/engines/)).
 
@@ -38,7 +60,9 @@ lhbox duckdb --catalog acme_corp --persist       # persistent DuckDB secrets ins
 lhbox duckdb --catalog <handle>/<catalog>        # another organisation's public catalog, read-only
 ```
 
-lhbox duckdb runs the duckdb binary with the recipe in a private file that is removed a second later; arguments after -- go to duckdb. --persist writes the catalog credential as DuckDB persistent secrets (in DuckDB's secret directory, readable by any DuckDB you run) so the shell and Python need only the printed ATTACH; revoke them with lhbox catalog rotate or DROP PERSISTENT SECRET.
+lhbox duckdb runs the duckdb binary with the recipe in a private file, removed a second later. Arguments after -- go to duckdb.
+
+--persist writes the catalog credential as DuckDB persistent secrets instead. They sit in DuckDB's secret directory, readable by any DuckDB you run. The shell and Python then need only the printed ATTACH. Revoke them with lhbox catalog rotate or DROP PERSISTENT SECRET.
 
 To paste the statements yourself, or hand them to an agent:
 
@@ -47,7 +71,7 @@ lhbox connect --catalog acme_corp --engine duckdb --show-secrets            # th
 lhbox connect --catalog acme_corp --engine duckdb --readonly --show-secrets # the read-only recipe, for a colleague
 ```
 
-Without --show-secrets the secret is masked and the recipe starts with an error() naming the flag. The recipe:
+Without --show-secrets, the secret is masked and the recipe starts with an error() naming the flag. The recipe:
 
 ```
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
@@ -60,13 +84,13 @@ ATTACH '<handle>--<catalog>' AS <catalog_name> (TYPE ICEBERG, ENDPOINT 'https://
 -- e.g. SELECT * FROM <catalog_name>.<namespace>.<table> LIMIT 10;
 ```
 
-The lhbox_s3 secret is not needed to read or write tables through the catalog (vended credentials cover that); it lets read_blob('s3://acme-corp--acme-corp/**') and friends inspect the bucket. The recipe attaches the catalog under its own name (catalog_alias in the API answer): acme_corp for the default catalog, which the examples below assume.
+The lhbox_s3 secret is not needed to read or write tables through the catalog: vended credentials cover that. It lets read_blob('s3://acme-corp--acme-corp/**') and friends inspect the bucket. The recipe attaches the catalog under its own name (catalog_alias in the API answer). That is acme_corp for the default catalog, which the examples on this page assume.
 
-Attach the bare bucket name, as the recipe does: ATTACH 's3://<bucket>/' attaches read-only (gotchas (https://lakehousebox.com/docs/engines/)).
+Attach the bare bucket name, as the recipe does. ATTACH 's3://<bucket>/' attaches read-only (gotchas (https://lakehousebox.com/docs/engines/)).
 
 ## Reading
 
-Everything DuckDB does with a local table works on an attached one: filters, projections, joins with your own files and with other catalogs. A query reads only the columns it names and skips data files and row groups whose statistics rule out the filter; how tables are laid out (https://lakehousebox.com/docs/performance/) shows what that saves, measured with DuckDB 1.5.5.
+Everything DuckDB does with a local table works on an attached one: filters, projections, joins with your own files and with other catalogs. A query reads only the columns it names. It skips data files and row groups whose statistics rule out the filter. How tables are laid out (https://lakehousebox.com/docs/performance/) shows what that saves, measured with DuckDB 1.5.5.
 
 - Snapshots and time travel (run on 2026-09-29, DuckDB 1.5.5):
 
@@ -78,13 +102,13 @@ SELECT * FROM acme_corp.demo.cities AT (TIMESTAMP => TIMESTAMP '2026-09-28 12:00
 
 DuckDB has no rollback; time travel (https://lakehousebox.com/docs/time-travel/) shows PyIceberg's.
 
-- Public catalogs read with no account at all through iceberg_scan over plain HTTPS, or attach by name with any account (lhbox duckdb --catalog <handle>/<catalog>): public catalogs (https://lakehousebox.com/docs/public-catalogs/). Run on 2026-09-29 with DuckDB 1.5.5 and no account: a 249-row table answered count(*) in 0.8 s.
+- Public catalogs read with no account at all, through iceberg_scan over plain HTTPS. With any account, attach one by name (lhbox duckdb --catalog <handle>/<catalog>): public catalogs (https://lakehousebox.com/docs/public-catalogs/). Run on 2026-09-29 with DuckDB 1.5.5 and no account, a 249-row table answered count(*) in 0.8 s.
 
-- In the browser, DuckDB-WASM is single-threaded with a 4 GB address space: for looking at a table and selective queries, not full scans of large tables (performance (https://lakehousebox.com/docs/performance/)).
+- In the browser, DuckDB-WASM is single-threaded with a 4 GB address space. Use it to look at a table and for selective queries, not for full scans of large tables (performance (https://lakehousebox.com/docs/performance/)).
 
 ## Writing
 
-CREATE TABLE … AS, INSERT, UPDATE, DELETE, MERGE and DROP TABLE work against the catalog (a recorded run against the live service, 2026-09-20, DuckDB 1.5.5). On format-version 3 tables DuckDB writes row-level deletes as deletion vectors; UPDATE and DELETE there work since 2026-09-28 (a DuckDB 1.5.5 probe, 16 of 16 checks), and updates and deletes one DuckDB version wrote read back the same in another (2026-09-29).
+CREATE TABLE … AS, INSERT, UPDATE, DELETE, MERGE and DROP TABLE work against the catalog (a recorded run against the live service, 2026-09-20, DuckDB 1.5.5). On format-version 3 tables, DuckDB writes row-level deletes as deletion vectors. UPDATE and DELETE there work since 2026-09-28 (a DuckDB 1.5.5 probe, 16 of 16 checks). Updates and deletes one DuckDB version wrote read back the same in another (2026-09-29).
 
 ### Importing files: one commit for many Parquet or CSV files
 
@@ -96,7 +120,19 @@ lhbox table import demo.orders 'exports/*.csv'                          # CSV, d
 lhbox table import demo.cities 'data/*.parquet' --python ~/venv/bin/python --full   # that venv's DuckDB; print the SQL
 ```
 
-table import runs DuckDB on your machine (the duckdb python module of --python PATH or LHBOX_PYTHON when given, else of the interpreter running lhbox, else the duckdb binary; 1.5.5 or newer) over read_parquet([every file], union_by_name=true), or read_csv when every file ends in .csv or --format csv says so, in one statement, so the whole set is one Iceberg commit; importing files one statement at a time is one commit per file (44 files were 44 commits and 44 waits). Globs expand on your side; s3:// and https:// sources are read by DuckDB's httpfs. The report says rows, files, bytes, seconds, commits (1) and the path taken (--full adds the generated SQL statements): format version 2 (the catalog's default unless changed) is DuckDB's own CREATE TABLE with the inferred column types, then one INSERT; format version 3 (--format-version 3, or the catalog's default) is created through POST /v1/tables with the schema DuckDB inferred, geometry columns typed, then filled with one INSERT. Either way the table gets write.target-file-size-bytes = 134217728 and write.parquet.compression-codec = zstd before its first row and the rows are written ORDER BY the first DATE/TIMESTAMP column (--order-by names another, --no-order keeps the files' order), so a query on that column skips whole files: how tables are laid out (https://lakehousebox.com/docs/performance/). Measured 2026-09-21: three Parquet files, 3000 rows, one commit, 3.96 s from a laptop; append 1.21 s. Everything else about imports: importing files (https://lakehousebox.com/docs/import/).
+table import runs DuckDB 1.5.5 or newer on your machine. It uses the duckdb Python module of --python PATH or LHBOX_PYTHON when given. Otherwise it uses the module of the interpreter running lhbox, else the duckdb binary.
+
+It reads every file in one statement, so the whole set is one Iceberg commit. That statement is read_parquet([every file], union_by_name=true), or read_csv when every file ends in .csv or --format csv says so. Importing files one statement at a time is one commit per file: 44 files were 44 commits and 44 waits. Globs expand on your side. DuckDB's httpfs reads s3:// and https:// sources.
+
+The report says rows, files, bytes, seconds, commits (1) and the path taken. --full adds the generated SQL statements. The path depends on the format version:
+
+- Format version 2 (the catalog's default unless changed): DuckDB's own CREATE TABLE with the inferred column types, then one INSERT.
+
+- Format version 3 (--format-version 3, or the catalog's default): the table is created through POST /v1/tables with the schema DuckDB inferred, geometry columns typed. One INSERT then fills it.
+
+Either way, the table gets write.target-file-size-bytes = 134217728 and write.parquet.compression-codec = zstd before its first row. The rows are written ORDER BY the first DATE/TIMESTAMP column, so a query on that column skips whole files. --order-by names another column, and --no-order keeps the files' order. Why it matters: how tables are laid out (https://lakehousebox.com/docs/performance/).
+
+Measured 2026-09-21 from a laptop: three Parquet files, 3000 rows, one commit, 3.96 s. An append took 1.21 s. Everything else about imports: importing files (https://lakehousebox.com/docs/import/).
 
 ### The same by hand
 
@@ -113,13 +149,13 @@ CREATE TABLE acme_corp.demo.orders AS SELECT * FROM read_csv(['a.csv', 'b.csv'],
 
 Put the whole file list in one statement: 40 files in one statement took 2.4 s, one by one 66 s (2026-09-20). Things to know when DuckDB writes on its own:
 
-- CREATE TABLE … AS makes a format-version 2 table whatever the catalog's default_format_version, with every column optional, no identifier fields and no partitioning. For any of those, or for version 3, create the table first (lhbox table create, below) and INSERT into it.
+- CREATE TABLE … AS makes a format-version 2 table, whatever the catalog's default_format_version. Every column is optional, with no identifier fields and no partitioning. For any of those, or for version 3, create the table first (lhbox table create, below) and INSERT into it.
 
-- Settings a table needs before its first row. A table DuckDB created has neither the 128 MiB file size nor ZSTD: DuckDB writes SNAPPY by default (a 5,210-polygon table took 722 MB as SNAPPY, 461 MB as ZSTD; DuckDB 1.5.6, 2026-10-02). Set them with CALL set_iceberg_table_properties('acme_corp.demo.cities', {'write.parquet.compression-codec': 'zstd'}) (for the file size, ALTER TABLE … SET (…) stored a property under another name that the writer ignored), then DETACH and ATTACH the catalog again before the INSERT: in the same attached session DuckDB kept the table metadata it had loaded and still wrote SNAPPY. Performance (https://lakehousebox.com/docs/performance/) has the full loading recipe.
+- Settings a table needs before its first row. A table DuckDB created has neither the 128 MiB file size nor ZSTD. DuckDB writes SNAPPY by default: a 5,210-polygon table took 722 MB as SNAPPY and 461 MB as ZSTD (DuckDB 1.5.6, 2026-10-02). Set them with CALL set_iceberg_table_properties('acme_corp.demo.cities', {'write.parquet.compression-codec': 'zstd'}). For the file size, ALTER TABLE … SET (…) stored a property under another name, which the writer ignored. Then DETACH and ATTACH the catalog again before the INSERT. In the same attached session, DuckDB kept the table metadata it had loaded and still wrote SNAPPY. Performance (https://lakehousebox.com/docs/performance/) has the full loading recipe.
 
 - CREATE OR REPLACE TABLE is refused: DROP TABLE, then CREATE TABLE again.
 
-- Retry on 409. Another writer, or the platform's maintenance, can commit between your read and your commit; DuckDB then raises CommitFailedException … branch "main" has changed and does not retry. An unattended job should catch it, wait a few seconds and re-run the statement (gotchas (https://lakehousebox.com/docs/engines/)).
+- Retry on 409. Another writer, or the platform's maintenance, can commit between your read and your commit. DuckDB then raises CommitFailedException … branch "main" has changed and does not retry. An unattended job should catch it, wait a few seconds and re-run the statement (gotchas (https://lakehousebox.com/docs/engines/)).
 
 ## Geometry and geography
 
@@ -132,13 +168,19 @@ INSERT INTO acme_corp.demo.places SELECT id, name, ST_Point(lon, lat) FROM read_
 SELECT id, ST_AsText(geom) FROM acme_corp.demo.places LIMIT 3;   -- POINT (…)
 ```
 
-A geometry column needs an Iceberg format-version 3 table, and DuckDB's own CREATE TABLE … AS SELECT ST_Point(…) cannot make one: DuckDB creates a version-2 table whatever the catalog's default_format_version, and the catalog answers the CTAS with a 400 that names no cause. Known limitation; the two-step path is the way: lhbox table create --format-version 3 --column geom:geometry (geometry(EPSG:xxxx) for a CRS) and then a plain INSERT … SELECT from DuckDB, measured at 0.8 s for a small table and read back as POINT. lhbox table import … --format-version 3 does exactly this for a GeoParquet. DuckDB 1.5.5 and newer keep the column's CRS (verified with geometry(EPSG:28992) and geometry(EPSG:2913)).
+A geometry column needs an Iceberg format-version 3 table. DuckDB's own CREATE TABLE … AS SELECT ST_Point(…) cannot make one: DuckDB creates a version-2 table whatever the catalog's default_format_version. The catalog then answers the CTAS with a 400 that names no cause. This is a known limitation, and the two-step path above is the way:
+
+- lhbox table create --format-version 3 --column geom:geometry (geometry(EPSG:xxxx) for a CRS);
+
+- a plain INSERT … SELECT from DuckDB.
+
+That was measured at 0.8 s for a small table, and read back as POINT. lhbox table import … --format-version 3 does exactly this for a GeoParquet. DuckDB 1.5.5 and newer keep the column's CRS (verified with geometry(EPSG:28992) and geometry(EPSG:2913)).
 
 Measured against the service: a million rows (18 MB of Parquet) in about 2.3 s from a laptop, three data files, one commit; format-version 2.
 
 ### Filter with &&, and use DuckDB 1.5.6 or 2.0.0
 
-DuckDB skips data files (by the geometry bounds in the table's manifests) and row groups (by the native geometry statistics) for the bounding-box operator &&, never for ST_Intersects alone. Put both in the query: && narrows the data, ST_Intersects gives the exact answer.
+DuckDB skips data files (by the geometry bounds in the table's manifests) and row groups (by the native geometry statistics) for the bounding-box operator &&. It never skips them for ST_Intersects alone. Put both in the query: && narrows the data, and ST_Intersects gives the exact answer.
 
 ```
 SELECT * FROM acme_corp.demo.places
@@ -146,33 +188,49 @@ WHERE geom && ST_MakeEnvelope(-3.72, 40.40, -3.68, 40.43)
   AND ST_Intersects(geom, ST_MakeEnvelope(-3.72, 40.40, -3.68, 40.43));
 ```
 
-- On a table lhbox table import wrote (1.77 million parcels, 5 files), one point lookup read 444 MB with ST_Intersects alone and 5.3–6.7 MB with && added (DuckDB 1.5.6, 2026-09-29).
+- On a table lhbox table import wrote (1.77 million parcels, 5 files), one point lookup read 444 MB with ST_Intersects alone. With && added it read 5.3–6.7 MB (DuckDB 1.5.6, 2026-09-29).
 
-- On Overture tables of 1.2–5.7 GB (Spain's 7.1 million road segments and 19.2 million buildings, the world's 81 million places), each box question read 2.5–9.3 MB in 1.6–4.9 s from a laptop in Madrid, and took 1.3–3.6 s in DuckDB-WASM 1.5.6 in a browser tab, anonymously over the public URLs (2026-10-03). Every answer matched a count made without Iceberg.
+- On Overture tables of 1.2–5.7 GB, each box question read 2.5–9.3 MB in 1.6–4.9 s from a laptop in Madrid. The tables were Spain's 7.1 million road segments and 19.2 million buildings, and the world's 81 million places. In DuckDB-WASM 1.5.6 in a browser tab, anonymously over the public URLs, each took 1.3–3.6 s (2026-10-03). Every answer matched a count made without Iceberg.
 
-- DuckDB 1.5.5 returns rows with a NULL geometry as && matches; with ST_Intersects alongside, the answer is right on 1.5.5 too.
+- DuckDB 1.5.5 returns rows with a NULL geometry as && matches. With ST_Intersects alongside, the answer is right on 1.5.5 too.
 
 ### GeoParquet: the geo metadata becomes table properties
 
-Until Iceberg v3 geometry is readable by every engine, the geo metadata of an imported GeoParquet lives in the table's properties, and DuckDB spatial can rebuild the GeoParquet from them on export. table import reads the file's geo key (parquet_kv_metadata) and sets, through PATCH /v1/table: geo.encoding (WKB), geo.primary_column, geo.crs (EPSG:xxxx when the PROJJSON carries an authority id, else the PROJJSON text; OGC:CRS84 when the file names none), geo.columns (the columns object as JSON: encoding, geometry_types, bbox -- merged across files), geo.version, and geo.crs.projjson when there was a PROJJSON. Into a format-version 2 table the geometry column is written as WKB binary (what geo.encoding says); into a format-version 3 table it stays a typed geometry(<crs>) column and the properties are the same. lhbox table get shows them; lhbox table set-properties --property geo.crs=EPSG:28992 sets or corrects any of them.
+Until Iceberg v3 geometry is readable by every engine, an imported GeoParquet's geo metadata lives in the table's properties. DuckDB spatial can rebuild the GeoParquet from them on export. table import reads the file's geo key (parquet_kv_metadata) and sets these through PATCH /v1/table:
 
-A table registered over existing GeoParquet files (PyIceberg add_files, geometry as WKB) fails in DuckDB with failed to cast column "geometry" from type GEOMETRY(…) to BLOB; SET enable_geoparquet_conversion = false; before the query reads it (2026-10-02).
+- geo.encoding (WKB);
+
+- geo.primary_column;
+
+- geo.crs: EPSG:xxxx when the PROJJSON carries an authority id, else the PROJJSON text, and OGC:CRS84 when the file names none;
+
+- geo.columns: the columns object as JSON (encoding, geometry_types, bbox), merged across files;
+
+- geo.version;
+
+- geo.crs.projjson, when there was a PROJJSON.
+
+Into a format-version 2 table, the geometry column is written as WKB binary, as geo.encoding says. Into a format-version 3 table it stays a typed geometry(<crs>) column, with the same properties. lhbox table get shows them. lhbox table set-properties --property geo.crs=EPSG:28992 sets or corrects any of them.
+
+A table registered over existing GeoParquet files (PyIceberg add_files, geometry as WKB) fails in DuckDB with failed to cast column "geometry" from type GEOMETRY(…) to BLOB. Run SET enable_geoparquet_conversion = false; before the query, and it reads (2026-10-02).
 
 ### Geography: not in DuckDB yet
 
-DuckDB has no GEOGRAPHY type ("Type with name GEOGRAPHY does not exist"), so it cannot write one, and it cannot open a table that has a geography column at all, not even to read that table's geometry column ("Not implemented Error: Geography support"). Measured on 2026-10-03 with DuckDB 1.5.6, a 2.0 nightly and DuckDB-WASM 1.5.6. Keep a geometry-only copy of such a table for DuckDB; for spherical questions use Snowflake (https://lakehousebox.com/docs/engines/snowflake/) or Spark with Apache Sedona (Spark (https://lakehousebox.com/docs/engines/spark/)).
+DuckDB has no GEOGRAPHY type ("Type with name GEOGRAPHY does not exist"), so it cannot write one. It also cannot open a table that has a geography column at all, not even to read that table's geometry column ("Not implemented Error: Geography support"). Measured on 2026-10-03 with DuckDB 1.5.6, a 2.0 nightly and DuckDB-WASM 1.5.6.
+
+Keep a geometry-only copy of such a table for DuckDB. For spherical questions, use Snowflake (https://lakehousebox.com/docs/engines/snowflake/) or Spark with Apache Sedona (Spark (https://lakehousebox.com/docs/engines/spark/)).
 
 ## Performance
 
-What a DuckDB query reads is decided by how the table was written: how tables are laid out (https://lakehousebox.com/docs/performance/) has the measurements (TPC-H-derived, DuckDB 1.5.5). In short, for DuckDB as the writer:
+What a DuckDB query reads is decided by how the table was written. How tables are laid out (https://lakehousebox.com/docs/performance/) has the measurements (TPC-H-derived, DuckDB 1.5.5). In short, for DuckDB as the writer:
 
-- Large, sorted files. DuckDB's Iceberg writer honours write.target-file-size-bytes (128 MiB on every table LakehouseBox creates) and keeps an ORDER BY only with preserve_insertion_order on and, across files, only in a single-threaded write: its parallel writers each take a slice of the sorted stream.
+- Large, sorted files. DuckDB's Iceberg writer honours write.target-file-size-bytes (128 MiB on every table LakehouseBox creates). It keeps an ORDER BY only with preserve_insertion_order on. Across files, it keeps it only in a single-threaded write, because its parallel writers each take a slice of the sorted stream.
 
-- Row groups. DuckDB ignores write.parquet.row-group-limit and writes 122,880-row row groups by default, and it will not cut a row group below 2,048 rows whatever ROW_GROUP_SIZE says (DuckDB 1.5.6, 2026-10-02).
+- Row groups. DuckDB ignores write.parquet.row-group-limit and writes 122,880-row row groups by default. It will not cut a row group below 2,048 rows, whatever ROW_GROUP_SIZE says (DuckDB 1.5.6, 2026-10-02).
 
-- Geometry tables that lhbox table import writes are in Hilbert order of the primary geometry, written by one thread with 8 MB row groups, so nearby features share files and row groups. On Overture's places (7.26 million points) a box around central Madrid read 1.1–1.8 MB instead of 25.8–27.4 MB from the same data as a version-2 WKB table; the price is that a whole-table aggregate made 399 requests in 3.5 s instead of 16 in 1.0 s (DuckDB 1.5.6, 2026-10-02).
+- Geometry tables that lhbox table import writes are in Hilbert order of the primary geometry. They are written by one thread with 8 MB row groups, so nearby features share files and row groups. On Overture's places (7.26 million points), a box around central Madrid read 1.1–1.8 MB, against 25.8–27.4 MB from the same data as a version-2 WKB table. The price: a whole-table aggregate made 399 requests in 3.5 s instead of 16 in 1.0 s (DuckDB 1.5.6, 2026-10-02).
 
-- Large polygons do not cluster. With that 2,048-row floor, 5,210 country and region polygons (461 MB) make 2–3 row groups whatever the order, so a point lookup reads the whole table. Order such a table by an attribute you filter on (--order-by country_code) instead: a one-country query then read 247 MB, against 237 MB from the same data as a version-2 table.
+- Large polygons do not cluster. With that 2,048-row floor, 5,210 country and region polygons (461 MB) make 2–3 row groups whatever the order. A point lookup then reads the whole table. Order such a table by an attribute you filter on instead (--order-by country_code). A one-country query then read 247 MB, against 237 MB from the same data as a version-2 table.
 
 ## Known limitations
 
@@ -180,7 +238,7 @@ As measured with DuckDB 1.5.6 (2026-10-03) unless dated otherwise:
 
 - No geography: no type to write, and a table with a geography column cannot be opened (above).
 
-- CREATE TABLE … AS makes version-2 tables only, so a geometry CTAS fails with a 400; create the table first.
+- CREATE TABLE … AS makes version-2 tables only, so a geometry CTAS fails with a 400. Create the table first.
 
 - CREATE OR REPLACE TABLE is refused on an attached catalog.
 
@@ -188,15 +246,25 @@ As measured with DuckDB 1.5.6 (2026-10-03) unless dated otherwise:
 
 - No rollback: use PyIceberg.
 
-- Spatial filters prune only with &&, and only on 1.5.6 without the NULL caveat (2.0.0 prunes; the caveat is not measured on it yet).
+- Spatial filters prune only with &&, and only on 1.5.6 without the NULL caveat. 2.0.0 prunes; the caveat is not measured on it yet.
 
 - DuckDB now and then commits a 0-row data file (1 of 44 files for the 81-million-row places, single-threaded). It costs one manifest entry and nothing else.
 
-- Other engines and DuckDB's geometry tables. Spark 4.1 with Iceberg 1.12 reads every value; Trino 483 reads them without spatial pruning; Snowflake fails on large DuckDB-written point and polygon tables (lines read) (Snowflake (https://lakehousebox.com/docs/engines/snowflake/)); iceberg-go 0.7.0 cannot read them ("only parquet format is implemented, got parquet").
+- Other engines and DuckDB's geometry tables. Spark 4.1 with Iceberg 1.12 reads every value. Trino 483 reads them without spatial pruning. Snowflake fails on large DuckDB-written point and polygon tables; it reads line tables (Snowflake (https://lakehousebox.com/docs/engines/snowflake/)). iceberg-go 0.7.0 cannot read them ("only parquet format is implemented, got parquet").
 
-- DuckDB 2.0.0 (released 2026-10-21) prunes with && through Iceberg; the 2.0 nightlies before 19 October did not. On 2.0.0.dev2609250715 (2026-09-29) a point lookup that 1.5.6 answers from 5.0–6.7 MB read 793 MB, every file; on 2.0.0.dev2610011535 the Overture box questions read 1.1–4.0 GB instead of 2.5–9.3 MB. Two fixes, both from our reports, are in 2.0.0: the Iceberg scan (duckdb/duckdb-iceberg#1464) and DuckDB itself (duckdb/duckdb#27249). On 2.0.0 a box query on a public rail table reads 11.5 MiB in 12 GETs (1.5.6: 9.4 MiB) with the same answer (2026-10-21). The rest of our contract held on 2.0.0 (2026-10-21): its version-2 and version-3 writes, updates and deletes read the same in 1.5.6, and the store maintains its tables.
+- DuckDB 2.0.0 (released 2026-10-21) prunes with && through Iceberg. The 2.0 nightlies before 19 October did not.
 
-- The browser build cannot read a GeoParquet file DuckDB itself wrote (Invalid Error: stoi: no conversion, DuckDB-WASM 1.5.5 and 1.5.6, 2026-09-29), so such a file may not preview in the account page's Import dialog; a GDAL-written GeoParquet reads. Import it with lhbox table import instead.
+On 2.0.0.dev2609250715 (2026-09-29), a point lookup that 1.5.6 answers from 5.0–6.7 MB read 793 MB, every file.
+
+- On 2.0.0.dev2610011535, the Overture box questions read 1.1–4.0 GB instead of 2.5–9.3 MB.
+
+- Two fixes, both from our reports, are in 2.0.0: the Iceberg scan (duckdb/duckdb-iceberg#1464) and DuckDB itself (duckdb/duckdb#27249).
+
+- On 2.0.0, a box query on a public rail table reads 11.5 MiB in 12 GETs (1.5.6: 9.4 MiB), with the same answer (2026-10-21).
+
+- The rest of our contract held on 2.0.0 (2026-10-21). Its version-2 and version-3 writes, updates and deletes read the same in 1.5.6, and the store maintains its tables.
+
+- The browser build cannot read a GeoParquet file DuckDB itself wrote (Invalid Error: stoi: no conversion, DuckDB-WASM 1.5.5 and 1.5.6, 2026-09-29). Such a file may not preview in the account page's Import dialog; a GDAL-written GeoParquet reads. Import it with lhbox table import instead.
 
 Using DuckDB with LakehouseBox and found something missing, wrong or out of date here? Write to hello@lakehousebox.com: what you ran, the version, and what happened. Product names and logos are trademarks of their owners; their use here does not imply endorsement.
 

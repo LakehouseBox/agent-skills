@@ -3,13 +3,28 @@ This is a copy of https://lakehousebox.com/docs/access/index.md taken when this 
 
 # Access and permissions
 
-Everything in LakehouseBox belongs to an organisation. An organisation holds catalogs; a catalog holds namespaces; a namespace holds tables. Access is decided at two levels: a role in the organisation (what you may do to the organisation, its people and its tokens) and a grant on each catalog (what you may do to its data). The API also calls a catalog a warehouse (/v1/warehouses, warehouse_id). A grant is on a catalog and covers every namespace and table in it.
+This page says who can do what in an organisation, and how to give, check and take away access. Access is decided at two levels: a role in the organisation, and a grant on each catalog.
+
+## The short path
+
+```
+lhbox whoami                                              # who you are, your level on each catalog
+lhbox catalog grants sales                                # who holds what on a catalog, and how
+lhbox catalog grant sales --principal <id> --level read   # give read on one catalog
+lhbox catalog revoke sales --principal <id>               # take it away; their key pair rotates
+lhbox org policy                                          # what members may do, and whom to ask
+lhbox audit --since 7d                                    # who did what this week
+```
+
+lhbox org members and lhbox token list show the principal ids.
 
 ## Who can hold access
 
-People log in on the account page with email and password, or with Google, and hold one of two roles, admin or member. The person who creates the organisation is its first admin.
+Everything belongs to an organisation. An organisation holds catalogs, a catalog holds namespaces, and a namespace holds tables. A role says what you may do to the organisation, its people and its tokens. A grant says what you may do to one catalog's data, and covers every namespace and table in it. The API calls a catalog a warehouse (/v1/warehouses, warehouse_id).
 
-Tokens are machine identities of the organisation: an agent, a script, a scheduled job. A token has its own API key, an organisation role (member by default) and its own catalog grants. A token never holds more than the person or token that created it: its role and its grants are capped by the creator's at creation and at every edit.
+People log in on the account page with email and password, or with Google. Each holds one of two roles, admin or member. The person who creates the organisation is its first admin.
+
+Tokens are the organisation's machine identities: an agent, a script, a scheduled job. A token has its own API key, an organisation role (member by default) and its own catalog grants. A token never holds more than the person or token that created it. Its role and grants are capped by the creator's, at creation and at every edit.
 
 ## Organisation roles
 
@@ -26,28 +41,58 @@ Tokens are machine identities of the organisation: an agent, a script, a schedul
 | revoke tokens | any | the ones they created |
 | read the audit log | the organisation's events | their own events |
 
-A token's role works exactly like a person's, with one difference: a human admin holds write on every catalog by role, while an admin token holds only its grants (it sees every catalog and may grant itself what it needs). The last human admin cannot leave, be removed or be demoted; tokens do not count as admins for this.
+A token's role works exactly like a person's, with one difference. A human admin holds write on every catalog by role. An admin token holds only its grants: it sees every catalog and may grant itself what it needs.
+
+The last human admin cannot leave, be removed or be demoted. Tokens do not count as admins for this.
 
 ```
 lhbox org list                                    # your organisations: name, id, your role
 lhbox org members                                 # its people and their roles
 lhbox org invite --email ana@example.com --role member
 lhbox org role --principal <id> --role admin      # an organisation keeps at least one admin
-lhbox org domain --domain example.com            # prints the DNS TXT record to publish
-lhbox org domain --domain example.com --verify   # once the record is published
+lhbox org domain --domain example.com             # prints the DNS TXT record to publish
+lhbox org domain --domain example.com --verify    # once the record is published
 lhbox org set --domain-join on                    # offer membership to people on the verified domain
 lhbox org offers && lhbox org join --org <handle> # a person on that domain: see the offer, accept it
 ```
 
-An invitation is valid for 7 days. The invitee follows the link in the mail, or runs the lhbox org accept --token <token> line the invite prints; an address with no account yet joins when it signs up. An admin can withdraw an invitation nobody has accepted yet: GET /v1/orgs/{org}/invitations lists the pending ones with their invitation_id (the invite's answer carries it too) and DELETE /v1/orgs/{org}/invitations/{invitation_id} withdraws one; its link then stops working and signing up with the address no longer applies it.
+### Invitations
 
-A domain claim (admin) does nothing until it is verified: the claim answers a TXT record, _lakehousebox.<domain> with a random value, which you publish in the domain's DNS; --verify looks it up. The record must be a TXT record at that very name: one reached through a CNAME does not count. Public mail domains (gmail.com, outlook.com, gmx.de, yahoo.co.uk, …) are refused. Several organisations may hold an unverified claim on a domain; the first to verify it holds it alone. Keep the record published: a verified domain is looked up again once a day, and three definite misses in a row (the name does not exist, or the value is not in it; a resolver failure never counts) unverify it, which also switches domain join off; so does a week in which the domain's DNS gives no answer at all. Another organisation that publishes its own value once yours is gone takes the domain over at its next verify.
+An invitation is valid for 7 days. The invitee follows the link in the mail, or runs the lhbox org accept --token <token> line the invite prints. An address with no account yet joins when it signs up.
 
-With domain join on, a person whose address is on a verified domain is offered membership (the account page asks; lhbox org offers lists it) and joins as a member only if they accept, with their own login or API key: accepting is the person's act, and an organisation's token is offered nothing. Nobody is added automatically. A person who left the organisation or was removed from it is not offered it again, matched by their account and by their address (lower case, a +tag ignored), so a new account on the same address is not offered it either: an admin's invitation is the way back. A departure is remembered for 12 months (as a one-way hash of the address, never the address itself), then forgotten. Departures before 2026-10-01 were taken from the audit log; someone whose account was deleted before then left no address to match. Removing a member also removes the grants they held.
+An admin can withdraw an invitation nobody has accepted yet. GET /v1/orgs/{org}/invitations lists the pending ones with their invitation_id; the invite's answer carries it too. DELETE /v1/orgs/{org}/invitations/{invitation_id} withdraws one. Its link then stops working, and signing up with the address no longer applies it.
+
+### Domain claims
+
+A domain claim (admin) does nothing until it is verified. The claim answers a TXT record, _lakehousebox.<domain>, with a random value. Publish it in the domain's DNS; --verify looks it up.
+
+The person: publishes that TXT record in the domain's DNS, at that very name. A record reached through a CNAME does not count.
+
+- Public mail domains (gmail.com, outlook.com, gmx.de, yahoo.co.uk, …) are refused.
+
+- Several organisations may hold an unverified claim on a domain. The first to verify it holds it alone.
+
+- Keep the record published: a verified domain is looked up again once a day. Three definite misses in a row unverify it. A miss is a name that does not exist, or a value not in it; a resolver failure never counts.
+
+- A week in which the domain's DNS gives no answer at all also unverifies it.
+
+- Unverifying also switches domain join off.
+
+- Once yours is gone, another organisation that publishes its own value takes the domain over at its next verify.
+
+### Domain join
+
+With domain join on, a person whose address is on a verified domain is offered membership. The account page asks, and lhbox org offers lists it. They join as a member only if they accept, with their own login or API key. Accepting is the person's act: nobody is added automatically, and an organisation's token is offered nothing.
+
+A person who left the organisation, or was removed from it, is not offered it again. They are matched by their account and by their address (lower case, a +tag ignored). So a new account on the same address is not offered it either: an admin's invitation is the way back. A departure is remembered for 12 months, as a one-way hash of the address and never the address itself. Then it is forgotten. Older departures are covered under Numbers and dates.
+
+Removing a member also removes the grants they held.
 
 ## What members may do
 
-An admin decides three things for the whole organisation, on the account page under Settings › General › Member permissions, or with lhbox org policy. Everyone in the organisation can read them; only an admin who is a person changes them (a token cannot, whatever its role). Each one is checked by the API whenever the thing is made, whatever made the request: the account page, the CLI, an MCP client or a script.
+An admin decides three things for the whole organisation. They are on the account page under Settings › General › Member permissions, or in lhbox org policy. Everyone in the organisation can read them. Only an admin who is a person changes them; a token cannot, whatever its role.
+
+The API checks each one whenever the thing is made, whatever made the request: the account page, the CLI, an MCP client or a script.
 
 | setting | who may | default |
 |---|---|---|
@@ -55,11 +100,19 @@ An admin decides three things for the whole organisation, on the account page un
 | connect_agents | members (admins and members) or admins: tokens (lhbox token create), lhbox login approvals, MCP clients approved on the consent page, and personal API keys | members |
 | hosted_agents | members or admins: who may create hosted agents (https://lakehousebox.com/docs/hosted-agents/) | members |
 
-A token counts as what its organisation role says: a member token is a member here. A personal API key acts as you in every organisation you belong to, so it is refused while any of them lets only its admins connect agents and you are a member there; lhbox login --issuer (which exchanges your identity provider's sign-in for such a key) is refused alike.
+A token counts as what its organisation role says: a member token is a member here.
 
-Changing a setting never undoes what exists. Catalogs that are public stay public when publishing is narrowed or turned off: the settings page lists them with a Make private button, and an admin can always make a catalog private or narrow it (stop publishing its files). Tokens, connections and hosted agents made before keep working until someone revokes or deletes them.
+A personal API key acts as you in every organisation you belong to. So it is refused while any of them lets only its admins connect agents and you are a member there. lhbox login --issuer exchanges your identity provider's sign-in for such a key, and is refused alike.
 
-A refused request answers 403 org_policy_forbids, with the setting (policy), its value, and a remedy naming the organisation's admins to ask. Every change is recorded in the audit log as org.policy_update, with each setting's value before and after.
+Changing a setting never undoes what exists:
+
+- Public catalogs stay public when publishing is narrowed or turned off. The settings page lists them with a Make private button.
+
+- An admin can always make a catalog private, or narrow it (stop publishing its files).
+
+- Tokens, connections and hosted agents made before keep working until someone revokes or deletes them.
+
+A refused request answers 403 org_policy_forbids. It carries the setting (policy), its value, and a remedy naming the organisation's admins to ask. Every change is recorded in the audit log as org.policy_update, with each setting's value before and after.
 
 ```
 lhbox org policy                                          # the settings, what you may do, whom to ask
@@ -79,22 +132,25 @@ Each person or token holds read, write or nothing on each catalog:
 
 - A token holds exactly the grants it was given. With none, it can reach no catalog.
 
-Read lets you list and query tables, get the catalog's read-only connection recipe, browse and preview the catalog's files, and list its uploaders and sinks. Write adds creating, changing and dropping tables, committing data, creating uploaders and sinks, and setting lifecycle rules and the catalog's default format version. The limit is enforced by the catalog and the store, not only by the API: a read credential is refused on every write.
+| level | lets you |
+|---|---|
+| read | list and query tables, get the catalog's read-only connection recipe, browse and preview the catalog's files, list its uploaders and sinks |
+| write | all of read, plus create, change and drop tables, commit data, create uploaders and sinks, set lifecycle rules and the catalog's default format version |
+
+The catalog and its storage enforce the limit, not only the API: a read credential is refused on every write.
 
 ```
 lhbox catalog list                                # every catalog you can see, with your level on each
-lhbox catalog grants sales                        # who holds what on it, and how (admin, membership, creator, explicit)
+lhbox catalog grants sales                        # who holds what, and how (admin, membership, creator, explicit)
 lhbox catalog grant sales --principal <id> --level read
 lhbox catalog revoke sales --principal <id>
 ```
 
-lhbox org members and lhbox token list show the principal ids; lhbox whoami shows your level on each catalog.
-
-A catalog cannot be shared with another organisation. To let someone outside read it, send them the read-only recipe (lhbox connect --readonly --show-secrets), or have an admin make it public (lhbox catalog publish).
+A catalog cannot be shared with another organisation. To let someone outside read it, send them the read-only recipe (lhbox connect --readonly --show-secrets). Or have an admin make it public (lhbox catalog publish).
 
 ## Tokens for agents
 
-lhbox login is how an agent connects a machine. The CLI prints a link and a code; a person opens the link, logs in, and sees a consent screen naming what the machine calls itself, where the request came from and when it started, the catalogs and the access asked for. Read is preselected; write is ticked by the person, catalog by catalog, and they cannot give more than they hold themselves. To approve they type the code their terminal shows: a link alone can come from anyone, so approve only a login you started yourself, and deny any code someone sent you. On approval the organisation gets a new member token, named after the machine, holding exactly what was approved. The CLI saves its key to ~/.config/lhbox/credentials.json and never prints it (unless you pass --show-key). The code is valid for 15 minutes. The person who approved it, or an admin, can revoke it later on the account page (Access tokens, Connections).
+### lhbox login: an agent connects a machine
 
 ```
 lhbox login                                       # asks for write on the default catalog; the person ticks it
@@ -102,7 +158,15 @@ lhbox login --catalog sales:read --catalog raw:write --name etl-box
 lhbox login --no-wait                             # print the link and exit; finish later with --resume
 ```
 
-lhbox token create makes a token by hand, for a program or an agent on a machine where nobody will run lhbox login. The API key is shown once; give it to the program as LHBOX_API_KEY.
+The CLI prints a link and a code. The person opens the link, logs in, and sees a consent screen. It names what the machine calls itself, where the request came from and when it started, and the catalogs and access asked for. Read is preselected; write is ticked by the person, catalog by catalog. They cannot give more than they hold themselves.
+
+The person: opens the link, types the code their terminal shows, ticks write where it is needed, and approves. A link alone can come from anyone: approve only a login you started yourself, and deny any code someone sent you.
+
+On approval, the organisation gets a new member token named after the machine, holding exactly what was approved. The CLI saves its key to ~/.config/lhbox/credentials.json and never prints it, unless you pass --show-key. The code is valid for 15 minutes. The person who approved it, or an admin, can revoke it later on the account page (Access tokens, Connections).
+
+### lhbox token create: a token by hand
+
+Use it for a program, or an agent on a machine where nobody will run lhbox login. The API key is shown once. Give it to the program as LHBOX_API_KEY.
 
 ```
 lhbox token create --name nightly-load --grant sales:write --grant raw:read
@@ -112,27 +176,55 @@ lhbox token list
 lhbox token revoke nightly-load
 ```
 
-A token can create tokens within its own role and grants; revoking a token also revokes every token below it. The remote MCP server (https://lakehousebox.com/docs/mcp/) works the same way: approving it creates a token with its own grants, or with all catalogs (including ones created later), at read or at read and write: on each catalog it then holds that level but never more than you hold there yourself at the moment it is used, so a catalog you create later needs no new approval and one you lose is gone from it at once. The account page lists it as "All catalogs (read)"; connecting again changes it, revoking ends it. That token reads and writes data only: whatever you approve, it cannot create keys or tokens, grant catalogs, invite, change or remove members, publish or delete a catalog, or change your account; those stay with you (403 mcp_human_only). Nor does it get the catalog's key pair: only storage credentials that expire within about an hour (a public catalog's shared reader key, public by design, is the one exception).
+A token can create tokens within its own role and grants. Revoking a token also revokes every token below it.
+
+### The MCP server
+
+Approving the remote MCP server (https://lakehousebox.com/docs/mcp/) also creates a token. It holds its own grants, or all catalogs, including ones created later, at read or at read and write. With all catalogs, it holds that level on each catalog, but never more than you hold there yourself at the moment it is used. So a catalog you create later needs no new approval, and one you lose is gone from it at once. The account page lists it as "All catalogs (read)". Connecting again changes it; revoking ends it.
+
+That token reads and writes data only. Whatever you approve, it cannot:
+
+- create keys or tokens, or grant catalogs;
+
+- invite, change or remove members;
+
+- publish or delete a catalog;
+
+- change your account.
+
+Those stay with you, and the token gets 403 mcp_human_only. Nor does it get the catalog's key pair: only storage credentials that expire within about an hour. A public catalog's shared reader key, public by design, is the one exception.
 
 ## The credentials an engine gets
 
-An engine (DuckDB, PyIceberg, Spark and the others) does not use your API key. lhbox connect (or lhbox duckdb) hands it a connection recipe holding the catalog's own key pair: one read/write pair per catalog, and one read-only pair. You get the pair that matches your level; a write holder can ask for the read-only one with --readonly. The recipe masks the secret unless you pass --show-secrets.
+An engine (DuckDB, PyIceberg, Spark and the others) does not use your API key. lhbox connect or lhbox duckdb hands it a connection recipe holding the catalog's own key pair. Each catalog has one read/write pair and one read-only pair. You get the pair that matches your level; a write holder can ask for the read-only one with --readonly. The recipe masks the secret unless you pass --show-secrets.
 
-From the key pair the engine gets two short-lived credentials and renews both itself:
+From the key pair, the engine gets two short-lived credentials and renews both itself:
 
 - a catalog token, valid for about an hour;
 
-- storage credentials, issued per table as the engine loads it, valid for about an hour. These are issued to write holders; a read-level recipe reads with the read-only key pair directly.
+- storage credentials, issued per table as the engine loads it, valid for about an hour. These go to write holders; a read-level recipe reads with the read-only key pair directly.
 
-The key pair is the catalog's, not the token's: two machines connected to the same catalog at the same level get the same pair. So LakehouseBox remembers who was handed which pair, and taking access away from someone who was handed a pair rotates that pair within seconds: their copy stops working, and so do the copies other people pasted into engines, which then need a fresh recipe (lhbox connect, or the account page). lhbox duckdb fetches its pair every time and carries on, and an MCP connection never holds one. Only the pair they lost is rotated: removing a reader rotates the read-only pair, and write recipes keep working. Someone who never fetched a recipe causes no rotation. Storage credentials already issued run to their expiry, within about an hour.
+The key pair is the catalog's, not the token's. Two machines connected to the same catalog at the same level get the same pair. So LakehouseBox remembers who was handed which pair.
+
+Taking access away from someone who was handed a pair rotates that pair within seconds:
+
+- Their copy stops working. So do the copies other people pasted into engines, which then need a fresh recipe (lhbox connect, or the account page).
+
+- lhbox duckdb fetches its pair every time and carries on. An MCP connection never holds one.
+
+- Only the pair they lost is rotated. Removing a reader rotates the read-only pair, and write recipes keep working.
+
+- Someone who never fetched a recipe causes no rotation.
+
+- Storage credentials already issued run to their expiry, within about an hour.
 
 ## Special-purpose credentials
 
-Two credentials reach one path and nothing else; neither can read a table or use the catalog.
+Two credentials reach one path and nothing else. Neither can read a table or use the catalog.
 
-- Uploaders are write-only keys for the catalog's file bucket, confined to one prefix: for a camera, a device or a partner that drops files. Creating one needs write on the catalog; the secret is shown once. See Uploaders (https://lakehousebox.com/docs/uploaders/).
+- Uploaders are write-only keys for the catalog's file bucket, confined to one prefix. They suit a camera, a device or a partner that drops files. Creating one needs write on the catalog; the secret is shown once. See Uploaders (https://lakehousebox.com/docs/uploaders/).
 
-- Sink send keys can only post batches to one ingest sink, which LakehouseBox commits into one table. Creating a sink needs write; the key is shown once; deleting the sink revokes it. See Sinks (https://lakehousebox.com/docs/ingest/).
+- Sink send keys can only post batches to one ingest sink, which LakehouseBox commits into one table. Creating a sink needs write. The key is shown once, and deleting the sink revokes it. See Sinks (https://lakehousebox.com/docs/ingest/).
 
 ## Revoking and rotating
 
@@ -141,11 +233,13 @@ Two credentials reach one path and nothing else; neither can read a table or use
 | a machine or agent | lhbox token revoke <name>, or the account page | at once, for the token and every token it created; key pairs they were handed are rotated |
 | a person's or token's access to one catalog | lhbox catalog revoke <catalog> --principal <id> | at once; a key pair they were handed is rotated within seconds |
 | a person | an admin removes them from the organisation | at once; their grants and tokens go too, and the key pairs they or their tokens were handed are rotated |
-| an uploader | lhbox catalog uploader revoke | at once |
-| a sink's send key | lhbox sink delete | at once |
+| an uploader | lhbox catalog uploader revoke <catalog> --uploader <name> | at once |
+| a sink's send key | lhbox sink delete <sink> | at once |
 | every copy of a catalog's key pair | lhbox catalog rotate <catalog> (admin) | old keys and catalog tokens made from them at once; storage credentials already issued run to their expiry, within about an hour |
 
-Removing access rotates the pairs the person or token was handed; the answer lists them under keys_rotated. Rotate by hand whenever a recipe may have leaked to someone outside: a manual rotation replaces both pairs and can take a minute; every engine then needs a fresh recipe (lhbox connect again).
+Removing access rotates the pairs the person or token was handed. The answer lists them under keys_rotated.
+
+Rotate by hand whenever a recipe may have leaked to someone outside. A manual rotation replaces both pairs and can take a minute. Every engine then needs a fresh recipe (lhbox connect again).
 
 ## Deleting a catalog
 
@@ -156,22 +250,58 @@ lhbox catalog delete sales --confirm sales
 lhbox catalog restore sales                       # within the grace period
 ```
 
-A deleted catalog stays restorable for a 7-day grace period. From the moment it is deleted it is gone for everyone: it leaves every list, its routes answer that it was deleted, its sinks are refused, and within seconds its key pairs and catalog tokens stop working and its uploaders are revoked. Storage credentials already issued run to their own expiry (about an hour). During the grace period the name stays reserved, the catalog no longer counts towards the number of catalogs you may have, and its bytes still count towards your storage.
+A deleted catalog stays restorable for a 7-day grace period. From the moment it is deleted, it is gone for everyone:
 
-lhbox catalog restore brings back the same catalog: its id, name, tables, files, settings and grants. It comes back private, without its uploaders, and with a new key pair, since the old one was revoked (run lhbox connect again).
+- it leaves every list, and its routes answer that it was deleted;
 
-When the grace period ends (the purge runs within a few hours), tables, files and credentials are deleted for good and the name is free. --purge skips or ends the grace period; nothing brings the catalog back after a purge.
+- its sinks are refused;
+
+- within seconds, its key pairs and catalog tokens stop working and its uploaders are revoked;
+
+- storage credentials already issued run to their own expiry, about an hour.
+
+During the grace period, the name stays reserved. The catalog no longer counts towards the number of catalogs you may have, but its bytes still count towards your storage.
+
+lhbox catalog restore brings back the same catalog: its id, name, tables, files, settings and grants. It comes back private and without its uploaders. It also comes back with a new key pair, since the old one was revoked: run lhbox connect again.
+
+When the grace period ends, tables, files and credentials are deleted for good and the name is free. The purge runs within a few hours. --purge skips or ends the grace period; nothing brings the catalog back after a purge.
 
 ## The audit log
 
-Grants, tokens, invitations, role changes, credential vending, rotations and deletions are recorded. Secrets are never written to it. A member sees their own events; an admin sees the whole organisation's with --org. Events are kept for 400 days.
+Grants, tokens, invitations, role changes, credential vending, rotations and deletions are recorded. Secrets are never written to it. A member sees their own events; an admin sees the whole organisation's with --org.
 
 ```
 lhbox audit --since 7d
 lhbox audit --org <org> --action 'token.*' --limit 200
 ```
 
+## When it fails
+
+| what you see | what it means | what to do |
+|---|---|---|
+| 403 org_policy_forbids | the organisation's member permissions keep this to admins | ask one of the admins its remedy names |
+| 403 mcp_human_only | an MCP connection asked for an account action | do it yourself, with the CLI or the account page |
+| a write refused with a read credential | you hold read on this catalog | ask someone with write to grant it |
+| a recipe that stopped working | its key pair was rotated | fetch a fresh one: lhbox connect, or the account page |
+| the last admin cannot leave or be demoted | an organisation keeps one human admin | make another person admin first |
+| a domain claim refused | public mail domains cannot be claimed | claim your own domain |
+
 Every command is in the CLI reference (https://lakehousebox.com/docs/cli/); the routes are in the API reference (https://lakehousebox.com/docs/api/).
+
+## Numbers and dates
+
+| what | figure |
+|---|---|
+| invitation | valid 7 days |
+| lhbox login code | valid 15 minutes |
+| catalog token, storage credentials | about an hour |
+| rotation after access is taken away | within seconds |
+| manual lhbox catalog rotate | can take a minute |
+| verified domain | looked up once a day; three definite misses in a row, or a week without any answer, unverify it |
+| a departure, for domain join | remembered 12 months, then forgotten |
+| departures before 2026-10-01 | taken from the audit log; someone whose account was deleted before then left no address to match |
+| deleted catalog | restorable 7 days; the purge runs within a few hours after |
+| audit log | events kept 400 days |
 
 ---
 HTML version: https://lakehousebox.com/docs/access/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt
