@@ -67,7 +67,9 @@ Its answer carries sink_create, saying what creating the sink still needs (not_e
 
 ## What the query can do
 
-It is one SELECT: CTEs, joins, UNPIVOT, LATERAL, window functions and QUALIFY are all fine. It reads http(s) URLs, public or with a connection's credential. The readers are DuckDB 2.0.0's: read_json, read_ndjson, read_csv, read_parquet, read_text, read_blob, or FROM 'https://…'.
+It is one SELECT: CTEs, joins, UNPIVOT, LATERAL, window functions and QUALIFY are all fine. It reads http(s) URLs, public or with a connection's credential. The readers are DuckDB 2.0.0's: read_json, read_ndjson, read_csv, read_parquet, read_text, read_blob, or FROM 'https://…', and the yaml extension's read_yaml, read_yaml_objects and read_yaml_frontmatter.
+
+The query may also call the reviewed DuckDB community extensions the query service has: h3 (H3 cells), splink_udfs (phonetic and accent-stripping string functions), urlpattern and yaml. Each is loaded only when the query calls one of its functions, on either engine, and the same functions are refused as on the query service (those that multiply their input, such as h3_grid_disk, and the ones that change settings for the whole process).
 
 Several URLs may be read in one call: a list, or a list comprehension over page numbers. A URL may contain current_date. LakehouseBox writes the rows; the query never writes.
 
@@ -81,7 +83,7 @@ The query runs on an executor of its own, whose only way out is a proxy that all
 
 Not available:
 
-- local files, settings, extensions, and secrets other than the catalog's connections (below);
+- local files, settings, other extensions, and secrets other than the catalog's connections (below);
 
 - request bodies (POST APIs);
 
