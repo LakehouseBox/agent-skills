@@ -255,9 +255,10 @@ Every error names what to change and carries a remedy.
 | error | what it names |
 |---|---|
 | egress_refused | the host and the reason |
-| source_error | what the source answered, its HTTP status first (http_status) when it sent one; runs retry it |
+| source_error | what the source answered, its HTTP status first (http_status) when it sent one, and the URL; runs retry it |
+| invalid_url | a URL with a % that is not an escape (url, the character); write a literal % as %25; not retried |
 | type_mismatch | the column, the expected type, a sample |
-| sql_error | DuckDB's message |
+| sql_error | DuckDB's message; when a reader trips on the first byte of a body, the remedy names compression='gzip' (some servers send gzip even when not asked) |
 | auth_failed | the connection the source refused with 401: replace its value |
 | auth_required | a 401 where no connection applies |
 | connection_conflict | a header connection used with a connection on another host or port |
