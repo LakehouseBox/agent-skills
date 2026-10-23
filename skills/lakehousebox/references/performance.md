@@ -161,9 +161,23 @@ A table that declares a sort order keeps its own. With several geometry columns,
 
 Three simulated days of scattered agent appends ran with maintenance on production's own settings, every hour. Of 1,225 lookups, every answer was equal to a full scan.
 
-- A table up to 128 MB is re-sorted whole by every compaction. Compaction starts once 10 small files have collected. Each time, its lookups go back to the import's cost. Spain's places read 1.75 MB per lookup after the import, and 1.5–2.2 MB after every compaction of the three days. Between compactions a lookup read at most 2.6 MB at 4 appends an hour. At 1 append an hour (a compaction every 10 hours) it read 3.5 MB.
+- A table up to 128 MB is re-sorted whole by every compaction. Compaction starts once 10 small files have collected (in a table partitioned by day or hour, once the partition has closed: see the next section). Each time, its lookups go back to the import's cost. Spain's places read 1.75 MB per lookup after the import, and 1.5–2.2 MB after every compaction of the three days. Between compactions a lookup read at most 2.6 MB at 4 appends an hour. At 1 append an hour (a compaction every 10 hours) it read 3.5 MB.
 
 - A table past 128 MB is kept clustered in layers. A compacted file that reaches 128 MB is no longer rewritten. Later appends are clustered among themselves, into a new layer that spans the same area. Each layer adds row groups to a lookup. On 13.8 M places over four countries (466 MB), a lookup read 2.5 MB after the import and 6.6 MB after the third day's compactions. Its state went from clustered to partly. Merging the layers back into one order is not built yet.
+
+### Geometry tables partitioned by day or hour: today stays as written
+
+A geometry table partitioned by day(...) or hour(...) is not compacted while a partition is still open. Each one waits until its day or hour has ended, plus two hours for late writes. Then it is compacted in spatial order like any other geometry table. Until then its files stay as they were written, and no count of small files starts a compaction. Other partition transforms, and tables without a geometry column, are compacted as described above.
+
+The reason is the question asked of today's rows. "Where is every vehicle now" reads the newest rows. On a day of 5-minute appends (1.44 M rows of 1,000 buses), it read 0.04 MB from the files as written. The same day in spatial order read 2.51 MB, because every spatially ordered row group spans the whole day. An area question over a whole day reads a seventh as much in spatial order (2.74 against 19.35 MB). Mostly that question is asked of days that have ended.
+
+What this means for a table that a sink appends to every 5 minutes:
+
+- Today's partition holds one small file per append, up to 288 in a day, until 02:00 UTC the next day.
+
+- Meanwhile clustering reports unclustered with maintained: true; that is the open partition, not a fault.
+
+- last_spatial_compaction moves after the day's release.
 
 ### Seeing a table's clustering
 
