@@ -94,6 +94,8 @@ The query runs on an executor of its own, whose only way out is a proxy that all
 
 - a rate per destination host shared by every LakehouseBox job.
 
+Every request names its sender: User-Agent: LakehouseBox-scheduled-sql/<engine> (+https://lakehousebox.com/docs/scheduled-sql/; hello@lakehousebox.com), set by LakehouseBox (never your organisation's name), so a source's operator can see who fetches and write to us. Requests ask for no compression (DuckDB does not decode a gzip Content-Encoding) and are never conditional (no If-Modified-Since or If-None-Match): every run fetches the whole response again.
+
 Not available:
 
 - local files, settings, other extensions, and secrets other than the catalog's connections (below);
@@ -215,6 +217,7 @@ Every error names what to change and carries a remedy.
 | error | what it names |
 |---|---|
 | egress_refused | the host and the reason |
+| source_error | what the source answered, its HTTP status first (http_status) when it sent one; runs retry it |
 | type_mismatch | the column, the expected type, a sample |
 | sql_error | DuckDB's message |
 | auth_failed | the connection the source refused with 401: replace its value |
