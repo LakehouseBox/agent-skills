@@ -84,6 +84,8 @@ SELECT e ->> 'id' AS vehicle_id,
 FROM e
 ```
 
+Zip archives. A file inside a zip archive at a URL is read by naming the reader: read_csv('zip://https://gtfs.ovapi.nl/nl/gtfs-nl.zip/routes.txt'), and zip_contents('https://…/feed.zip') lists the archive (the zipfs extension, loaded only for such a query). The archive comes through the same proxy as any URL and counts against the run's budget: it is downloaded whole, once per read. A compressed file inside it is decompressed whole into the run's memory before DuckDB reads it, so its uncompressed size has to fit the run. Measured on the Dutch GTFS feed (218 MB zip, 2026-10-23): trips.txt (61 MB, 842,644 rows) runs in 1 s; stop_times.txt (968 MB, 16.3 million rows) does not fit a run at any budget an organisation can be given today. FROM 'zip://…' without a reader is not supported. Only zip: not archive:// or compressed:// (tar, 7z and the like), not a zip inside a zip, and only an http(s) URL inside zip://.
+
 Several URLs may be read in one call: a list, or a list comprehension over page numbers. A URL may contain current_date. LakehouseBox writes the rows; the query never writes.
 
 The query runs on an executor of its own, whose only way out is a proxy that allows:
@@ -195,7 +197,41 @@ every is at least 1 minute by default (5 minutes until 2026-10-23); an operator 
 
 - A sink whose runs all failed for 24 hours pauses itself (paused_reason: failing). So does one whose table is gone (table_missing) or changed into one it cannot feed (table_unsupported), or whose organisation lost the feature (not_enabled).
 
-- Runs append, unless the sink has a key (--key): then each run replaces the rows that share it. Without a key, a source that republishes rows lands them again at every run. Read the latest per key with QUALIFY row_number() OVER (PARTITION BY <key> ORDER BY __ingest_ts DESC) = 1.
+- Runs append, unless the sink has a key (--key): then each run replaces the rows that share it. Without a key, a source that republishes rows lands them again at every run. Read the latest per key with QUALIFY row_number() OVER (PARTITION BY <key> ORDER BY __ingest_ts DESC) = 1. A sink can also replace the whole table at every run (below).
+
+## Replacing the table at every run
+
+For a source that is republished whole (a timetable, a register, a price list), a sink can replace its table at every run instead of appending: --mode replace ("mode": "replace"). Each run's rows become the table's rows in one commit, an overwrite snapshot: a reader sees the previous version or the new one, never a mix of the two, and every version is a snapshot you can read later.
+
+```
+lhbox sink create --catalog transit --name gtfs_trips --table gtfs.trips --create-table --format-version 2 \
+  --sql "SELECT * FROM read_csv('zip://https://gtfs.ovapi.nl/nl/gtfs-nl.zip/trips.txt', quote='\"', escape='\"')" \
+  --every 1d --offset 5h --mode replace --min-rows 100000
+```
+
+- An empty run never empties the table. A run that returns fewer rows than min_rows (1 unless you set it) fails with empty_replace_refused, stores nothing, and leaves the table as it is. Set --min-rows near the size you expect, so a source that suddenly returns a fraction of its rows does not replace the table either (at most 1,000,000, the most rows a run writes); change it later with lhbox sink update <sink> --min-rows N.
+
+- A run with a row that does not fit the table is not committed either: the run fails with replace_refused, the table keeps its previous version and the run's rows go to the sink's rejects.
+
+- A table that already holds rows needs --replace-existing ("replace_existing": true): the first run replaces them. Without it the create is refused (409 replace_needs_confirmation) and says how many rows the table holds.
+
+- The table is format version 2 (--format-version 2 with --create-table; 409 replace_unsupported otherwise), not partitioned, with no key (400 mode_conflict). A sink whose table later becomes format version 3 pauses (table_unsupported).
+
+- One sink per table, as always: no other sink can feed a table that a replace sink feeds.
+
+- The mode is fixed when the sink is created (409 mode_fixed): to change it, delete the sink and create it again. The table and its rows stay.
+
+- Runs are committed one at a time, oldest first: if two are waiting, each becomes its own version.
+
+Reading an older version. Every run is one snapshot whose summary names the run's batch (lakehousebox.sink.batches, the run's batch_id in lhbox sink runs); the run shows the snapshot id once it is committed. Read a version by snapshot or by time (DuckDB, the catalog attached as transit):
+
+```
+SELECT * FROM iceberg_snapshots('transit.gtfs.trips');                 -- every version still kept
+SELECT count(*) FROM transit.gtfs.trips AT (VERSION => <snapshot id>);
+SELECT count(*) FROM transit.gtfs.trips AT (TIMESTAMP => TIMESTAMP '2026-10-20 06:00:00');
+```
+
+How many versions survive is the catalog's snapshot window (time travel (https://lakehousebox.com/docs/time-travel/)): by default at most 20 snapshots and none older than 7 days, so a daily sink keeps about a week of versions; lhbox catalog update transit --snapshot-retention-days 30 keeps a month. Every kept version keeps its data files, and they count against your storage.
 
 ## The commands
 
@@ -208,6 +244,8 @@ lhbox sink pause madrid_air                                            # hold th
 lhbox sink resume madrid_air                                           # start it again
 lhbox sink update madrid_air --sql @v2.sql                             # a new query
 lhbox sink update madrid_air --engine 1.5                              # another DuckDB engine, previewed first
+lhbox sink create ... --mode replace --min-rows 1000                   # each run replaces the table (above)
+lhbox sink update gtfs_trips --min-rows 50000                          # a replace sink's guard
 ```
 
 ## When it fails
@@ -225,6 +263,10 @@ Every error names what to change and carries a remedy.
 | connection_conflict | a header connection used with a connection on another host or port |
 | budget_exceeded, rate_limited, unknown_column, query_timeout, output_too_large | what to change, in its remedy |
 | engine_unavailable | the sink's engine could not run this time; retried like any transient failure |
+| empty_replace_refused | a replace sink's run returned fewer rows than min_rows; the table was not changed |
+| replace_refused | a replace sink's rows were stored but not committed (a row rejected); the table was not changed |
+| replace_unsupported, replace_needs_confirmation, mode_conflict, mode_fixed | why a replace sink was refused, in its remedy |
+| scheme_not_allowed | a zip:// path that is not one zip archive at an http(s) URL, or archive:// / compressed:// |
 | 403 claim_required | an unclaimed catalog: a person claims it first |
 
 ## Routes
@@ -237,9 +279,9 @@ POST  /v1/sql/preview          {warehouse, sql, table?, engine?, format_version?
                                format_version_source, fits_table / table_error, egress{requests, bytes_down, hosts},
                                engine, engine_version
 POST  /v1/sinks                {name, warehouse, table, sql, every, offset?, paused?, create_table?, format_version?,
-                               partition?, key?, engine?}   write level
-PATCH /v1/sinks/{id}           {sql?, every?, offset?, paused?, key?, engine?}   a new query or engine is previewed against
-                               the table first
+                               partition?, key?, engine?, mode?: append|replace, min_rows?, replace_existing?}   write level
+PATCH /v1/sinks/{id}           {sql?, every?, offset?, paused?, key?, engine?, min_rows?}   a new query or engine is
+                               previewed against the table first
 POST  /v1/sinks/{id}/run       one run now (a paused sink too); 409 run_already_queued
 POST  /v1/sql/connections     {warehouse, name, url_prefix, kind: bearer|header|basic, header_name?, value}
 GET   /v1/sql/connections     ?warehouse=  names, prefixes, kinds; never a value
@@ -251,7 +293,7 @@ GET   /v1/sinks/{id}/runs      state (queued, running, retry_wait, materialised,
 
 ## On the account page
 
-A catalog's Sinks tab lists its SQL sinks next to the other sinks: the engine (DuckDB 2.0 or 1.5), the schedule, the last runs with the engine each ran on, Run now and Pause / Resume.
+A catalog's Sinks tab lists its SQL sinks next to the other sinks: the engine (DuckDB 2.0 or 1.5), whether each run replaces the table (and its min_rows), the schedule, the last runs with the engine each ran on, Run now and Pause / Resume.
 
 A person who can write to the catalog can also make and change a SQL sink there:
 
