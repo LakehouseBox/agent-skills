@@ -46,7 +46,7 @@ The person: approves the connection and picks its access:
 
 - All catalogs (the default), at read or at read and write. It includes catalogs created later, so a new catalog needs no new approval. It never gives more on a catalog than the person holds there when it is used. A catalog they lose access to leaves the connection at once.
 
-- Only select catalogs, each at read or write.
+- Only select catalogs, each at read or write. A catalog created later is not in the list: the connection answers connection_not_granted for it until the person gives it the catalog. They can grant it under the catalog's Access tab (Grant access, then the connection's token), or reconnect and choose All catalogs.
 
 The approval creates a token under Access tokens → Connections on the account page. The server needs the scope catalogs:read. The two tools that change things (query_rw, keep_account) also need catalogs:write. When the client asks for write, the consent page has it ticked. A connection approved read-only answers insufficient_scope to query_rw until it is reconnected with write.
 
@@ -120,6 +120,7 @@ The code says what to change and the remedy how. Act on the remedy rather than r
 | sql_error | fix the SQL |
 | catalog_required | name the table catalog.namespace.table |
 | not_found | check did_you_mean and list_tables |
+| connection_not_granted | the catalog exists and the person reads it, but this connection was not granted it: tell the person the remedy |
 | query_timeout | past 20 s: aggregate or filter; or your own DuckDB |
 | query_memory | past the 768 MB a server-side query has: fewer distinct GROUP BY keys, no huge lists or sorts; or your own DuckDB |
 | busy | retry after retry_after_seconds; limit names the limit that was full |
