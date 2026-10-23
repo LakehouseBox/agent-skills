@@ -94,7 +94,7 @@ The query runs on an executor of its own, whose only way out is a proxy that all
 
 - a rate per destination host shared by every LakehouseBox job.
 
-Every request names its sender: User-Agent: LakehouseBox-scheduled-sql/<engine> (+https://lakehousebox.com/docs/scheduled-sql/; hello@lakehousebox.com), set by LakehouseBox (never your organisation's name), so a source's operator can see who fetches and write to us. Requests ask for no compression (DuckDB does not decode a gzip Content-Encoding) and are never conditional (no If-Modified-Since or If-None-Match): every run fetches the whole response again.
+Every request names its sender: User-Agent: LakehouseBox-scheduled-sql/<engine> (+https://lakehousebox.com/docs/scheduled-sql/; hello@lakehousebox.com), set by LakehouseBox (never your organisation's name), so a source's operator can see who fetches and write to us. Requests ask for no compression (DuckDB does not decode a gzip Content-Encoding) and are never conditional (no If-Modified-Since or If-None-Match): every run fetches the whole response again. A source that answers 429, 503 (or 408, 500, 502, 504) or drops the connection is asked once more, 3 seconds later, so a run sends at most two requests per URL; Retry-After is not honoured within a run, and a failed run is retried by the schedule (30 seconds later at first).
 
 Not available:
 
