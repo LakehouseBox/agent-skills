@@ -64,10 +64,10 @@ large file goes up in parallel parts; JSON on stdout when piped; `s3://` URLs ar
 ```sh
 lhbox file cp ./tiles.pmtiles lhbox://garden/public/ --cache-control "public, max-age=86400"
 lhbox file cp ./stac lhbox://garden/public/stac/ --recursive --exclude "*.tmp"
-lhbox file sync ./site lhbox://garden/site/      # only what changed (size and ETag); never deletes
+lhbox file sync ./exports lhbox://garden/exports/  # only what changed (size and ETag); never deletes
 lhbox file ls lhbox://garden/public/
 lhbox file cp lhbox://garden/public/tiles.pmtiles .
-lhbox file sync lhbox://garden/site/ ./site      # down: only what differs here
+lhbox file sync lhbox://garden/exports/ ./exports  # down: only what differs here
 lhbox file rm lhbox://garden/public/old.pmtiles  # no --yes needed without a terminal
 ```
 

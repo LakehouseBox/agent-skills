@@ -10,11 +10,11 @@ Every catalog has two places for data: its tables, and a file bucket for the fil
 ```
 lhbox file cp ./tiles.pmtiles lhbox://garden/public/ --cache-control "public, max-age=86400"
 lhbox file cp ./stac lhbox://garden/public/stac/ --recursive  # a folder; keys keep the relative paths
-lhbox file sync ./site lhbox://garden/site/                    # only what changed; a second run sends nothing
+lhbox file sync ./exports lhbox://garden/exports/              # only what changed; a second run sends nothing
 lhbox file ls lhbox://garden/public/                           # folders and files; --recursive for every key
 lhbox file cp lhbox://garden/public/tiles.pmtiles .            # down: a file, a folder, or - for stdout
-lhbox file cp lhbox://garden/site/ ./site --recursive          # down: everything under the prefix
-lhbox file sync lhbox://garden/site/ ./site                    # down, skipping the files that are the same here
+lhbox file cp lhbox://garden/exports/ ./exports --recursive    # down: everything under the prefix
+lhbox file sync lhbox://garden/exports/ ./exports              # down, skipping the files that are the same here
 lhbox file rm lhbox://garden/public/old.pmtiles                # --recursive deletes a folder
 ```
 
@@ -83,7 +83,7 @@ When the output is piped, JSON goes to stdout. A download says "downloaded" wher
 {"uploaded": [{"key", "size", "etag", "method": "put" | "multipart", "parts"}], "skipped": [...], "count", "bytes", "seconds"}
 ```
 
-Progress goes to stderr when stderr is a terminal, or always with --progress. A refused file (415 for a type the bucket does not take) is named in one error envelope.
+Progress goes to stderr when stderr is a terminal, or always with --progress. Every file is checked against the list below before the first one goes up: if any is a type the bucket does not take, nothing is uploaded and one unsupported_file_type error names each such file. --skip-refused uploads the rest and lists those as skipped.
 
 ### Other ways in
 
