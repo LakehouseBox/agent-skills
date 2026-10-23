@@ -153,7 +153,17 @@ Keys in the query string (?api_key=…) and OAuth client credentials are not sup
 
 The query's columns are matched to the table's by name and cast to its types before anything is stored. A column the table lacks, a required column missing, or a value that does not cast fails the run. The error names the column and a sample value.
 
-create_table makes the table from the query's columns. It is format version 3 when the query returns a geometry column or partition is given (--partition day(ts): by the year, month, day or hour of a date or timestamp column), and format version 2 otherwise. The create answer's docs_hint names what the table lacks (a description, column descriptions) and the command that adds them: lhbox table document <catalog>.<ns>.<table> --doc "…" --column name="…".
+create_table makes the table from the query's columns, in the format version you choose: format_version 2 or 3 (--format-version 3). Without it, the table gets the catalog's default format version, as lhbox table create does (lhbox catalog update --default-format-version 3 changes it). The query's columns never choose the version. A query that does not fit it is refused before any table is made, and the error names field: "format_version", where the version came from (format_version_source: request or catalog_default) and a remedy:
+
+- a geometry column under format version 2 (400 format_version_conflict): send format_version: 3, or return the geometry as WKT (ST_AsText(g)) or WKB (ST_AsWKB(g));
+
+- partition under format version 2 (409 partitioned_table_unsupported): a sink feeds a partitioned table only in format version 3;
+
+- key under format version 3 (409 key_unsupported): a key needs format version 2;
+
+- any value other than 2 or 3 (400 invalid_value). format_version and partition apply only to a table the sink creates: with an existing table they are 409 table_exists.
+
+partition (--partition day(ts)) partitions the new table by the year, month, day or hour of a date or timestamp column. POST /v1/sql/preview takes format_version too: without table, its answer names create_table_format_version and lists a geometry that version cannot hold in problems. The create answer's docs_hint names what the table lacks (a description, column descriptions) and the command that adds them: lhbox table document <catalog>.<ns>.<table> --doc "…" --column name="…".
 
 A sink feeds a format-version 2 table that is not partitioned, or a format-version 3 table, which may be partitioned by time. These are the same rules as any ingest sink (https://lakehousebox.com/docs/ingest/). A table it cannot feed is refused when the sink is created, and a sink whose table changes into one pauses (paused_reason: table_unsupported):
 
@@ -166,7 +176,7 @@ A sink feeds a format-version 2 table that is not partitioned, or a format-versi
 A geometry column takes a GEOMETRY, WKB in a BLOB, or WKT in a VARCHAR. Build a point from two numbers with format('POINT ({} {})', lon, lat)::GEOMETRY; ST_GeomFromWKB(…) and, on engine 2.0, ST_GeomFromGeoJSON(…) work too. Scheduled SQL has no spatial extension, so ST_Point and ST_Transform are not available. A value that does not parse fails the run with type_mismatch and a sample. A geometry labelled OGC:CRS84 or EPSG:4326 (x = longitude) is taken as longitude/latitude. One in another coordinate system fails the same way.
 
 ```
--- a v3 table of positions, partitioned by day: lhbox sink create ... --create-table --partition 'day(ts)'
+-- a v3 table of positions, partitioned by day: lhbox sink create ... --create-table --format-version 3 --partition 'day(ts)'
 SELECT vehicle_id, to_timestamp(t) AS ts, format('POINT ({} {})', lon, lat)::GEOMETRY AS geometry, speed
 FROM read_json('https://example.org/vehicles.json')
 ```
@@ -219,11 +229,12 @@ Every error names what to change and carries a remedy.
 The full contracts are in the API reference (https://lakehousebox.com/docs/api/).
 
 ```
-POST  /v1/sql/preview          {warehouse, sql, table?, engine?} -> rows (<= 50), row_count, columns{name, duckdb_type, type},
-                               problems, create_table_schema, fits_table / table_error, egress{requests, bytes_down, hosts},
+POST  /v1/sql/preview          {warehouse, sql, table?, engine?, format_version?} -> rows (<= 50), row_count,
+                               columns{name, duckdb_type, type}, problems, create_table_schema, create_table_format_version,
+                               format_version_source, fits_table / table_error, egress{requests, bytes_down, hosts},
                                engine, engine_version
-POST  /v1/sinks                {name, warehouse, table, sql, every, offset?, paused?, create_table?, partition?, key?,
-                               engine?}   write level
+POST  /v1/sinks                {name, warehouse, table, sql, every, offset?, paused?, create_table?, format_version?,
+                               partition?, key?, engine?}   write level
 PATCH /v1/sinks/{id}           {sql?, every?, offset?, paused?, key?, engine?}   a new query or engine is previewed against
                                the table first
 POST  /v1/sinks/{id}/run       one run now (a paused sink too); 409 run_already_queued
