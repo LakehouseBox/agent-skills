@@ -92,7 +92,7 @@ Limits:
 
 - while more than 1 GiB of one uploader's files waits to be stored (the organisation over its storage allowance, say), that uploader's next login is refused until it catches up.
 
-Revoking the uploader refuses its next login at once, and so does --expires-at once passed. To turn uploads into rows of a table, add an index rule (Sinks (https://lakehousebox.com/docs/ingest/), "Files that become rows").
+Revoking the uploader refuses its next login at once, and so does --expires-at once passed. To turn uploads into rows of a table, add an index rule (Files to rows (https://lakehousebox.com/docs/ingest/index-rules/)).
 
 ## Revoking and rotating
 

@@ -132,7 +132,8 @@ Open only the one the task needs. Each is a copy of a docs page; its first lines
 
 - [agent-setup](references/agent-setup.md): the CLI from install to the first table, flags and environment, gotchas
   by engine (DuckDB, PyIceberg, Spark, Trino, Polars, ClickHouse, Snowflake), slow operations.
-- [mcp](references/mcp.md): connecting the MCP server (OAuth or an agent key), its tools, limits and errors.
+- [mcp](references/mcp.md): connecting the MCP server (OAuth or an agent key), errors, the security model.
+- [mcp-tools](references/mcp-tools.md): each tool, public catalogs, AGENTS.md, how queries run, where to compute, the limits.
 - [public-catalogs](references/public-catalogs.md): what publishing makes readable, reading with no account,
   attaching by name, allowances and risks.
 - [duckdb](references/duckdb.md): connecting, reading, writing, geometry and performance in DuckDB.

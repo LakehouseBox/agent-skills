@@ -66,5 +66,7 @@ lhbox table document garden.sensors.readings --doc "One row per reading, posted 
 
 - [scheduled-sql](references/scheduled-sql.md): the query, connections for API keys, the table, the schedule, every
   command, the errors, the account page.
-- [ingest](references/ingest.md): the send key and route, the roll, keys and upserts, rejects, geometry, files that
-  become rows, devices that cannot set headers, costs.
+- [ingest](references/ingest.md): the send key and route, the roll, keys and upserts, rejects, costs.
+- [ingest-geometry](references/ingest-geometry.md): points and shapes into a geometry column.
+- [ingest-index-rules](references/ingest-index-rules.md): files in the file bucket that become rows of a table.
+- [ingest-devices](references/ingest-devices.md): devices that cannot set headers, the device route, the mapping and presets.

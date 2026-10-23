@@ -56,37 +56,7 @@ lhbox org set --domain-join on                    # offer membership to people o
 lhbox org offers && lhbox org join --org <handle> # a person on that domain: see the offer, accept it
 ```
 
-### Invitations
-
-An invitation is valid for 7 days. The invitee follows the link in the mail, or runs the lhbox org accept --token <token> line the invite prints. An address with no account yet joins when it signs up.
-
-An admin can withdraw an invitation nobody has accepted yet. GET /v1/orgs/{org}/invitations lists the pending ones with their invitation_id; the invite's answer carries it too. DELETE /v1/orgs/{org}/invitations/{invitation_id} withdraws one. Its link then stops working, and signing up with the address no longer applies it.
-
-### Domain claims
-
-A domain claim (admin) does nothing until it is verified. The claim answers a TXT record, _lakehousebox.<domain>, with a random value. Publish it in the domain's DNS; --verify looks it up.
-
-The person: publishes that TXT record in the domain's DNS, at that very name. A record reached through a CNAME does not count.
-
-- Public mail domains (gmail.com, outlook.com, gmx.de, yahoo.co.uk, …) are refused.
-
-- Several organisations may hold an unverified claim on a domain. The first to verify it holds it alone.
-
-- Keep the record published: a verified domain is looked up again once a day. Three definite misses in a row unverify it. A miss is a name that does not exist, or a value not in it; a resolver failure never counts.
-
-- A week in which the domain's DNS gives no answer at all also unverifies it.
-
-- Unverifying also switches domain join off.
-
-- Once yours is gone, another organisation that publishes its own value takes the domain over at its next verify.
-
-### Domain join
-
-With domain join on, a person whose address is on a verified domain is offered membership. The account page asks, and lhbox org offers lists it. They join as a member only if they accept, with their own login or API key. Accepting is the person's act: nobody is added automatically, and an organisation's token is offered nothing.
-
-A person who left the organisation, or was removed from it, is not offered it again. They are matched by their account and by their address (lower case, a +tag ignored). So a new account on the same address is not offered it either: an admin's invitation is the way back. A departure is remembered for 12 months, as a one-way hash of the address and never the address itself. Then it is forgotten. Older departures are covered under Numbers and dates.
-
-Removing a member also removes the grants they held.
+Joining an organisation (https://lakehousebox.com/docs/access/organisation/), a page of its own: Invitations, claiming your company's email domain, and joining an organisation by domain: who may, how long each step lasts, what is remembered.
 
 ## What members may do
 
@@ -194,37 +164,7 @@ That token reads and writes data only. Whatever you approve, it cannot:
 
 Those stay with you, and the token gets 403 mcp_human_only. Nor does it get the catalog's key pair: only storage credentials that expire within about an hour. A public catalog's shared reader key, public by design, is the one exception.
 
-## The credentials an engine gets
-
-An engine (DuckDB, PyIceberg, Spark and the others) does not use your API key. lhbox connect or lhbox duckdb hands it a connection recipe holding the catalog's own key pair. Each catalog has one read/write pair and one read-only pair. You get the pair that matches your level; a write holder can ask for the read-only one with --readonly. The recipe masks the secret unless you pass --show-secrets.
-
-From the key pair, the engine gets two short-lived credentials and renews both itself:
-
-- a catalog token, valid for about an hour;
-
-- storage credentials, issued per table as the engine loads it, valid for about an hour. These go to write holders; a read-level recipe reads with the read-only key pair directly.
-
-The key pair is the catalog's, not the token's. Two machines connected to the same catalog at the same level get the same pair. So LakehouseBox remembers who was handed which pair.
-
-Taking access away from someone who was handed a pair rotates that pair within seconds:
-
-- Their copy stops working. So do the copies other people pasted into engines, which then need a fresh recipe (lhbox connect, or the account page).
-
-- lhbox duckdb fetches its pair every time and carries on. An MCP connection never holds one.
-
-- Only the pair they lost is rotated. Removing a reader rotates the read-only pair, and write recipes keep working.
-
-- Someone who never fetched a recipe causes no rotation.
-
-- Storage credentials already issued run to their expiry, within about an hour.
-
-## Special-purpose credentials
-
-Two credentials reach one path and nothing else. Neither can read a table or use the catalog.
-
-- Uploaders are write-only keys for the catalog's file bucket, confined to one prefix. They suit a camera, a device or a partner that drops files. Creating one needs write on the catalog; the secret is shown once. See Uploaders (https://lakehousebox.com/docs/uploaders/).
-
-- Sink send keys can only post batches to one ingest sink, which LakehouseBox commits into one table. Creating a sink needs write. The key is shown once, and deleting the sink revokes it. See Sinks (https://lakehousebox.com/docs/ingest/).
+Engine credentials (https://lakehousebox.com/docs/access/credentials/), a page of its own: What an engine holds for a catalog: the key pair, catalog tokens, per-table storage credentials and how long each lives, and the special-purpose credentials.
 
 ## Revoking and rotating
 

@@ -66,7 +66,9 @@ The AGENTS.md of a public catalog is public too: nothing in it the owner would n
 
 ## References
 
-- [access](references/access.md): roles, catalog grants, tokens for agents, the credentials an engine gets, revoking
-  and rotating, deleting a catalog, the audit log.
+- [access](references/access.md): roles, catalog grants, tokens for agents, revoking and rotating, deleting a
+  catalog, the audit log.
+- [access-organisation](references/access-organisation.md): invitations, domain claims, joining by domain.
+- [access-credentials](references/access-credentials.md): the credentials an engine gets and how long each lives.
 - [public-catalogs](references/public-catalogs.md): what publishing makes readable, the public page, reading with no
   account, attaching by name, allowances, risks.

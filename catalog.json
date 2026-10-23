@@ -1,6 +1,6 @@
 {
   "name": "lakehousebox-skills",
-  "version": "0.4.40",
+  "version": "0.4.41",
   "site": "https://lakehousebox.com",
   "layers": {
     "base": "what every LakehouseBox task needs: the ways in, the rules, reading public catalogs; depends on nothing",
@@ -16,7 +16,8 @@
         "references/mcp.md": "web/docs/mcp/index.md",
         "references/public-catalogs.md": "web/docs/public-catalogs/index.md",
         "references/duckdb.md": "web/docs/engines/duckdb/index.md",
-        "references/performance.md": "web/docs/performance/index.md"
+        "references/performance.md": "web/docs/performance/index.md",
+        "references/mcp-tools.md": "web/docs/mcp/tools/index.md"
       },
       "written": [],
       "runs": [
@@ -47,7 +48,10 @@
       ],
       "generated": {
         "references/scheduled-sql.md": "web/docs/scheduled-sql/index.md",
-        "references/ingest.md": "web/docs/ingest/index.md"
+        "references/ingest.md": "web/docs/ingest/index.md",
+        "references/ingest-geometry.md": "web/docs/ingest/geometry/index.md",
+        "references/ingest-index-rules.md": "web/docs/ingest/index-rules/index.md",
+        "references/ingest-devices.md": "web/docs/ingest/devices/index.md"
       },
       "written": [],
       "runs": [
@@ -61,7 +65,9 @@
       ],
       "generated": {
         "references/access.md": "web/docs/access/index.md",
-        "references/public-catalogs.md": "web/docs/public-catalogs/index.md"
+        "references/public-catalogs.md": "web/docs/public-catalogs/index.md",
+        "references/access-organisation.md": "web/docs/access/organisation/index.md",
+        "references/access-credentials.md": "web/docs/access/credentials/index.md"
       },
       "written": []
     },
