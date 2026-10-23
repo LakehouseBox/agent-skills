@@ -175,7 +175,7 @@ What this means for a table that a sink appends to every 5 minutes:
 
 - Today's partition holds one small file per append, up to 288 in a day, until 02:00 UTC the next day.
 
-- Meanwhile clustering reports unclustered with maintained: true; that is the open partition, not a fault.
+- Meanwhile clustering reports unclustered with maintained: true, and held_open names the open partition and when it is released (next section). That is the open partition, not a fault.
 
 - last_spatial_compaction moves after the day's release.
 
@@ -200,6 +200,8 @@ clustered: a point lookup reads at most 4 row groups' worth of bytes and at most
 - lookup_cost: the bytes a point lookup reads, in row groups of the table's average size. lookup_share: the share of the geometry column it reads.
 
 - last_spatial_compaction, and the files and rows added since.
+
+- held_open, while maintenance keeps a day or hour partition as written (the previous section). It appears only for a table maintained in spatial order whose current partition spec has a day or hour field: {"field": "ts_day", "transform": "day", "partitions": ["2026-10-23"], "files": 158, "release_at": "2026-10-24T02:00:00.000Z"}. partitions lists the values still held, files counts their live files, and release_at is the next release: the end of that day or hour in UTC plus two hours. state is still measured over every file, these included, so a table appended to all day reads unclustered until the release.
 
 How the state is measured: each row group's geometry box is read from its file's footer. One probe is placed at the centre of each row group's box (at most 512, evenly chosen), weighted by its rows. It counts every row group whose box contains it. Tables with more than 64 data files are measured on 64 of them (sampled).
 
