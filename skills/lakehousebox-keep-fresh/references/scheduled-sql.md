@@ -140,7 +140,23 @@ Keys in the query string (?api_key=…) and OAuth client credentials are not sup
 
 The query's columns are matched to the table's by name and cast to its types before anything is stored. A column the table lacks, a required column missing, or a value that does not cast fails the run. The error names the column and a sample value.
 
-create_table makes the table from the query's columns (format version 2). A sink feeds an unpartitioned format-version-2 table. The create answer's docs_hint names what the table lacks (a description, column descriptions) and the command that adds them: lhbox table document <catalog>.<ns>.<table> --doc "…" --column name="…".
+create_table makes the table from the query's columns. It is format version 3 when the query returns a geometry column or partition is given (--partition day(ts): by the year, month, day or hour of a date or timestamp column), and format version 2 otherwise. The create answer's docs_hint names what the table lacks (a description, column descriptions) and the command that adds them: lhbox table document <catalog>.<ns>.<table> --doc "…" --column name="…".
+
+A sink feeds a format-version 2 table that is not partitioned, or a format-version 3 table, which may be partitioned by time. These are the same rules as any ingest sink (https://lakehousebox.com/docs/ingest/). A table it cannot feed is refused when the sink is created, and a sink whose table changes into one pauses (paused_reason: table_unsupported):
+
+- a geography column, a geometry with a coordinate system of its own (a sink writes longitude/latitude, OGC:CRS84, the default), or a geometry inside a list, struct or map;
+
+- a partition other than time (partitioned_table_unsupported), or any partition on a format-version 2 table;
+
+- a key on a format-version 3 table (key_unsupported): a key needs format version 2. Read the latest row per key with QUALIFY instead.
+
+A geometry column takes a GEOMETRY, WKB in a BLOB, or WKT in a VARCHAR. Build a point from two numbers with format('POINT ({} {})', lon, lat)::GEOMETRY; ST_GeomFromWKB(…) and, on engine 2.0, ST_GeomFromGeoJSON(…) work too. Scheduled SQL has no spatial extension, so ST_Point and ST_Transform are not available. A value that does not parse fails the run with type_mismatch and a sample. A geometry labelled OGC:CRS84 or EPSG:4326 (x = longitude) is taken as longitude/latitude. One in another coordinate system fails the same way.
+
+```
+-- a v3 table of positions, partitioned by day: lhbox sink create ... --create-table --partition 'day(ts)'
+SELECT vehicle_id, to_timestamp(t) AS ts, format('POINT ({} {})', lon, lat)::GEOMETRY AS geometry, speed
+FROM read_json('https://example.org/vehicles.json')
+```
 
 ## The schedule
 
@@ -152,7 +168,7 @@ every is at least 1 minute by default (5 minutes until 2026-10-23); an operator 
 
 - A failure the next attempt may fix is retried within the slot after 30 s, 2 min and 8 min. That covers the source or the executor being unavailable, and a timeout.
 
-- A sink whose runs all failed for 24 hours pauses itself (paused_reason: failing). So does one whose table is gone (table_missing), or whose organisation lost the feature (not_enabled).
+- A sink whose runs all failed for 24 hours pauses itself (paused_reason: failing). So does one whose table is gone (table_missing) or changed into one it cannot feed (table_unsupported), or whose organisation lost the feature (not_enabled).
 
 - Runs append, unless the sink has a key (--key): then each run replaces the rows that share it. Without a key, a source that republishes rows lands them again at every run. Read the latest per key with QUALIFY row_number() OVER (PARTITION BY <key> ORDER BY __ingest_ts DESC) = 1.
 
@@ -193,7 +209,8 @@ The full contracts are in the API reference (https://lakehousebox.com/docs/api/)
 POST  /v1/sql/preview          {warehouse, sql, table?, engine?} -> rows (<= 50), row_count, columns{name, duckdb_type, type},
                                problems, create_table_schema, fits_table / table_error, egress{requests, bytes_down, hosts},
                                engine, engine_version
-POST  /v1/sinks                {name, warehouse, table, sql, every, offset?, paused?, create_table?, key?, engine?}   write level
+POST  /v1/sinks                {name, warehouse, table, sql, every, offset?, paused?, create_table?, partition?, key?,
+                               engine?}   write level
 PATCH /v1/sinks/{id}           {sql?, every?, offset?, paused?, key?, engine?}   a new query or engine is previewed against
                                the table first
 POST  /v1/sinks/{id}/run       one run now (a paused sink too); 409 run_already_queued
