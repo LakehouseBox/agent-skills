@@ -71,6 +71,19 @@ It is one SELECT: CTEs, joins, UNPIVOT, LATERAL, window functions and QUALIFY ar
 
 The query may also call the reviewed DuckDB community extensions the query service has: h3 (H3 cells), splink_udfs (phonetic and accent-stripping string functions), urlpattern and yaml. Each is loaded only when the query calls one of its functions, on either engine, and the same functions are refused as on the query service (those that multiply their input, such as h3_grid_disk, and the ones that change settings for the whole process).
 
+Protocol Buffers. read_blob of a protobuf URL and proto_to_json(content, '<message>') (or proto_decode, its alias) decode it, with proto_get(content, '<message>', '<path>') for one field and proto_describe('<message>') for its shape. The GTFS-Realtime schema is registered for you (transit_realtime.FeedMessage): a transit agency's live vehicle feed becomes rows in one query. A query cannot register other schemas; ask us for the one you need. Example, one row per vehicle with its position as a geometry:
+
+```
+WITH f AS (SELECT proto_to_json(content, 'transit_realtime.FeedMessage')::JSON AS j
+           FROM read_blob('https://gtfs.ovapi.nl/nl/vehiclePositions.pb')),
+     e AS (SELECT unnest(from_json(j -> 'entity', '["JSON"]')) AS e FROM f)
+SELECT e ->> 'id' AS vehicle_id,
+       to_timestamp((e -> 'vehicle' ->> 'timestamp')::BIGINT) AS ts,
+       format('POINT ({} {})', (e -> 'vehicle' -> 'position' ->> 'longitude')::DOUBLE,
+                               (e -> 'vehicle' -> 'position' ->> 'latitude')::DOUBLE)::GEOMETRY AS geometry
+FROM e
+```
+
 Several URLs may be read in one call: a list, or a list comprehension over page numbers. A URL may contain current_date. LakehouseBox writes the rows; the query never writes.
 
 The query runs on an executor of its own, whose only way out is a proxy that allows:
