@@ -142,7 +142,7 @@ create_table makes the table from the query's columns (format version 2). A sink
 
 ## The schedule
 
-every is at least 5 minutes by default. offset places the runs inside the interval: every 20m offset 2m runs at :02, :22 and :42 UTC.
+every is at least 1 minute by default (5 minutes until 2026-10-23); an operator can set another floor per organisation. A run that takes longer than every makes the next slot skipped. offset places the runs inside the interval: every 20m offset 2m runs at :02, :22 and :42 UTC.
 
 - Each slot runs once and becomes one batch, committed whole by the next roll, seconds later.
 
