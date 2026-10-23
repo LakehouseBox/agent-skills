@@ -15,7 +15,7 @@ maintains the tables. Everything is in open formats the person can take elsewher
 | situation | use | read next |
 |---|---|---|
 | a shell that reaches `https://s3.lakehousebox.com/` (check with `curl -sI`), and the person has an account or will create one | the `lhbox` CLI, then DuckDB on this machine | [agent-setup](references/agent-setup.md) |
-| a shell, no account yet (or nobody to approve right now) | `lhbox new`, then `lhbox claim` when the person is there | the section below, then [agent-setup](references/agent-setup.md) §2b |
+| a shell, no account yet (or nobody to approve right now) | `lhbox new`, then `lhbox claim` when the person is there | the section below, then [agent-setup](references/agent-setup.md), "Without an account" |
 | a chat with no shell, or a sandbox whose network refuses `s3.lakehousebox.com` | the MCP server, `https://mcp.lakehousebox.com/mcp` | [mcp](references/mcp.md) |
 | a public catalog, no account | DuckDB with unsigned requests | the section below, then [public-catalogs](references/public-catalogs.md) |
 | another organisation's public catalog, with an account | `lhbox duckdb --catalog <handle>/<catalog>`, or the MCP tool `open_public_catalog` | [public-catalogs](references/public-catalogs.md) |

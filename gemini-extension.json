@@ -1,6 +1,6 @@
 {
   "name": "lakehousebox",
-  "version": "0.4.38",
+  "version": "0.4.39",
   "description": "LakehouseBox for agents: the LakehouseBox MCP connector (it reads, and writes only when the person approved write) plus skills that teach the service - connecting through the lhbox CLI, MCP or plain DuckDB, reading public catalogs with no account, and reading or hosting Portolan geospatial catalogs.",
   "contextFileName": "GEMINI.md",
   "mcpServers": {
