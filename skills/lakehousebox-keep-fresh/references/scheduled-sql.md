@@ -237,7 +237,17 @@ GET   /v1/sinks/{id}/runs      state (queued, running, retry_wait, materialised,
 
 ## On the account page
 
-A catalog's Sinks tab lists its SQL sinks next to the other sinks: the schedule, the last runs, Run now and Pause / Resume. The same tab holds the catalog's Connections (Add a connection). A person can paste an API key there, and an agent only ever uses the connection's name. Creating the sink itself is done with the CLI or the API.
+A catalog's Sinks tab lists its SQL sinks next to the other sinks: the engine (DuckDB 2.0 or 1.5), the schedule, the last runs with the engine each ran on, Run now and Pause / Resume.
+
+A person who can write to the catalog can also make and change a SQL sink there:
+
+- New SQL sink: the name, the table (an existing one, or Create the table from the query, with an optional time partition such as day(ts)), the query, Every, Offset, the engine, and Start paused. Preview runs the query once and writes nothing: the rows, each column with its Iceberg type, whether the rows fit the table, and what was fetched. Create makes the sink.
+
+- Edit query and schedule on a sink: the query in an editor, Every, Offset and the engine. Preview runs the edited query against the sink's table; Save changes the sink, and a new query gets the next version.
+
+Every refusal is shown with its remedy, for example an every below your organisation's floor. A person who can only read the catalog sees the sinks and their queries without these controls.
+
+The same tab holds the catalog's Connections (Add a connection). A person can paste an API key there, and an agent only ever uses the connection's name.
 
 ## Measured: the first sink, 2026-09-29
 
