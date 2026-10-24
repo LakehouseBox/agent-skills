@@ -11,7 +11,21 @@ The query runs on LakehouseBox's executor, not on your machine, and an agent can
 
 ## A first sink, end to end
 
-The US Geological Survey publishes the earthquakes of the last hour as a GeoJSON file. This query turns it into one row per earthquake (quakes.sql):
+The US Geological Survey publishes the earthquakes of the last hour as a GeoJSON file. On engine 2.0 (the default), read_json reads a GeoJSON FeatureCollection as one row per feature, with each feature's properties as columns, so this query turns it into one row per earthquake (quakes.sql):
+
+```
+SELECT id                                    AS quake_id,
+       make_timestamptz("time" * 1000)       AS event_time,
+       mag                                   AS magnitude,
+       place,
+       (geometry->'coordinates'->>0)::DOUBLE AS lon,
+       (geometry->'coordinates'->>1)::DOUBLE AS lat,
+       (geometry->'coordinates'->>2)::DOUBLE AS depth_km
+FROM read_json('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson',
+               columns = {id: 'VARCHAR', "time": 'BIGINT', mag: 'DOUBLE', place: 'VARCHAR', geometry: 'JSON'})
+```
+
+Without columns, the same read gives every property and a geometry column of type GEOMETRY. On engine 1.5 the file is one row, and the features are unnested from it (this form returns 0 rows on 2.0: see the engine):
 
 ```
 SELECT f->>'id'                                                      AS quake_id,
@@ -117,6 +131,10 @@ Pin the types of a JSON source (columns = {…}, or JSON and ->>): inference can
 ## The engine
 
 A sink runs on one DuckDB engine and keeps it: 2.0 (DuckDB 2.0.0, the default) or 1.5 (DuckDB 1.5.6). The engine is stored when the sink is created (--engine, else the default of that day), so a later change of LakehouseBox's default never changes what an existing sink runs. Moving a sink (lhbox sink update <sink> --engine 1.5) previews its query on the new engine against the table first, and is refused if it does not run or fit there. Previews take --engine too. Every run in lhbox sink runs names its engine.
+
+The engines read some sources differently. The one we know of: DuckDB 2.0's read_json reads a GeoJSON FeatureCollection as one row per feature (its properties as columns, plus a GEOMETRY column), where 1.5 reads the file as one row with a features list. A query written for 1.5, unnest(features) over read_json(url, columns = {features: 'JSON[]'}), runs on 2.0 without an error and returns 0 rows. Either write it for 2.0 (the first example above), or add format = 'unstructured' to its read_json, which reads the file as one row on both engines (measured on the USGS feed, 2026-10-24: 238 rows on 1.5.6, and on 2.0.0 with it; 0 on 2.0.0 without).
+
+Because 0 rows fit any table, a change of a sink's query or engine whose preview returns 0 rows, while the sink's recent runs (its last 10 finished ones) returned rows, is refused with 409 preview_empty and changes nothing. When an empty answer is what you expect now, send the change again with allow_empty: true (lhbox sink update <sink> … --force).
 
 ## Sources that want a credential: connections
 
@@ -269,6 +287,7 @@ Every error names what to change and carries a remedy.
 | budget_exceeded, rate_limited, unknown_column, query_timeout, output_too_large | what to change, in its remedy |
 | engine_unavailable | the sink's engine could not run this time; retried like any transient failure |
 | empty_replace_refused | a replace sink's run returned fewer rows than min_rows; the table was not changed |
+| 409 preview_empty | a new query or engine previewed 0 rows where the sink's recent runs had rows (recent_rows); nothing was changed; allow_empty: true accepts it |
 | replace_refused | a replace sink's rows were stored but not committed (a row rejected); the table was not changed |
 | replace_unsupported, replace_needs_confirmation, mode_conflict, mode_fixed | why a replace sink was refused, in its remedy |
 | scheme_not_allowed | a zip:// path that is not one zip archive at an http(s) URL, or archive:// / compressed:// |
@@ -286,8 +305,9 @@ POST  /v1/sql/preview          {warehouse, sql, table?, engine?, format_version?
                                engine, engine_version
 POST  /v1/sinks                {name, warehouse, table, sql, every, offset?, paused?, create_table?, format_version?,
                                partition?, key?, engine?, mode?: append|replace, min_rows?, replace_existing?}   write level
-PATCH /v1/sinks/{id}           {sql?, every?, offset?, paused?, key?, engine?, min_rows?}   a new query or engine is
-                               previewed against the table first
+PATCH /v1/sinks/{id}           {sql?, every?, offset?, paused?, key?, engine?, min_rows?, allow_empty?}   a new query or
+                               engine is previewed against the table first; 0 rows there after runs with rows: 409
+                               preview_empty unless allow_empty
 POST  /v1/sinks/{id}/run       one run now (a paused sink too); 409 run_already_queued
 POST  /v1/sql/connections     {warehouse, name, url_prefix, kind: bearer|header|basic, header_name?, value}
 GET   /v1/sql/connections     ?warehouse=  names, prefixes, kinds; never a value
@@ -313,7 +333,7 @@ The same tab holds the catalog's Connections (Add a connection). A person can pa
 
 ## Measured: the first sink, 2026-09-29
 
-A real run against the live service; ... marks lines left out. The sink and the table were deleted afterwards.
+A real run against the live service, on engine 1.5 with the unnest(features) form of the query (engines came later); ... marks lines left out. The sink and the table were deleted afterwards.
 
 ```
 $ lhbox sink preview --catalog analytics --sql @quakes.sql --limit 3
