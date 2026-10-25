@@ -134,6 +134,26 @@ The person: opens the link, types the code their terminal shows, ticks write whe
 
 On approval, the organisation gets a new member token named after the machine, holding exactly what was approved. The CLI saves its key to ~/.config/lhbox/credentials.json and never prints it, unless you pass --show-key. The code is valid for 15 minutes. The person who approved it, or an admin, can revoke it later on the account page (Access tokens, Connections).
 
+### Several accounts on one machine: profiles
+
+Each login is saved under a profile. Without one, it is the profile default. To keep a second account or organisation beside the first, log in under another name:
+
+```
+lhbox login                       # profile default
+lhbox --profile acme login        # a second account, kept beside the first
+lhbox profile list                # every profile on this machine, the one in force marked
+lhbox profile use acme            # make acme the profile every command uses
+lhbox --profile default whoami    # one command as another profile, without switching
+```
+
+The profile in force is the first of: --profile <name> on the command, the LHBOX_PROFILE environment variable, the one lhbox profile use chose, then default. lhbox login says which profile it saved to, and lhbox whoami names the profile its key came from when it is not default.
+
+lhbox login --new replaces the key of the profile in force. It does not add a second account. Use it to swap the machine's key for a new one; use --profile to keep two. Before the approval, it says when it is about to replace a key that still works.
+
+To remove one: lhbox logout --profile acme revokes its key and forgets it; lhbox profile delete acme --yes only forgets it on this machine (the key stays valid until revoked on the account page).
+
+Every profile lives in the one file ~/.config/lhbox/credentials.json, readable only by you. Two other ways to keep accounts apart, mostly for scripts and CI: LHBOX_CREDENTIALS=<file> points the CLI at another credentials file, and LHBOX_API_KEY (or --api-key) uses a key for that process alone and ignores saved logins.
+
 ### lhbox token create: a token by hand
 
 Use it for a program, or an agent on a machine where nobody will run lhbox login. The API key is shown once. Give it to the program as LHBOX_API_KEY.
