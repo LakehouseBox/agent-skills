@@ -84,7 +84,7 @@ Photos (.jpg, .jpeg, .png, .webp) are served publicly for organisations that ask
 
 The published folder is also served from our CDN, at https://public-files.lakehousebox.com/<file bucket>/<key>. That is the address public_files_url gives. A reader far from our servers gets each range of a Cloud-Optimized GeoTIFF or a PMTiles archive from a nearby edge server, instead of from Germany. The same files stay readable at the S3 endpoint, at public_files_s3_url.
 
-- An overwrite reaches the CDN in about a minute. When you overwrite, delete or rename a published file, the CDN's copy of it is removed, usually within two minutes. If that removal cannot run, the CDN keeps a copy for at most seven days.
+- An overwrite reaches the CDN within seconds. When you overwrite, delete or rename a published file, the CDN's copy of it is removed, usually within a few seconds (about a second, measured). If that removal cannot run, a second path retries within a few minutes, and the CDN keeps a copy for at most seven days.
 
 - A browser's copy outlives an overwrite. A browser that read the file keeps its copy for its max-age, an hour by default. Within that time, a reader that read part of a file can get the rest from the new version and mix the two. If readers must see a new version at once, publish it under a new name (v2/…, a date in the path) and point to it. Or give the file a short max-age.
 
