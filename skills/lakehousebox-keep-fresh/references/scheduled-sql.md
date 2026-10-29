@@ -85,6 +85,8 @@ It is one SELECT: CTEs, joins, UNPIVOT, LATERAL, window functions and QUALIFY ar
 
 A list of URLs is all or nothing. read_text([...]), read_blob([...]) and the other readers given a list fail the whole query when one URL fails (a 404, a timeout, a refusal): DuckDB 2.0.0's read_text and read_blob take only allow_empty, with no option to skip a source that fails and no per-file error column, and their URL must be a literal, so a LATERAL call per row is refused at bind time. The error is a source_error that names the failing URL and its HTTP status first (The source answered HTTP 404 Not Found. HTTP Error: HTTP HEAD error on 'https://…/missing.txt' (HTTP 404 Not Found)), so drop that URL and preview again. A scheduled run that keeps failing on one dead link keeps being retried: remove the link from the sink's SQL (lhbox sink update). For a crawl of many pages of uneven health, keep the batches small, so that a dead link costs one batch, not the whole crawl.
 
+Finding the links that answer, in one query. A query that reads only filename (or only count(*)) from read_text([...]) or read_blob([...]) does not fail on a URL that fails: it returns one row per URL that answered and leaves out the others (a 404, a 500, a refusal), without saying why. Each URL is still downloaded once and counts against the run's budget. So lhbox sink preview --sql "SELECT filename FROM read_text([...])" lists the live links of a batch; put those in the query that reads content. The same holds in a sink: a sink whose query reads only filename silently leaves out the URLs that failed. Reading content, size or last_modified is all or nothing, as above (DuckDB 2.0.0, measured 2026-10-29).
+
 Excel workbooks. read_xlsx('https://…/register.xlsx') reads the first sheet of an .xlsx workbook at a URL, with the header row as column names and each column typed from its cells; sheet = 'Name' picks another sheet, range = 'A5:F200' a block of cells, header = false and all_varchar = true change how the first row and the types are read (FROM 'https://…/register.xlsx' works too, with the defaults). The workbook comes through the same proxy as any URL and counts against the run's budget (downloaded whole, once per read); the sheet itself is read as a stream, so a 1,000,000-row sheet (147 MB uncompressed, 20 MB file) read in about a second in 70 MB of memory (measured 2026-10-23). The workbook's text cells that the sheet uses are held in the run's memory: a workbook with more distinct text than the run's memory answers query_memory. Only .xlsx: the old binary .xls format is not read. On either engine; the extension is loaded only for a query that uses it.
 
 The query may also call the reviewed DuckDB community extensions the query service has: h3 (H3 cells), splink_udfs (phonetic and accent-stripping string functions), urlpattern and yaml. Each is loaded only when the query calls one of its functions, on either engine, and the same functions are refused as on the query service (those that multiply their input, such as h3_grid_disk, and the ones that change settings for the whole process).
@@ -215,7 +217,7 @@ every is at least 1 minute by default (5 minutes until 2026-10-23); an operator 
 
 - A slot that comes while the previous run is still going is skipped. Slots missed while LakehouseBox was down are counted, not run late.
 
-- A failure the next attempt may fix is retried within the slot after 30 s, 2 min and 8 min. That covers the source or the executor being unavailable, and a timeout.
+- A failure the next attempt may fix is retried within the slot after 30 s, 2 min and 8 min. That covers the source or the executor being unavailable, and a timeout. A run that needed more memory than a run has (query_memory) is not retried: it fails at once, and the next run (a manual one too) can start straight away.
 
 - A sink whose runs all failed for 24 hours pauses itself (paused_reason: failing). So does one whose table is gone (table_missing) or changed into one it cannot feed (table_unsupported), or whose organisation lost the feature (not_enabled).
 
@@ -285,6 +287,7 @@ Every error names what to change and carries a remedy.
 | auth_required | a 401 where no connection applies |
 | connection_conflict | a header connection used with a connection on another host or port |
 | budget_exceeded, rate_limited, unknown_column, query_timeout, output_too_large | what to change, in its remedy |
+| query_memory | the memory that stopped the run (memory_limit for the query; process_limit when the result did not fit while it was written); not retried. Read fewer columns or rows, or smaller files; read_text and read_blob hold each file whole as one value, so read a CSV with read_csv and select its columns |
 | engine_unavailable | the sink's engine could not run this time; retried like any transient failure |
 | empty_replace_refused | a replace sink's run returned fewer rows than min_rows; the table was not changed |
 | 409 preview_empty | a new query or engine previewed 0 rows where the sink's recent runs had rows (recent_rows); nothing was changed; allow_empty: true accepts it |
