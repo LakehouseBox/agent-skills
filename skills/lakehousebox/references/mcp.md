@@ -119,6 +119,7 @@ The code says what to change and the remedy how. Act on the remedy rather than r
 | table_not_allowed | a DuckDB system view: read your catalogs' tables |
 | sql_error | fix the SQL |
 | catalog_required | name the table catalog.namespace.table |
+| namespace_required | a bare SHOW TABLES: use SHOW ALL TABLES or SHOW TABLES FROM catalog.namespace |
 | not_found | check did_you_mean and list_tables |
 | connection_not_granted | the catalog exists and the person reads it, but this connection was not granted it: tell the person the remedy |
 | query_timeout | past 20 s: aggregate or filter; or your own DuckDB |
