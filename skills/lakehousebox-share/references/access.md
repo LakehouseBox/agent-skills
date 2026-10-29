@@ -154,6 +154,8 @@ To remove one: lhbox logout --profile acme revokes its key and forgets it; lhbox
 
 Every profile lives in the one file ~/.config/lhbox/credentials.json, readable only by you. Two other ways to keep accounts apart, mostly for scripts and CI: LHBOX_CREDENTIALS=<file> points the CLI at another credentials file, and LHBOX_API_KEY (or --api-key) uses a key for that process alone and ignores saved logins.
 
+Which file every command reads and writes is the first of: LHBOX_CREDENTIALS (a relative path is taken from the directory you ran the command in), $XDG_CONFIG_HOME/lhbox/credentials.json when XDG_CONFIG_HOME is set to an absolute path, then ~/.config/lhbox/credentials.json. If you set XDG_CONFIG_HOME after logging in, run lhbox login again, or set LHBOX_CREDENTIALS=~/.config/lhbox/credentials.json to keep using the earlier login.
+
 ### lhbox token create: a token by hand
 
 Use it for a program, or an agent on a machine where nobody will run lhbox login. The API key is shown once. Give it to the program as LHBOX_API_KEY.
