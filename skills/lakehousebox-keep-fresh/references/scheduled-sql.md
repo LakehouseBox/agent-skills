@@ -25,7 +25,7 @@ FROM read_json('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_ho
                columns = {id: 'VARCHAR', "time": 'BIGINT', mag: 'DOUBLE', place: 'VARCHAR', geometry: 'JSON'})
 ```
 
-Without columns, the same read gives every property and a geometry column of type GEOMETRY. On engine 1.5 the file is one row, and the features are unnested from it (this form returns 0 rows on 2.0: see the engine):
+Without columns, the same read gives every property and a geometry column of type GEOMETRY. Engine 1.5 reads the file as one row instead. For a query that runs on both engines, read the file whole with format = 'unstructured' and unnest its features (without that option, this form returns 0 rows on 2.0: see the engine):
 
 ```
 SELECT f->>'id'                                                      AS quake_id,
@@ -37,7 +37,7 @@ SELECT f->>'id'                                                      AS quake_id
        (f->'geometry'->'coordinates'->>2)::DOUBLE                    AS depth_km
 FROM (SELECT unnest(features) AS f
       FROM read_json('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson',
-                     columns = {features: 'JSON[]'}))
+                     format = 'unstructured', columns = {features: 'JSON[]'}))
 ```
 
 ```
@@ -65,7 +65,7 @@ What each command printed in a real run is at the end of this page.
 
 ## Who can use it
 
-Scheduled SQL is live and on for every organisation on the free plan. The plan allows two scheduled-SQL sinks (the plan limit sql_sinks). lhbox usage --full shows yours and the per-run budgets.
+Scheduled SQL is live and on for every organisation on the free plan. The plan allows two scheduled-SQL sinks (the plan limit sql_sinks, on the pricing page (https://lakehousebox.com/pricing/#scheduled-sql)). Every sink of the organisation that is not deleted counts, a paused one too, whichever catalog or session made it: a third is refused with 409 limit_exceeded. lhbox usage --full shows yours and the per-run budgets.
 
 A catalog an agent made without an account (lhbox new) gets it when a person claims it. Until then, sink create, run and resume answer 403 claim_required.
 
