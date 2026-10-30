@@ -130,8 +130,9 @@ The code says what to change and the remedy how. Act on the remedy rather than r
 | missing_credential | no key configured (a local developer server) |
 | unreachable | no answer from the API: safe to retry |
 | route_missing | the API behind the server predates a route |
+| redirected | the API answered with a redirect (an http:// address, a redirecting proxy): set LHBOX_URL to location |
 
-The last three are the server's own envelopes. The full list: Errors and help (https://lakehousebox.com/docs/errors/).
+The last four are the server's own envelopes. The full list: Errors and help (https://lakehousebox.com/docs/errors/).
 
 ## Security model
 
