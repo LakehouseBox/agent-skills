@@ -7,7 +7,7 @@ Every number on this page was measured on 2026-09-23. The defaults it describes 
 
 LakehouseBox stores Iceberg tables and is never in the query path. Your engine reads the Parquet files itself, with short-lived credentials the catalog hands it. What a query costs is set by three things: how the files were written, what the engine can skip, and how far the engine is from the store. This page says what the platform sets for you, what you choose, and what to expect.
 
-A number with no date of its own comes from one measured session (2026-09-23). The tables were TPC-H-derived (lineitem at scale 10: 60 million rows, 2.1 GB of Parquet). They were written and read with DuckDB 1.5.5 and its Iceberg extension over the internet, Nuremberg to Madrid. Results derived from TPC-H are not comparable to published TPC-H results.
+A number with no date of its own comes from one measured session (2026-09-23). The tables were TPC-H-derived (lineitem at scale 10: 60 million rows, 2.1 GB of Parquet). They were written and read with DuckDB 1.5.5 and its Iceberg extension over the internet, from the store to Madrid (the store was then in Germany; it has run in Frankfurt, Germany, since 2026-10-28, and these numbers were not re-measured there). Results derived from TPC-H are not comparable to published TPC-H results.
 
 ## What a query can skip, and what it needs
 

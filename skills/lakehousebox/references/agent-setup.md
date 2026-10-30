@@ -193,12 +193,12 @@ Every error carries a remedy; read it before retrying. The full list: Errors and
 | first query on a table after ATTACH, then later ones | ~0.5 s, then ~0.05 s | 2026-09-21 |
 | CSV of 14 MB into a table (read_csv) | ~2 s, one commit | 2026-09-21 |
 | 44 files loaded one statement each | 44 commits | 2026-09-20 |
-| one download stream, Madrid to the store | 39 MB/s; 468 MB/s from inside Hetzner | 2026-09-21 |
+| one download stream, Madrid to the store | 39 MB/s; 468 MB/s from a server in the store's data centre | 2026-09-21, before the store moved to Frankfurt (2026-10-28); not re-timed |
 | login code, claim code | 15 minutes; a day | current |
 | catalog token and storage credentials | about an hour, refreshed by the engine | current |
 | a provisioning catalog | retried every 30 s for up to 10 minutes | current |
 
-For a bulk pull of a large table, run it from a machine in Europe, best inside Hetzner: the network path, not the store, sets the speed. DuckDB already reads in parallel; do not add threads of your own.
+For a bulk pull of a large table, run it from a machine in Europe, best near Frankfurt, Germany: the network path, not the store, sets the speed. DuckDB already reads in parallel; do not add threads of your own.
 
 ---
 HTML version: https://lakehousebox.com/docs/agent-setup/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt
