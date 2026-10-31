@@ -102,6 +102,8 @@ Each person or token holds read, write or nothing on each catalog:
 
 - A token holds exactly the grants it was given. With none, it can reach no catalog.
 
+- A hosted agent (https://lakehousebox.com/docs/hosted-agents/) is granted a catalog only by its creator or an admin. Anyone else, even with write on that catalog, gets 403 not_agent_manager.
+
 | level | lets you |
 |---|---|
 | read | list and query tables, get the catalog's read-only connection recipe, browse and preview the catalog's files, list its uploaders and sinks |

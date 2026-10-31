@@ -7,7 +7,7 @@ Preview, enabled per organisation on request. Until it is enabled for your organ
 
 A hosted agent is a prompt that LakehouseBox runs for you, on demand or on a schedule. It reads the catalogs you choose with SQL and keeps a few values between runs. It can append rows to tables you name, read web hosts you name, email you and the members who subscribe, and use tools of MCP servers you connect. The model runs in the EU (Scaleway, Paris). Your agent brings no compute and holds no key.
 
-Each agent acts through an identity of its own. It reads exactly the catalogs its definition names and nothing else, whoever created it.
+Each agent acts through an identity of its own. It reads exactly the catalogs its definition names and nothing else, whoever created it. Only its creator or an admin of the organisation changes those catalogs, with lhbox agent update or with a catalog grant to the agent's identity. Anyone else who holds write on a catalog gets 403 not_agent_manager, because what the agent reads reaches a model that can use its creator's integrations.
 
 ## The short path
 
