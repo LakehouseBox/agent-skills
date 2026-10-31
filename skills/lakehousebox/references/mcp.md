@@ -48,7 +48,7 @@ The person: approves the connection and picks its access:
 
 - Only select catalogs, each at read or write. A catalog created later is not in the list: the connection answers connection_not_granted for it until the person gives it the catalog. They can grant it under the catalog's Access tab (Grant access, then the connection's token), or reconnect and choose All catalogs.
 
-The approval creates a token under Access tokens → Connections on the account page. The server needs the scope catalogs:read. The two tools that change things (query_rw, keep_account) also need catalogs:write. When the client asks for write, the consent page has it ticked. A connection approved read-only answers insufficient_scope to query_rw until it is reconnected with write.
+The approval creates a token under Access tokens → Connections on the account page. The server needs the scope catalogs:read. The four tools that change things (query_rw, document_table, set_agents_md, keep_account) also need catalogs:write. When the client asks for write, the consent page has it ticked. A connection approved read-only answers insufficient_scope to query_rw until it is reconnected with write.
 
 ### With no account yet
 

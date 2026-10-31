@@ -39,14 +39,25 @@ lhbox table get analytics.sensors.readings                                      
 - **Required columns or identifier fields**: create the table first (`lhbox table create … --format-version 3
   --column id:long:required:identifier --column geom:geometry`, see the base skill), then import with `--mode append`.
 
-## Describe what you loaded
+## Finish: describe what you loaded (required)
 
-The next agent, or the person's colleague, reads the table without the context you have now:
+A load is not done until the next agent, or the person's colleague, can read the tables without the context you have
+now. Do this before you report back, without being asked:
 
 ```sh
-lhbox table document analytics.sensors.readings --doc "One row per reading, every 5 minutes, from …"
-lhbox catalog agents-md analytics --set AGENTS.md          # the catalog's notes: units, joins, caveats
+lhbox table document analytics.sensors.readings --doc "One row per reading, every 5 minutes, from …" \
+    --column ts="When the reading was taken (UTC)" --column value="Degrees Celsius"
+lhbox catalog agents-md analytics                          # is there one? (it says so when there is none)
+lhbox catalog agents-md analytics --set AGENTS.md          # write it, or update it when your load changed what it says
 ```
+
+- **Every table you created or filled** gets a `--doc` (the grain: one row per what, where the rows come from, how
+  fresh) and a `--column` for each column whose meaning is not obvious from its name (units, codes, what null means).
+- **The catalog's AGENTS.md**: where to start, the structure, how tables join, analytical caveats, freshness,
+  attribution. The template is in the `lakehousebox` skill's agent-setup reference, "Finish: leave notes for the next
+  reader". Write what you learned while loading: the traps a reader would otherwise rediscover by querying.
+- **Over MCP** (no shell): `document_table` and `set_agents_md` do the same; after a `CREATE TABLE`, `query_rw`'s
+  answer names them in `next_step`.
 
 ## A load went wrong
 

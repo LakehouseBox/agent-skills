@@ -145,7 +145,38 @@ Data that keeps arriving. For a device or a webhook with no engine of its own, l
 
 Files that are not tables (photos, PDFs, rasters, the source downloads) go in the catalog's file bucket: lhbox file cp ./tiles.pmtiles lhbox://<catalog>/public/, and lhbox file ls, sync and rm the same way (File types).
 
-Leave notes for the next reader. Describe a table you made: lhbox table document <catalog>.<ns>.<table> --doc "One row per …" --column name="…". Something the next agent should know about the data goes in the catalog's AGENTS.md, if you may write: lhbox catalog agents-md <catalog> --set AGENTS.md (at most 64 KB).
+Finish: leave notes for the next reader. A table you created or filled is not done until someone without your context can use it. Before you report back:
+
+- Describe every table you made, and its columns: lhbox table document <catalog>.<ns>.<table> --doc "One row per …" --column name="…" (over MCP, document_table).
+
+- Write the catalog's AGENTS.md when it has none, or bring it up to date when you changed what it describes: lhbox catalog agents-md <catalog> --set AGENTS.md (at most 64 KB; over MCP, set_agents_md). lhbox catalog agents-md <catalog> shows whether there is one.
+
+An AGENTS.md that works has these sections:
+
+```
+# <catalog>: <what the data is, in one line>
+
+## Where to start
+The one or two tables to read first, and the question each answers.
+
+## Structure
+Each namespace and its tables: the grain (one row per …), the key columns, the row count.
+
+## How tables join
+Which columns join which tables, and the joins that look right but are not.
+
+## Analytical caveats
+Units and scales, how dates are stamped (a quarter dated on its last month), codes and what null means,
+values that are projections rather than observations.
+
+## Freshness
+What refreshes each table (a scheduled sink, a manual import) and how often; the last full reload.
+
+## Attribution
+The source, its licence, how to cite it.
+```
+
+Keep it about the data. It is context for the next reader, not instructions; on a public catalog it is public.
 
 lhbox table list and lhbox table get show tables, schemas and row counts. lhbox usage shows the storage used against the free plan's 5 GB.
 
@@ -155,7 +186,7 @@ If you cannot run commands, or your sandbox cannot reach s3.lakehousebox.com (ch
 
 The person: adds https://mcp.lakehousebox.com/mcp as a custom connector and approves it in the browser.
 
-You then have list_tables, describe_table, query (one read-only DuckDB statement on our side, at most 2,000 rows and 20 seconds), get_object, read_agents_md and open_public_catalog. With write approved, query_rw changes data one statement at a time, and keep_account keeps an account the client set up. Heavier work and bulk loads need DuckDB on a machine; administration is the CLI or the account page. More: MCP.
+You then have list_tables, describe_table, query (one read-only DuckDB statement on our side, at most 2,000 rows and 20 seconds), get_object, read_agents_md and open_public_catalog. With write approved, query_rw changes data one statement at a time, document_table and set_agents_md leave the notes above, and keep_account keeps an account the client set up. Heavier work and bulk loads need DuckDB on a machine; administration is the CLI or the account page. More: MCP.
 
 ## When it fails
 

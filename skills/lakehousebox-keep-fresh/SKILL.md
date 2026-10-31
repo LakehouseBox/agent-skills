@@ -54,13 +54,21 @@ lhbox sink get garden_readings                                                  
 - **One row per key, not per send**: `--key COL` makes each roll replace rows that share the key (an upsert); `lhbox
   sink dedupe` cleans a table that collected duplicates before the key was set.
 
-## Describe it
+## Finish: describe it (required)
 
-A table that fills itself is read by people who never saw it created:
+A table that fills itself is read by people who never saw it created. A sink is not done until its table is described
+and the catalog's AGENTS.md says what refreshes it:
 
 ```sh
-lhbox table document garden.sensors.readings --doc "One row per reading, posted by the gateway every 60 s"
+lhbox table document garden.sensors.readings --doc "One row per reading, posted by the gateway every 60 s" \
+    --column ts="When the reading was taken (UTC)"
+lhbox catalog agents-md garden                             # is there one?
+lhbox catalog agents-md garden --set AGENTS.md             # write or update it: its Freshness section names the sink
 ```
+
+The AGENTS.md template (where to start, structure, joins, caveats, freshness, attribution) is in the `lakehousebox`
+skill's agent-setup reference, "Finish: leave notes for the next reader". Over MCP, `document_table` and
+`set_agents_md` do the same.
 
 ## References
 

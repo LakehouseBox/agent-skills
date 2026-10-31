@@ -107,11 +107,14 @@ SELECT * FROM <catalog>.<namespace>.<table> LIMIT 10;
 
 ## Leave something for the next agent
 
-- `lhbox catalog agents-md <catalog>` reads the catalog's AGENTS.md (`read_agents_md` over MCP). When you have
-  write access and learned something the next agent needs, `lhbox catalog agents-md <catalog> --set AGENTS.md` (at
-  most 64 KB).
-- `lhbox table document <catalog>.<ns>.<table> --doc "One row per …"` describes a table you made; `describe_table`
-  shows it and `list_tables` search finds it.
+Work that creates or fills tables is not finished until they are described: do it before you report back, unasked.
+
+- `lhbox table document <catalog>.<ns>.<table> --doc "One row per …" --column name="…"` describes every table you made
+  and its columns (`document_table` over MCP); `describe_table` shows it and `list_tables` search finds it.
+- `lhbox catalog agents-md <catalog>` reads the catalog's AGENTS.md (`read_agents_md` over MCP). A catalog you built
+  or changed gets one, or an update: `lhbox catalog agents-md <catalog> --set AGENTS.md` (at most 64 KB;
+  `set_agents_md` over MCP). Over MCP, `list_tables` shows `agents_md.present: false` on a catalog you may write that
+  has none. The template is in [agent-setup](references/agent-setup.md), "Finish: leave notes for the next reader".
 
 ## The other skills
 
