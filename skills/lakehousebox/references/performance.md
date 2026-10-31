@@ -131,9 +131,11 @@ LakehouseBox's own maintenance worker keeps the order:
 
 - It sorts the small files by their lower bound on that column, and merges only consecutive files.
 
-- It writes each merged file ORDER BY that column, in 1,000,000-row row groups. A row group closes early at 256 MiB of rows in memory, so wide tables stay bounded.
+- It writes each merged file ORDER BY that column, in 500,000-row row groups (1,000,000 until 2026-10-31: larger groups make a point lookup read more). A row group closes early at 256 MiB of rows in memory, so wide tables stay bounded.
 
-The merged files therefore keep the tight bounds their inputs had. A table loaded in date order stays skippable by date after compaction. A seven-column scan needs a handful of range requests per file, rather than the ~50 that 200,000-row groups cost. The compaction snapshot's summary records the column used (lhbox.compaction.order_by).
+The merged files therefore keep the tight bounds their inputs had. A table loaded in date order stays skippable by date after compaction. A seven-column scan needs a few range requests per file, rather than the ~50 that 200,000-row groups cost.
+
+Every unpartitioned table LakehouseBox creates through the API (lhbox table create, a format-version 3 import) carries write.parquet.row-group-limit = 500000 (since 2026-10-31). The store's compactor and PyIceberg write row groups of at most that many rows; DuckDB ignores the property. A table that sets its own value keeps it. The compaction snapshot's summary records the column used (lhbox.compaction.order_by).
 
 Three edge cases:
 
