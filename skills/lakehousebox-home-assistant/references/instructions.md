@@ -161,10 +161,10 @@ It prints a link and a code. Give both to the person: they open the link, sign u
 lhbox claim --resume --wait
 ```
 
-saves this machine's new key (the key from lhbox new stops working at that moment). If its answer says "downgraded": true (the person kept read), the key cannot create the sink, and the account page cannot raise it: the claim's key is a connection, approved at one level. Ask again, for write on the catalog, and give the person the new link and code:
+saves this machine's new key (the key from lhbox new stops working at that moment). If its answer says "downgraded": true (the person kept read), the key cannot create the sink, and the account page cannot raise it: the claim's key is a connection, approved at one level. Sign this machine in as the person instead (the key acts as them, write included), and give them the new link and code:
 
 ```
-lhbox login --new --level write --catalog lakehouse:write --no-wait
+lhbox login --new --no-wait
 lhbox login --resume
 ```
 

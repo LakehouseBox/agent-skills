@@ -13,15 +13,15 @@ where they hold write, never above their own level ([access](references/access.m
 
 | who | do | read next |
 |---|---|---|
-| this machine, for an agent | `lhbox login` with the catalogs and levels it needs | [access](references/access.md), "Tokens for agents" |
-| a program or an agent on a machine where nobody runs `lhbox login` | a token with exactly the grants it needs | [access](references/access.md) |
+| this machine, for the person's own agent | `lhbox login`: it acts as the person | [access](references/access.md), "Tokens for agents" |
+| a program, a server, or an agent that should not act as the person | a token with exactly the grants it needs | [access](references/access.md) |
 | a colleague | invite them to the organisation from the account page, then grant read or write on the catalog | [access](references/access.md) |
 | anyone, with no account | publish the catalog | [public-catalogs](references/public-catalogs.md) |
 
 ## Agents and programs: the narrowest grant that works
 
 ```sh
-lhbox login --catalog sales:read --catalog raw:write --name etl-box      # this machine; the person approves once
+lhbox login                                                              # this machine, as the person: they click Allow
 lhbox token create --name nightly-load --grant sales:write --grant raw:read
 lhbox token list
 lhbox token revoke nightly-load

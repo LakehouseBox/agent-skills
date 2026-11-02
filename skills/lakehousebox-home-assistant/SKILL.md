@@ -28,7 +28,7 @@ decisions.
    real question from the data before anything else: that is what the person came for.
 3. **The claim** (§3) is the one thing only the person can do: `lhbox claim`, give them the link and the code and
    tell them to pick **read and write** (the page offers read first), then `lhbox claim --resume --wait`. If it comes
-   back `downgraded`, ask again with `lhbox login --new --level write --catalog lakehouse:write --no-wait`. If they
+   back `downgraded`, ask again with `lhbox login --new --no-wait`. If they
    are not around, stop here and tell them exactly that, with the deadline.
 4. **The live feed** (§4–§6), after the claim: the sink, the secret, the `rest_command` and automation **exactly as
    written** (the payload survives integrations whose attributes are not JSON), the "uploads stalled" sensor, one

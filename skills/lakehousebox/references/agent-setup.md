@@ -55,7 +55,9 @@ On a computer with a browser, lhbox login opens the account page and waits up to
 
 The key the CLI saves acts as the person: it can do what they can do on the website, in every organisation they belong to, for 30 days. Then run lhbox login again. They can see or revoke it under Settings › Access keys.
 
-No browser on this computer (an SSH session, a cloud sandbox, a server): lhbox login uses the code login by itself, or ask for it with --no-browser. It prints a link and a code; say "Open this link, type the code XXXX-XXXX when it asks, and approve. Tick write if I should create tables or load data." The code lives 15 minutes; --no-wait prints the link and exits, --resume checks later (exit 0 approved, exit 3 still waiting). That login saves a key limited to what the person approves, named after this machine (--catalog NAME[:read|write], --level and --manage-agents ask for that kind of key on any computer).
+No browser on this computer (an SSH session, a cloud sandbox, a server): lhbox login uses the code login by itself, or ask for it with --no-browser. It prints a link and a code; say "Open this link, type the code XXXX-XXXX when it asks, and allow it." The code lives 15 minutes; --no-wait prints the link and exits, --resume checks later (exit 0 approved, exit 3 still waiting). That login saves the same key: it acts as the person.
+
+A key limited to some catalogs is made by the person on the website (Settings › Access keys) or with lhbox token create, and given to you as LHBOX_API_KEY; lhbox login never makes one.
 
 Running lhbox login on a machine that is already signed in answers Still connected and starts nothing; --new forces a fresh sign-in.
 

@@ -122,19 +122,23 @@ A catalog cannot be shared with another organisation. To let someone outside rea
 
 ## Tokens for agents
 
-### lhbox login: an agent connects a machine
+### lhbox login: sign a machine in as you
 
 ```
-lhbox login                                       # asks for write on the default catalog; the person ticks it
-lhbox login --catalog sales:read --catalog raw:write --name etl-box
-lhbox login --no-wait                             # print the link and exit; finish later with --resume
+lhbox login                 # opens your browser; you click Allow
+lhbox login --no-browser    # the browser is on another computer: a link and a code instead
+lhbox login --no-wait       # with a code: print the link and exit; finish later with --resume
 ```
 
-The CLI prints a link and a code. The person opens the link, logs in, and sees a consent screen. It names what the machine calls itself, where the request came from and when it started, and the catalogs and access asked for. Read is preselected; write is ticked by the person, catalog by catalog. They cannot give more than they hold themselves.
+A login is yes or no. The key it saves acts as you: it can do what you can do on the website, in every organisation you belong to, for 30 days. Then run lhbox login again. You see and revoke it under Settings › Access keys.
 
-The person: opens the link, types the code their terminal shows, ticks write where it is needed, and approves. A link alone can come from anyone: approve only a login you started yourself, and deny any code someone sent you.
+On a computer with a browser, lhbox login opens the account page. You sign in if needed and click Allow; the browser comes back to this computer and the CLI is signed in. An agent running on this computer can give you the link instead: it works when you open it on this computer.
 
-On approval, the organisation gets a new member token named after the machine, holding exactly what was approved. The CLI saves its key to ~/.config/lhbox/credentials.json and never prints it, unless you pass --show-key. The code is valid for 15 minutes. The person who approved it, or an admin, can revoke it later on the account page (Access tokens, Connections).
+Without a browser here (an SSH session, a server), or with --no-browser, the CLI prints a link and a code. Open the link anywhere, type the code the terminal shows, and allow it. A link alone can come from anyone: allow only a login you started yourself, and deny any code someone sent you. The code is valid for 15 minutes.
+
+The CLI saves the key to ~/.config/lhbox/credentials.json and never prints it, unless you pass --show-key.
+
+A key limited to some catalogs (for a program, a server, or someone else's agent) is not made by lhbox login. Make it on the website (Settings › Access keys) or with lhbox token create below, and give it to the program as LHBOX_API_KEY.
 
 ### Several accounts on one machine: profiles
 
@@ -160,7 +164,7 @@ Which file every command reads and writes is the first of: LHBOX_CREDENTIALS (a 
 
 ### lhbox token create: a token by hand
 
-Use it for a program, or an agent on a machine where nobody will run lhbox login. The API key is shown once. Give it to the program as LHBOX_API_KEY.
+Use it for a program, a server, or an agent that should not act as you: it holds only the catalogs you grant it. The API key is shown once. Give it to the program as LHBOX_API_KEY.
 
 ```
 lhbox token create --name nightly-load --grant sales:write --grant raw:read
