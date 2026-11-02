@@ -57,7 +57,7 @@ The CLI prints a link and a code, and opens a browser when there is one. Use --n
 
 The person: say "Open this link, type the code XXXX-XXXX when it asks, and approve. Tick write if I should create tables or load data." Always give the code: the page asks for it, so a link alone is never enough. With no account yet, the same page lets them create one.
 
-On approval, the CLI saves the key of a new agent of their organisation, named after this machine. It prints Connected to acme_corp (read and write) as <machine>. If it says read only, ask the person for write before you write. The person can see or revoke this connection on the account page, under Access tokens → Connections.
+On approval, the CLI saves the key of a new agent of their organisation, named after this machine. It prints Connected to acme_corp (read and write) as <machine>. If it says read only, ask the person for write before you write. The person can see or revoke this connection on the account page, under Settings › Access keys.
 
 Running lhbox login on a machine that is already connected answers Still connected and starts nothing. --level read asks for read only, --name <agent> names the agent, and --new forces a fresh approval.
 

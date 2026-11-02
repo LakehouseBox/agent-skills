@@ -116,7 +116,7 @@ See With no account yet (https://lakehousebox.com/docs/mcp/#with-no-account-yet)
 
 The server's instructions, sent at initialize, repeat this page's short version. Start with list_tables, then describe_table. Aggregate and filter in SQL rather than fetch raw rows; busy means wait and retry. Read files with get_object, and open a public catalog with open_public_catalog.
 
-Once per session they say how to act as another account or organisation. Revoke a remote connection under Access tokens → Connections, then reconnect as the other account. Replace an API key, sent as the bearer or set as LHBOX_API_KEY (which may differ from your CLI's), with another key.
+Once per session they say how to act as another account or organisation. Revoke a remote connection under Settings › Access keys, then reconnect as the other account. Replace an API key, sent as the bearer or set as LHBOX_API_KEY (which may differ from your CLI's), with another key.
 
 Every answer is compact JSON (no indentation, non-ASCII as itself): an agent pays for every character it reads.
 
