@@ -11,7 +11,7 @@ This page gets an agent from nothing to a catalog it can read and write with Duc
 
 ```
 curl -fsSL https://lakehousebox.com/install.sh | sh   # the lhbox CLI: one Python 3 file
-lhbox login                                     # prints a link and a code for the person
+lhbox login                                     # the person clicks Allow in their browser
 lhbox doctor                                    # PASS or FAIL for each check
 brew install duckdb                             # the duckdb program (elsewhere: https://duckdb.org/install)
 lhbox duckdb                                    # DuckDB with the catalog attached
@@ -26,7 +26,7 @@ CREATE TABLE acme_corp.raw.trips AS SELECT * FROM read_csv('data/*.csv');   -- a
 SELECT count(*) FROM acme_corp.raw.trips;
 ```
 
-The person: opens the link, types the code, ticks Write if you will create tables, and approves.
+The person: clicks Allow on the page that opens in their browser (or on the link you give them).
 
 The examples use the catalog acme_corp. Yours has its own name: run lhbox catalog list and use what it shows.
 
@@ -47,19 +47,17 @@ The CLI needs Python 3.9 or newer and comes only from this installer. The lakeho
 ## With an account: lhbox login
 
 ```
-lhbox login                 # waits up to 15 minutes for the approval
-lhbox login --no-wait       # or: print the link and exit at once
-lhbox login --resume        # later: check once (exit 0 approved, exit 3 still waiting)
-lhbox login --resume --wait # later: wait for the decision
+lhbox login                 # opens the person's browser; they click Allow
+lhbox login --no-browser    # the browser is on another computer: a link and a code instead
 ```
 
-The CLI prints a link and a code, and opens a browser when there is one. Use --no-wait when you cannot block for 15 minutes. The code lives 15 minutes; after that, run lhbox login again and send the new link.
+On a computer with a browser, lhbox login opens the account page and waits up to 10 minutes. The person signs in if needed and clicks Allow; the browser comes back to this computer and the CLI is signed in. If no browser opens (you run without a terminal), give the person the printed link: it works when they open it on this computer.
 
-The person: say "Open this link, type the code XXXX-XXXX when it asks, and approve. Tick write if I should create tables or load data." Always give the code: the page asks for it, so a link alone is never enough. With no account yet, the same page lets them create one.
+The key the CLI saves acts as the person: it can do what they can do on the website, in every organisation they belong to, for 30 days. Then run lhbox login again. They can see or revoke it under Settings › Access keys.
 
-On approval, the CLI saves the key of a new agent of their organisation, named after this machine. It prints Connected to acme_corp (read and write) as <machine>. If it says read only, ask the person for write before you write. The person can see or revoke this connection on the account page, under Settings › Access keys.
+No browser on this computer (an SSH session, a cloud sandbox, a server): lhbox login uses the code login by itself, or ask for it with --no-browser. It prints a link and a code; say "Open this link, type the code XXXX-XXXX when it asks, and approve. Tick write if I should create tables or load data." The code lives 15 minutes; --no-wait prints the link and exits, --resume checks later (exit 0 approved, exit 3 still waiting). That login saves a key limited to what the person approves, named after this machine (--catalog NAME[:read|write], --level and --manage-agents ask for that kind of key on any computer).
 
-Running lhbox login on a machine that is already connected answers Still connected and starts nothing. --level read asks for read only, --name <agent> names the agent, and --new forces a fresh approval.
+Running lhbox login on a machine that is already signed in answers Still connected and starts nothing; --new forces a fresh sign-in.
 
 ## Without an account: lhbox new, then lhbox claim
 
