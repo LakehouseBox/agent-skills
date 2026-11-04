@@ -20,7 +20,7 @@ lhbox org members and lhbox token list show the principal ids.
 
 ## Who can hold access
 
-Everything belongs to an organisation. An organisation holds catalogs, a catalog holds namespaces, and a namespace holds tables. A role says what you may do to the organisation, its people and its tokens. A grant says what you may do to one catalog's data, and covers every namespace and table in it. The API calls a catalog a warehouse (/v1/warehouses, warehouse_id).
+Everything belongs to an organisation. An organisation holds catalogs, a catalog holds namespaces, and a namespace holds tables. A role says what you may do to the organisation, its people and its tokens. A grant says what you may do to one catalog's data, and covers every namespace and table in it; with Enterprise (https://lakehousebox.com/enterprise), a grant can also cover one namespace or one table. The API calls a catalog a warehouse (/v1/warehouses, warehouse_id).
 
 People log in on the account page with email and password, or with Google. Each holds one of two roles, admin or member. The person who creates the organisation is its first admin.
 
