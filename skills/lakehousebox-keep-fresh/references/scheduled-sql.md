@@ -226,7 +226,7 @@ every is at least 1 minute by default (5 minutes until 2026-10-23); an operator 
 
 - A failure the next attempt may fix is retried within the slot after 30 s, 2 min and 8 min. That covers the source or the executor being unavailable, and a timeout. A run that needed more memory than a run has (query_memory) is not retried: it fails at once, and the next run (a manual one too) can start straight away.
 
-- A sink whose runs all failed for 24 hours pauses itself (paused_reason: failing). So does one whose table is gone (table_missing) or changed into one it cannot feed (table_unsupported), or whose organisation lost the feature (not_enabled).
+- A sink whose runs all failed for 24 hours pauses itself (paused_reason: failing). So does one whose table is gone (table_missing) or changed into one it cannot feed (table_unsupported), whose organisation lost the feature (not_enabled), or whose creator no longer holds write on the catalog (owner_lost_write).
 
 - Runs append, unless the sink has a key (--key): then each run replaces the rows that share it. Without a key, a source that republishes rows lands them again at every run. Read the latest per key with QUALIFY row_number() OVER (PARTITION BY <key> ORDER BY __ingest_ts DESC) = 1. A sink can also replace the whole table at every run (below).
 
