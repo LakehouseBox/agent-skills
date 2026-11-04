@@ -39,7 +39,7 @@ lhbox agent update <name> changes any part of an agent. Only what you pass chang
 
 ### Emails
 
-Members of the organisation can have an agent's notices sent to them too. Each one clicks "Email me this agent's notices" on its page, or runs lhbox agent subscribe <name> (lhbox agent unsubscribe <name> to stop). Each person subscribes only themselves and needs a verified address. They must also be able to read every catalog the agent reads, since a notice can carry what it read.
+Members of the organisation can have an agent's notices sent to them too. Each one clicks "Email me this agent's notices" on its page, or runs lhbox agent subscribe <name> (lhbox agent unsubscribe <name> to stop). Each person subscribes only themselves and needs a verified address. They must also be able to read every catalog the agent reads, since a notice can carry what it read. An agent that uses (or once used) someone's integrations or web keys emails only its creator and the organisation's admins, since its notices can carry what those accounts returned.
 
 Every email has its own "Stop emails from this agent" link, and your mail provider's unsubscribe button does the same. On your email as its creator, it turns notify_owner off. Turn it back on from the page or with lhbox agent update <name> --notify-owner. On a subscriber's email, it ends only that person's subscription.
 
