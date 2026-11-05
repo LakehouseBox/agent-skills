@@ -124,7 +124,7 @@ lhbox agent runs <name> --detail, GET /v1/agent-runs/{id} and "What it did" on t
 
 - every tool call in order, such as a run_sql call with its SQL, its outcome and the size of its answer (never the answer's data);
 
-- the email it sent;
+- the email it sent, and whether it reached your mail provider: sent is true once it has, and delivery says email, queued (being retried), failed (it could not be delivered) or dry_run (a test run, never sent);
 
 - its memory before and after.
 
