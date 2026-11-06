@@ -150,7 +150,28 @@ lhbox table add-files analytics.dem.spain staging/spain/ --sorted-by block
 
 - It needs PyIceberg 0.12 or newer with pyarrow, in the interpreter running lhbox (or --python PATH). It needs no DuckDB.
 
-- The table is format version 2. --full adds each file's footer summary to the JSON.
+- --mode create makes a format version 2 table. --full adds each file's footer summary to the JSON.
+
+### Into a format version 3 table (geometry)
+
+--mode append also adds files to a format version 3 table, for example one with a geometry column. Create the table first (lhbox table create … --format-version 3, or lhbox table import), then add the files:
+
+```
+lhbox table create analytics.geo.parcels --format-version 3 \
+  --column id:long --column name:string --column 'geom:geometry(EPSG:4326)'
+lhbox file put parcels/ staging/parcels/ --catalog analytics
+lhbox table add-files analytics.geo.parcels staging/parcels/ --mode append
+```
+
+- GeoParquet works as it is: the geometry column stays WKB in the file, and the table reads it as geometry.
+
+- The CRS has to match. A GeoParquet file declares a CRS for each geometry column, and no crs there means OGC:CRS84. A file whose CRS is not the table column's is refused before anything is copied (geometry_crs_mismatch): registered, it would make the table unreadable. A file with no GeoParquet metadata, or with "crs": null, takes the table's CRS.
+
+- The table must be unpartitioned (partitioned_table otherwise).
+
+- It needs pyarrow and the lakehousebox-iceberg-core package in that interpreter, not PyIceberg. Without it, the command stops and prints the pip install line to run.
+
+- Each run is one commit. Rows get their row ids in sequence after whatever the table held, like any other write.
 
 - If anything fails before the commit, the copies are deleted and your uploaded files stay where they are. Nothing is in the table.
 
@@ -219,6 +240,8 @@ The recipes for PyIceberg, Spark and the other engines are on the Engines (https
 | geometry_crs_without_authority | a version-3 import of a CRS with no code | --format-version 2, or re-tag the CRS first |
 | schema_mismatch | add-files: the files do not share one schema, or do not fit the table | fix the files; nothing was copied |
 | files_have_field_ids | add-files: the files were written by an Iceberg engine | add them with that engine |
+| geometry_crs_mismatch | add-files: a file's GeoParquet CRS is not the table column's | rewrite the file's crs, or use a table with that CRS |
+| iceberg_core_not_found | add-files into a version-3 table: the package is missing | run the pip install it prints |
 
 ## Numbers and dates
 
