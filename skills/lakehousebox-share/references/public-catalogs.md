@@ -70,6 +70,8 @@ A reader without an account gets the folder's data files:
 
 - GeoTIFF (COG), VRT, FlatGeobuf, PMTiles, MBTiles, GeoPackage, LAS/LAZ, PBF, shapefile parts and their spatial indexes;
 
+- 3D Tiles content and glTF (.glb, .gltf, .b3dm, .pnts, .i3dm, .cmpt, .subtree; glTF with external .bin buffers is not taken), so CesiumJS and deck.gl load a published tileset of GLB tiles;
+
 - KML/GML/GPX, CSV, TSV, JSON and GeoJSON, also compressed with gzip, zstd or bzip2;
 
 - YAML, Markdown, plain text, SQL, .aux.xml and .crc sidecars, and Zarr stores;

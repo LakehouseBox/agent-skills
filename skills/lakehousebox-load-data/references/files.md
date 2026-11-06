@@ -103,6 +103,7 @@ The type is the file name's last extension, in any case (.parquet, .PARQUET).
 | Rasters | .tif .tiff (Cloud-Optimized GeoTIFF included) .vrt .ovr .msk |
 | Vector and tiles | .fgb .pmtiles .mbtiles .gpkg .pbf .geojson .geojsonl .topojson .kml .kmz .gml .gpx |
 | Shapefiles | .shp .shx .dbf .prj .cpg .sbn .sbx .qix |
+| 3D Tiles and glTF | .glb .gltf .b3dm .pnts .i3dm .cmpt .subtree (a .gltf with its buffers embedded; external .bin buffers are not taken, so use .glb) |
 | Point clouds | .las .laz (COPC included) |
 | Text data | .csv .tsv .txt .json .ndjson .jsonl .yaml .yml .xml .md .sql .ipynb .log .crc .qml .sld |
 | Spreadsheets | .xlsx .xls .ods |
