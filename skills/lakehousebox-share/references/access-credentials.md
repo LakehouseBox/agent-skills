@@ -13,7 +13,9 @@ From the key pair, the engine gets two short-lived credentials and renews both i
 
 - a catalog token, valid for about an hour;
 
-- storage credentials, issued per table as the engine loads it, valid for about an hour. These go to write holders; a read-level recipe reads with the read-only key pair directly.
+- storage credentials, issued per table as the engine loads it, valid for about an hour. They carry the level of the pair that asked: the read/write pair gets a credential that reads and writes that one table, the read-only pair one that only reads that one table. Neither reaches another table.
+
+A script can ask for the same table credential itself with lhbox credentials <catalog>.<namespace>.<table> (POST /v1/credentials). A write holder gets the read/write one; a read holder gets the read-only one, which can read the table's files and nothing else, so a service can hand short-lived access to one table to its own users while it holds only read. The lifetime is fixed at one hour and cannot be shortened, and a credential already issued runs to its expiry.
 
 The key pair is the catalog's, not the token's. Two machines connected to the same catalog at the same level get the same pair. So LakehouseBox remembers who was handed which pair.
 
