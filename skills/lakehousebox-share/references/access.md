@@ -203,7 +203,7 @@ Engine credentials (https://lakehousebox.com/docs/access/credentials/), a page o
 | a person | an admin removes them from the organisation | at once; their grants and tokens go too, and the key pairs they or their tokens were handed are rotated |
 | an uploader | lhbox catalog uploader revoke <catalog> --uploader <name> | at once |
 | a sink's send key | lhbox sink delete <sink> | at once |
-| every copy of a catalog's key pair | lhbox catalog rotate <catalog> (admin) | old keys and catalog tokens made from them at once; storage credentials already issued run to their expiry, within about an hour |
+| every copy of a catalog's key pair | lhbox catalog rotate <catalog> (admin) | old keys, catalog tokens made from them and storage credentials issued from them, at once |
 
 Removing access rotates the pairs the person or token was handed. The answer lists them under keys_rotated.
 

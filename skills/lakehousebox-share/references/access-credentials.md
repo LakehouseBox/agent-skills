@@ -15,7 +15,7 @@ From the key pair, the engine gets two short-lived credentials and renews both i
 
 - storage credentials, issued per table as the engine loads it, valid for about an hour. They carry the level of the pair that asked: the read/write pair gets a credential that reads and writes that one table, the read-only pair one that only reads that one table. Neither reaches another table.
 
-A script can ask for the same table credential itself with lhbox credentials <catalog>.<namespace>.<table> (POST /v1/credentials). A write holder gets the read/write one; a read holder gets the read-only one, which can read the table's files and nothing else, so a service can hand short-lived access to one table to its own users while it holds only read. The lifetime is fixed at one hour and cannot be shortened, and a credential already issued runs to its expiry.
+A script can ask for the same table credential itself with lhbox credentials <catalog>.<namespace>.<table> (POST /v1/credentials). A write holder gets the read/write one; a read holder gets the read-only one, which can read the table's files and write nothing, so a service can hand short-lived access to one table to its own users while it holds only read. The lifetime is fixed at one hour and cannot be shortened. A credential is tied to the catalog key pair it was issued from, so it stops working at once when that pair is rotated: by hand, or because someone who was handed it lost their access, which can be another reader of the same catalog (the read-only pair is shared). Storage then answers 403; ask for a fresh credential and carry on. Not yet closed: its listing permission can also show the file names (not the contents) of another table in the same namespace whose name begins with this one's.
 
 The key pair is the catalog's, not the token's. Two machines connected to the same catalog at the same level get the same pair. So LakehouseBox remembers who was handed which pair.
 
@@ -27,9 +27,9 @@ Taking access away from someone who was handed a pair rotates that pair within s
 
 - Only the pair they lost is rotated. Removing a reader rotates the read-only pair, and write recipes keep working.
 
-- Someone who never fetched a recipe causes no rotation.
+- Someone who never fetched a recipe or a table credential (lhbox credentials) causes no rotation.
 
-- Storage credentials already issued run to their expiry, within about an hour.
+- Storage credentials issued from the rotated pair stop working at once too (measured 2026-11-06); ask for fresh ones.
 
 ## Special-purpose credentials
 
