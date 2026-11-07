@@ -165,7 +165,9 @@ lhbox table add-files analytics.geo.parcels staging/parcels/ --mode append
 
 - GeoParquet works as it is: the geometry column stays WKB in the file, and the table reads it as geometry.
 
-- The CRS has to match. A GeoParquet file declares a CRS for each geometry column, and no crs there means OGC:CRS84. A file whose CRS is not the table column's is refused before anything is copied (geometry_crs_mismatch): registered, it would make the table unreadable. A file with no GeoParquet metadata, or with "crs": null, takes the table's CRS.
+- The CRS has to match. A GeoParquet file declares a CRS for each geometry column, and no crs there means OGC:CRS84. A file whose CRS is not the table column's is refused before anything is copied (geometry_crs_mismatch): registered, it would make the table unreadable. A column of Parquet's own GEOMETRY type is checked by the crs of that type. A file with no GeoParquet metadata and no GEOMETRY crs, or with "crs": null, takes the table's CRS. The names are compared exactly, case included, because DuckDB 1.5 does: a plain GEOMETRY column that DuckDB creates is stored as geometry(ogc:crs84) and cannot read OGC:CRS84 files, so create lon/lat columns as geometry(OGC:CRS84).
+
+- Spatial filters skip files. Each file's bounding box goes into the table's manifest, as DuckDB's own writes do, so geom && box reads only the files the box touches. The box comes from statistics already in the file: Parquet's GEOMETRY type (DuckDB, GDAL 3.12), or a GeoParquet bbox covering column (geopandas write_covering_bbox=True, GDAL WRITE_COVERING_BBOX=YES). A file with neither is added without a box, and the report warns (no_geometry_bounds): every spatial filter reads it.
 
 - The table must be unpartitioned (partitioned_table otherwise).
 
@@ -240,7 +242,7 @@ The recipes for PyIceberg, Spark and the other engines are on the Engines (https
 | geometry_crs_without_authority | a version-3 import of a CRS with no code | --format-version 2, or re-tag the CRS first |
 | schema_mismatch | add-files: the files do not share one schema, or do not fit the table | fix the files; nothing was copied |
 | files_have_field_ids | add-files: the files were written by an Iceberg engine | add them with that engine |
-| geometry_crs_mismatch | add-files: a file's GeoParquet CRS is not the table column's | rewrite the file's crs, or use a table with that CRS |
+| geometry_crs_mismatch | add-files: a file's CRS is not the table column's, case included | rewrite the file's crs, or use a table with that CRS (geometry(OGC:CRS84) for lon/lat) |
 | iceberg_core_not_found | add-files into a version-3 table: the package is missing | run the pip install it prints |
 
 ## Numbers and dates
