@@ -7,9 +7,9 @@ Part of MCP (https://lakehousebox.com/docs/mcp/).
 
 ## The tools
 
-Six tools only read, and are marked so (readOnlyHint, idempotentHint). Four change things: query_rw, document_table, set_agents_md and keep_account. query_rw is marked destructiveHint, so a client that honours it asks before it runs.
+Seven tools only read, and are marked so (readOnlyHint, idempotentHint). Five change things: query_rw, document_table, set_agents_md, keep_account and talk_to_agent. query_rw is marked destructiveHint, so a client that honours it asks before it runs.
 
-All ten need the caller's key or token. All but open_public_catalog are bounded by the caller's grants. Name tables the way DuckDB does: catalog.namespace.table. A table in a catalog you cannot read answers 404, like one that does not exist.
+All twelve need the caller's key or token. All but open_public_catalog are bounded by the caller's grants. Name tables the way DuckDB does: catalog.namespace.table. A table in a catalog you cannot read answers 404, like one that does not exist.
 
 | tool | what it does | API |
 |---|---|---|
@@ -23,6 +23,8 @@ All ten need the caller's key or token. All but open_public_catalog are bounded 
 | document_table | a table's description and its columns' descriptions, in one commit | PATCH /v1/table |
 | set_agents_md | writes a catalog's AGENTS.md | PUT /v1/catalogs/{id}/agents-md |
 | keep_account | a link and a code that let the person keep an account the client set up | POST /v1/agent/identity/claim |
+| agent_brief | what one of your hosted agents needs from you, what it remembers, its recent runs | GET /v1/agents/{agent}/brief |
+| talk_to_agent | a message to one of your hosted agents, and its answer; your yes applies what it proposed | POST /v1/agents/{agent}/talk |
 
 ### list_tables
 
@@ -111,6 +113,16 @@ All ten need the caller's key or token. All but open_public_catalog are bounded 
 ### keep_account
 
 See With no account yet (https://lakehousebox.com/docs/mcp/#with-no-account-yet). A connection to an account a person already owns answers not_unclaimed.
+
+### agent_brief and talk_to_agent
+
+Your hosted agents, from your own assistant: ask Claude what your agent did last night, or tell it to skip watering until Friday. Both need the connection to read the account (account:read). Talking also needs account:manage, because a yes can change the agent. Through a connection you approved yourself, they act as you: you must be the agent's creator or an admin. The connection must also hold read on every catalog the agent was ever given, since its memory holds what it read there. An agent that has used a person's own integrations (their mailbox, say) is not reachable through a connection: talk to it on the account page.
+
+- agent_brief starts with attention, what needs you: something the agent flagged, a decision due, a failed run, a change it proposed. It also returns the proposed change in full (open_proposal), its memory and its last runs. It runs no model.
+
+- talk_to_agent sends what you said. The agent answers in reply, and may propose a change: a new version of its instructions (before, after), or items to mark done. A proposal changes nothing until you answer it. Your next message decides it: say yes and it is applied (acted.applied), say no and it is dropped (acted.discarded), or ask for something different and the agent proposes again. Only the message right after the proposal decides it; after anything else, the proposal stays waiting in the brief. Every change is a new version of the agent, and earlier versions can be restored. Each message uses your organisation's monthly inference allowance.
+
+- The CLI does the same: lhbox agent brief <name>, lhbox agent talk <name> "…".
 
 ### What the server tells the agent
 
