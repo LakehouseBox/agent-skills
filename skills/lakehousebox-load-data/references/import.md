@@ -127,7 +127,7 @@ A version-3 import needs a CRS with an authority code, such as EPSG:25830. A fil
 
 ## Files you laid out yourself: lhbox table add-files
 
-table import reads your rows and writes new files. lhbox table add-files instead keeps your Parquet files exactly as they are: row groups, sort order, compression. Use it when you already wrote them the way you want. An example is raster tiles, one per row, prepared with your own tools such as raquet and queried with your own DuckDB.
+table import reads your rows and writes new files. lhbox table add-files instead keeps your Parquet files as they are: row groups, sort order, compression (one exception, for geometry, is below). Use it when you already wrote them the way you want. An example is raster tiles, one per row, prepared with your own tools such as raquet and queried with your own DuckDB.
 
 It works in two steps. Upload the files to the catalog's files with lhbox file put, then add them to a table:
 
@@ -165,9 +165,11 @@ lhbox table add-files analytics.geo.parcels staging/parcels/ --mode append
 
 - GeoParquet works as it is: the geometry column stays WKB in the file, and the table reads it as geometry.
 
-- The CRS has to match. A GeoParquet file declares a CRS for each geometry column, and no crs there means OGC:CRS84. A file whose CRS is not the table column's is refused before anything is copied (geometry_crs_mismatch): registered, it would make the table unreadable. A column of Parquet's own GEOMETRY type is checked by the crs of that type. A file with no GeoParquet metadata and no GEOMETRY crs, or with "crs": null, takes the table's CRS. The names are compared exactly, case included, because DuckDB 1.5 does: a plain GEOMETRY column that DuckDB creates is stored as geometry(ogc:crs84) and cannot read OGC:CRS84 files, so create lon/lat columns as geometry(OGC:CRS84).
+- The CRS has to match. A GeoParquet file declares a CRS for each geometry column, and no crs there means OGC:CRS84. A file whose CRS is not the table column's is refused before anything is copied (geometry_crs_mismatch): registered, it would make the table unreadable. A column of Parquet's own GEOMETRY type is checked by the crs of that type, and a PROJJSON crs by its id ({"authority": "EPSG", "code": 4326} is EPSG:4326), which is how DuckDB names it: files from DuckDB's COPY … (FORMAT parquet, GEOPARQUET_VERSION 'V2') are accepted as they are. A GEOMETRY column with no crs, a file with no GeoParquet metadata and no GEOMETRY type, or "crs": null, takes the table's CRS. The names are compared exactly, case included, because DuckDB 1.5 does: a plain GEOMETRY column that DuckDB creates is stored as geometry(ogc:crs84) and cannot read OGC:CRS84 files, so create lon/lat columns as geometry(OGC:CRS84).
 
 - Spatial filters skip files. Each file's bounding box goes into the table's manifest, as DuckDB's own writes do, so geom && box reads only the files the box touches. The box comes from statistics already in the file: Parquet's GEOMETRY type (DuckDB, GDAL 3.12), or a GeoParquet bbox covering column (geopandas write_covering_bbox=True, GDAL WRITE_COVERING_BBOX=YES). A file with neither is added without a box, and the report warns (no_geometry_bounds): every spatial filter reads it.
+
+- Spatial filters skip row groups too. DuckDB uses the geospatial statistics of a row group only when the column also carries Parquet's ordinary statistics, and files written through Arrow C++ (pyarrow, GeoPandas) have only the geospatial ones, so inside such a file geom && box reads every row group. add-files gives those geometry columns an empty statistics entry: it writes a new footer after the file's data, which is copied unchanged, and the report counts the files (geometry_statistics_added). Measured on 2 files of 400,000 polygons, a small box read 13.1 MB before and 2.6 MB after (DuckDB 1.5.6; 14.1 and 3.1 MB with DuckDB 2.0), with the same rows. A footer it cannot rewrite (an encrypted file, for one) is added as it is, with a warning (geometry_statistics_not_added).
 
 - The table must be unpartitioned (partitioned_table otherwise).
 
