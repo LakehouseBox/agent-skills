@@ -37,6 +37,8 @@ How it runs. The rule owns an internal sink on the table, so the roller commits 
 
 - The prefix is listed every poll_seconds (default 60), from a watermark, signed as the catalog itself.
 
+- Each poll lists the whole prefix, so it grows with the files kept there. When the keys sort by time (dated folders such as camera/2026/11/06/…), --ordered-keys ("ordered_keys": true) lists from the newest folder already indexed on instead: one page per poll, however many files the prefix holds. The trade: a file uploaded into an older folder (a camera with a wrong clock, a backfill) is never indexed. The setting is chosen when the rule is created.
+
 - The rows are committed at the sink's next roll: by default every 300 s. --roll-seconds (floor 60) and --inactivity-seconds commit sooner.
 
 - So a new file is a row within about poll_seconds + roll_seconds.
