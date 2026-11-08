@@ -168,7 +168,7 @@ Do not give your personal API key to an agent: it counts as you.
 | tokens (input and output, of the default model) per month | 5,000,000 |
 | runs per day (UTC) | 4 |
 | test runs per agent per day | 10 |
-| one run | 250,000 tokens, 400 s, 15 model requests, 30 tool calls, 6 images (3 MB) |
+| one run | 350,000 tokens, 400 s, 15 model requests, 30 tool calls, 6 images (3 MB) |
 | appended by one run | 5,000 rows, 5 MB (at most 1,000 rows per call) |
 | fetches by one run | 20 |
 | web hosts per agent | 10 |
