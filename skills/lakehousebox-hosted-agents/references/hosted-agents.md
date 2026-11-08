@@ -3,7 +3,7 @@ This is a copy of https://lakehousebox.com/docs/hosted-agents/index.md taken whe
 
 # Hosted agents: a prompt LakehouseBox runs next to your data
 
-On for every organisation: up to three agents, 4 runs a day and 5 million tokens a month on the models we provide, free (the limits below). An organisation an agent made without an account gets them once a person claims it.
+On for every organisation: up to three agents, 4 runs a day and 5 million tokens a month on the models we provide, free, and two integrations to act in the tools you use (the limits below). An organisation an agent made without an account gets them once a person claims it.
 
 A hosted agent is a prompt that LakehouseBox runs for you, on demand or on a schedule. It reads the catalogs you choose with SQL and keeps a few values between runs. It can append rows to tables you name, read web hosts you name, email you and the members who subscribe, and use tools of MCP servers you connect. The model runs in the EU (Scaleway, Paris). Your agent brings no compute and holds no key.
 
@@ -134,7 +134,7 @@ One exception: an agent that uses, or ever used, your integrations or web keys. 
 
 ## Integrations (MCP servers)
 
-Connect an MCP server once for the organisation, then let each agent use the tools you pick:
+Connect an MCP server once for the organisation (two per organisation), then let each agent use the tools you pick:
 
 ```
 lhbox integration add linear --mcp https://mcp.linear.app/mcp --wait    # opens a sign-in link; approve in the browser
@@ -167,6 +167,7 @@ Do not give your personal API key to an agent: it counts as you.
 |  | default |
 |---|---|
 | agents | 3 |
+| integrations (MCP servers) | 2 |
 | tokens (input and output, of the default model) per month | 5,000,000 |
 | runs per day (UTC) | 4 |
 | test runs per agent per day | 10 |
