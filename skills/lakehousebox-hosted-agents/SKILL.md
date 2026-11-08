@@ -1,6 +1,6 @@
 ---
 name: lakehousebox-hosted-agents
-description: Create a LakehouseBox hosted agent - a prompt LakehouseBox runs next to the person's data, on demand or on a schedule, that reads their catalogs with SQL, keeps a few values between runs and emails a summary - test it before it sends anything, and read what each run did. A preview, enabled per organisation. Builds on the lakehousebox skill.
+description: Create a LakehouseBox hosted agent - a prompt LakehouseBox runs next to the person's data, on demand or on a schedule, that reads their catalogs with SQL, keeps a few values between runs and emails a summary - test it before it sends anything, and read what each run did. On for every organisation. Builds on the lakehousebox skill.
 ---
 
 # Hosted agents: a prompt LakehouseBox runs next to the data
@@ -8,8 +8,8 @@ description: Create a LakehouseBox hosted agent - a prompt LakehouseBox runs nex
 The `lakehousebox` skill has the ways in. A hosted agent runs **on LakehouseBox**, not on the person's machine: their
 computer can be off. It acts through an identity of its own that reads exactly the catalogs its definition names.
 
-**A preview, enabled per organisation.** Until it is enabled, creating or running one answers `403
-feature_not_enabled`; the person asks at hello@lakehousebox.com. Say so before planning around it.
+**On for every organisation**: up to three agents, 4 runs a day and 5 million tokens a month, free. An
+organisation made with `lhbox new` gets them once a person claims it (`403 claim_required` until then).
 
 ## The default path
 

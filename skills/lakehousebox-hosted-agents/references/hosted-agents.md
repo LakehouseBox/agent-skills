@@ -3,7 +3,7 @@ This is a copy of https://lakehousebox.com/docs/hosted-agents/index.md taken whe
 
 # Hosted agents: a prompt LakehouseBox runs next to your data
 
-Preview, enabled per organisation on request. Until it is enabled for your organisation, creating or running an agent answers 403 feature_not_enabled, and the account page shows no Agents tab. Ask at hello@lakehousebox.com.
+On for every organisation: up to three agents, 4 runs a day and 5 million tokens a month on the models we provide, free (the limits below). An organisation an agent made without an account gets them once a person claims it.
 
 A hosted agent is a prompt that LakehouseBox runs for you, on demand or on a schedule. It reads the catalogs you choose with SQL and keeps a few values between runs. It can append rows to tables you name, read web hosts you name, email you and the members who subscribe, and use tools of MCP servers you connect. The model runs in the EU (Scaleway, Paris). Your agent brings no compute and holds no key.
 
@@ -158,13 +158,15 @@ Do not give your personal API key to an agent: it counts as you.
 
 | what you see | what it means | what to do |
 |---|---|---|
-| 403 feature_not_enabled | hosted agents are not enabled for this organisation | ask at hello@lakehousebox.com |
+| 403 feature_not_enabled | an operator turned hosted agents off for this organisation | ask at hello@lakehousebox.com |
+| 409 limit_reached | the organisation has as many agents as its plan allows (three) | delete one, or ask for more at hello@lakehousebox.com |
 | integrations_unavailable | a token wrote the definition of an agent that uses your integrations | save the prompt yourself, or --confirm-definition |
 
 ## Limits (per organisation, unless said otherwise)
 
 |  | default |
 |---|---|
+| agents | 3 |
 | tokens (input and output, of the default model) per month | 5,000,000 |
 | runs per day (UTC) | 4 |
 | test runs per agent per day | 10 |
