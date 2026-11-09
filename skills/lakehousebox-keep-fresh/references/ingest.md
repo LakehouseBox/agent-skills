@@ -255,7 +255,7 @@ POST   /internal/sinks/{id}/roll  the roller's report
 
 The sink commands are create, update, dedupe, list, get, delete and send. Every flag is in the CLI reference. A send takes its key from --send-key-file FILE, --send-key K or LHBOX_SEND_KEY, and its batch id from --batch-id ID.
 
-lhbox connect mentions sinks in its notes: sinks_note, and ingest_url in GET /v1/connection. The audit log records sink.create, sink.delete and sink.roll.
+lhbox connect mentions sinks in its notes: sinks_note, and ingest_url in GET /v1/connection. The audit log records sink.create, sink.delete and sink.roll. A sink.roll is recorded for a roll that did something (committed batches, added or rejected rows, refused a replace, stopped the sink), not for a check that found nothing to roll, and is kept 15 days.
 
 ## Not in v1
 
