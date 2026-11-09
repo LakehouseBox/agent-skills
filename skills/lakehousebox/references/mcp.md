@@ -128,11 +128,12 @@ The code says what to change and the remedy how. Act on the remedy rather than r
 | rate_limited | more requests a second from one key than query_requests_per_second: retry after retry_after_seconds |
 | not_unclaimed | keep_account on an account a person already owns |
 | missing_credential | no key configured (a local developer server) |
-| unreachable | no answer from the API: safe to retry |
+| unreachable | the request never reached the API (or it changes nothing when sent twice): safe to retry |
+| outcome_unknown | a query_rw or talk_to_agent reached the API and its answer was lost: it may have taken effect. Check as the remedy says (query the table, agent_brief) before sending it again |
 | route_missing | the API behind the server predates a route |
 | redirected | the API answered with a redirect (an http:// address, a redirecting proxy): set LHBOX_URL to location |
 
-The last four are the server's own envelopes. The full list: Errors and help (https://lakehousebox.com/docs/errors/).
+The last five are the server's own envelopes. The full list: Errors and help (https://lakehousebox.com/docs/errors/).
 
 ## Security model
 
