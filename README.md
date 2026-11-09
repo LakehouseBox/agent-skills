@@ -1,7 +1,7 @@
 # LakehouseBox for agents
 
 The [LakehouseBox](https://lakehousebox.com) MCP connector and [Agent Skills](https://agentskills.io) in one plugin.
-LakehouseBox keeps analytical data as Apache Iceberg tables, operated in Germany; the agent brings the compute.
+LakehouseBox is data infrastructure for AI agents: managed Apache Iceberg tables, hosted agents that run on a schedule, and the compute to query them, operated in Germany. Your own agent can also bring its compute.
 
 - **The connector** (`https://mcp.lakehousebox.com/mcp`): find the tables you can read and how fresh they are, run
   read-only SQL on LakehouseBox's side, read files such as photos and, when you approved write, change tables with SQL. It needs a LakehouseBox account (free); you
