@@ -81,7 +81,7 @@ Its answer carries sink_create, saying what creating the sink still needs (not_e
 
 ## What the query can do
 
-It is one SELECT: CTEs, joins, UNPIVOT, LATERAL, window functions and QUALIFY are all fine. It reads http(s) URLs, public or with a connection's credential. The readers are DuckDB 2.0.0's: read_json, read_ndjson, read_csv, read_parquet, read_text, read_blob, or FROM 'https://…', the excel extension's read_xlsx, and the yaml extension's read_yaml, read_yaml_objects and read_yaml_frontmatter.
+It is one SELECT: CTEs, joins, UNPIVOT, LATERAL, window functions and QUALIFY are all fine. It reads http(s) URLs, public or with a connection's credential, or the tables of its own catalog (derived sinks, below), not both in one query. The readers are DuckDB 2.0.0's: read_json, read_ndjson, read_csv, read_parquet, read_text, read_blob, or FROM 'https://…', the excel extension's read_xlsx, and the yaml extension's read_yaml, read_yaml_objects and read_yaml_frontmatter.
 
 One failing URL in a list: ignore_errors. By default read_text([...]), read_blob([...]) and the other readers given a list fail the whole query when one URL fails (a 404, a timeout, a refusal), with a source_error that names the failing URL and its HTTP status first (The source answered HTTP 404 Not Found. HTTP Error: HTTP HEAD error on 'https://…/missing.txt' (HTTP 404 Not Found)). To keep the rest of the batch, add ignore_errors := true to read_text or read_blob:
 
@@ -177,6 +177,36 @@ Not available:
 - your catalog's own tables. Joining with them is planned.
 
 Pin the types of a JSON source (columns = {…}, or JSON and ->>): inference can change between fetches.
+
+## Reading the catalog's own tables: derived sinks
+
+A sink whose query reads tables of its own catalog keeps a table derived from them: an hourly summary, a grid, the latest state per station. Name the tables as you would in any query (catalog.namespace.table, or namespace.table):
+
+```
+lhbox sink create --catalog embalses --name basin_summary --table now.basin_summary --create-table --format-version 2 \
+  --sql @sql/now/basin_summary.sql --every 1h --offset 37m --mode replace --min-rows 10
+```
+
+```
+-- sql/now/basin_summary.sql
+SELECT r.basin_id, now() AS as_of, sum(s.stored_volume_hm3) AS stored_volume_hm3, sum(s.capacity_hm3) AS capacity_hm3
+FROM embalses."now".reservoir_status s JOIN embalses.ref.reservoirs r USING (reservoir_id)
+GROUP BY r.basin_id
+```
+
+- It runs where your other server-side queries run, with the sink's catalog attached read-only, as the person who created the sink (or last changed its query): the runs stop, and the sink pauses (owner_lost_write), when that person no longer holds write on the catalog. A preview (lhbox sink preview) runs it the same way, with the 20 seconds of a server-side query, and writes nothing; it needs scheduled SQL enabled for the organisation.
+
+- Its own catalog only. A query naming another catalog's table is refused at preview, create and change with 400 catalog_not_this_sinks, even when you can read that catalog. To combine two catalogs, copy what you need into this one first.
+
+- Tables or URLs, not both. The URL readers (read_csv, read_json, http_get, …) do not run in a derived sink, and a URL sink cannot read catalog tables (catalog_tables_not_supported). Load the source into a table with one sink and derive from it with another.
+
+- The functions are those of a server-side query (POST /v1/query (https://lakehousebox.com/docs/api/)): the h3 extension, the spatial extension (ST_Distance_Sphere, ST_X on a geometry column) and the rest of DuckDB 2.0.0's. Engine 2.0 only.
+
+- A run has at most 60 seconds of compute (or your organisation's sql_run_seconds, if lower) and the memory of a server-side query, and writes at most 1,000,000 rows. Each run is one batch, committed like any other sink's, so --mode replace swaps the whole table at once and --key keeps the latest row per key.
+
+- One table depends on another: give each sink its own offset in the same hour, the one it reads first. A run reads the tables as they are when it starts: --every 1h --offset 28m for the first, --offset 31m for the next, and so on. A run that has to wait for the query service starts later in its slot, so leave a few minutes between them.
+
+- lhbox sink get shows "reads": "catalog" for a derived sink, "urls" for the others.
 
 ## The engine
 
