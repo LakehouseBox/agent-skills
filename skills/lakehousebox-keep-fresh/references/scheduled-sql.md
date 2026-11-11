@@ -111,6 +111,18 @@ SELECT e ->> 'id' AS vehicle_id,
 FROM e
 ```
 
+Text that is not UTF-8. DuckDB's readers take UTF-8 text (only read_csv has an encoding option), and much public data is Latin-1 or a relative. Read the bytes with read_blob and decode them with LakehouseBox's decode_text(content, '<encoding>'), then parse the text with DuckDB's JSON or string functions. The encoding is the label in the source's Content-Type charset: utf-8, latin-1 (iso-8859-1), iso-8859-15, windows-1252, utf-16 and the other ISO-8859, Windows and common Asian encodings. Example, AEMET's hourly observations (text/plain;charset=ISO-8859-15), one row per station and hour with its accented name intact:
+
+```
+WITH t AS (SELECT decode_text(content, 'iso-8859-15') AS txt
+           FROM read_blob('https://opendata.aemet.es/opendata/sh/f9b006f6')),
+     o AS (SELECT unnest(from_json(txt, '[{"idema":"VARCHAR","ubi":"VARCHAR","fint":"VARCHAR","prec":"DOUBLE"}]'),
+                         recursive := true) FROM t)
+SELECT idema, ubi, fint::TIMESTAMPTZ AS fint, prec FROM o
+```
+
+A byte the encoding has no character for fails the run with a sql_error naming its offset (it is never replaced by � in your table). decode_text is on engine 2.0 only. The decoded text is held in the run's memory beside the bytes.
+
 Zip archives. A file inside a zip archive at a URL is read by naming the reader: read_csv('zip://https://gtfs.ovapi.nl/nl/gtfs-nl.zip/routes.txt'), and zip_contents('https://…/feed.zip') lists the archive (the zipfs extension, loaded only for such a query). The archive comes through the same proxy as any URL and counts against the run's budget: it is downloaded whole, once per read. A compressed file inside it is decompressed whole into the run's memory before DuckDB reads it, so its uncompressed size has to fit the run. Measured on the Dutch GTFS feed (218 MB zip, 2026-10-23): trips.txt (61 MB, 842,644 rows) runs in 1 s; stop_times.txt (968 MB, 16.3 million rows) does not fit a run at any budget an organisation can be given today. FROM 'zip://…' without a reader is not supported. Only zip: not archive:// or compressed:// (tar, 7z and the like), not a zip inside a zip, and only an http(s) URL inside zip://.
 
 Several URLs may be read in one call: a list, or a list comprehension over page numbers. A URL may contain current_date. LakehouseBox writes the rows; the query never writes.
