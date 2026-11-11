@@ -134,7 +134,25 @@ WITH s AS MATERIALIZED (
 SELECT idema, ubi, fint::TIMESTAMPTZ AS fint, prec FROM o
 ```
 
-and a source that wants its own headers: http_get('https://…', headers := MAP {'Accept': 'text/html', 'Accept-Language': 'es'}). Each call is one request through the same proxy as every read, checked the same way (public addresses only, ports 80 and 443) and counted in the run's request and download budgets and the per-host rate; it follows up to 5 redirects, each a request of its own, checked again. A connection whose prefix the URL starts with adds its credential, as for the readers (the query must name the connection's host, as the readers' must); on a redirect to another host the Authorization and Cookie headers you set are dropped. Host, Content-Length, Connection, Accept-Encoding, User-Agent and Proxy-* are LakehouseBox's to set. What fails the run: the proxy's refusal (egress_refused, budget_exceeded, rate_limited), a connection that broke, a body over 64 MB, or a body that is not text in its encoding. Put a call in a MATERIALIZED CTE when its result is used more than once, so it is asked once. GET only; on engine 2.0 only.
+and a source that wants its own headers: http_get('https://…', headers := MAP {'Accept': 'text/html', 'Accept-Language': 'es'}). Each call is one request through the same proxy as every read, checked the same way (public addresses only, ports 80 and 443) and counted in the run's request and download budgets and the per-host rate; it follows up to 5 redirects, each a request of its own, checked again. A connection whose prefix the URL starts with adds its credential, as for the readers (the query must name the connection's host, as the readers' must); on a redirect to another host the Authorization and Cookie headers you set are dropped. Host, Content-Length, Connection, Accept-Encoding, User-Agent and Proxy-* are LakehouseBox's to set. What fails the run: the proxy's refusal (egress_refused, budget_exceeded, rate_limited), a connection that broke, a body over 64 MB, or a body that is not text in its encoding. Put a call in a MATERIALIZED CTE when its result is used more than once, so it is asked once. On engine 2.0 only.
+
+APIs that answer a POST: http_post. http_post(url, body, headers := MAP {…}, encoding := '…') sends one request with a body (a form, or a small JSON document) and answers the same struct as http_get. It sends only to URLs under a prefix your catalog declared for POST; declare one with lhbox sink post-prefix add https://host/path/ --catalog <catalog> (write access to the catalog). Any other POST is refused with post_not_declared, whatever the query asks. The query must name the prefix's host, as for connections. The body is text sent as UTF-8, at most 64 KiB. Without a Content-Type header, a body that starts with { or [ goes as application/json and any other as application/x-www-form-urlencoded. Each POST counts in the run's request budget and the per-host rate, and the run records which hosts it sent bodies to (egress.post_hosts). A redirect after a POST is not followed: the 3xx is the answer. A POST may be sent more than once for one slot:
+
+- the preview that checks a sink when it is created or its query changed sends it;
+
+- so does each retry of a failed run (a run that POSTs is not retried within itself).
+
+Declare only endpoints where a repeated request does no harm, such as a viewer's query sent as a form, never one that submits, books or changes something. Removing a prefix (lhbox sink post-prefix remove) pauses the catalog's SQL sinks that POST under it. Example, a form, then a token from a first POST used in a second:
+
+```
+-- lhbox sink post-prefix add https://saihweb.chsegura.es/apps/iVisor/ --catalog <catalog>
+SELECT (http_post('https://saihweb.chsegura.es/apps/iVisor/obtener_datos.php', 'action=consultar_embalses')).body::JSON AS j
+
+-- lhbox sink post-prefix add https://www.example.org/api/ --catalog <catalog>
+WITH t AS MATERIALIZED (SELECT (http_post('https://www.example.org/api/login', '{"user": "public"}')).body::JSON ->> 'token' AS token)
+SELECT (http_post('https://www.example.org/api/data', '{"id": "E1-01"}', headers := MAP {'Authorization': 'Bearer ' || token})).body
+FROM t
+```
 
 Zip archives. A file inside a zip archive at a URL is read by naming the reader: read_csv('zip://https://gtfs.ovapi.nl/nl/gtfs-nl.zip/routes.txt'), and zip_contents('https://…/feed.zip') lists the archive (the zipfs extension, loaded only for such a query). The archive comes through the same proxy as any URL and counts against the run's budget: it is downloaded whole, once per read. A compressed file inside it is decompressed whole into the run's memory before DuckDB reads it, so its uncompressed size has to fit the run. Measured on the Dutch GTFS feed (218 MB zip, 2026-10-23): trips.txt (61 MB, 842,644 rows) runs in 1 s; stop_times.txt (968 MB, 16.3 million rows) does not fit a run at any budget an organisation can be given today. FROM 'zip://…' without a reader is not supported. Only zip: not archive:// or compressed:// (tar, 7z and the like), not a zip inside a zip, and only an http(s) URL inside zip://.
 
@@ -142,7 +160,7 @@ Several URLs may be read in one call: a list, or a list comprehension over page 
 
 The query runs on an executor of its own, whose only way out is a proxy that allows:
 
-- GET and HEAD, to ports 80 and 443 of public addresses, checked again on every redirect;
+- GET and HEAD, to ports 80 and 443 of public addresses, checked again on every redirect, and POST (http_post) only under a prefix the catalog declared;
 
 - a budget per run: 60 s, 768 MB, 1,000 requests and 1 GiB downloaded by default, each configurable per organisation;
 
@@ -154,7 +172,7 @@ Not available:
 
 - local files, settings, other extensions, and secrets other than the catalog's connections (below);
 
-- request bodies (POST APIs);
+- a request body to a URL your catalog has not declared for POST;
 
 - your catalog's own tables. Joining with them is planned.
 
@@ -323,6 +341,8 @@ Every error names what to change and carries a remedy.
 | 409 preview_empty | a new query or engine previewed 0 rows where the sink's recent runs had rows (recent_rows); nothing was changed; allow_empty: true accepts it |
 | replace_refused | a replace sink's rows were stored but not committed (a row rejected); the table was not changed |
 | replace_unsupported, replace_needs_confirmation, mode_conflict, mode_fixed | why a replace sink was refused, in its remedy |
+| post_not_declared | an http_post to a URL under no prefix the catalog declared for POST (host); declare it with lhbox sink post-prefix add |
+| request_too_large | a POST body over 64 KiB |
 | scheme_not_allowed | a zip:// path that is not one zip archive at an http(s) URL, or archive:// / compressed:// |
 | 403 claim_required | an unclaimed catalog: a person claims it first |
 
@@ -346,6 +366,9 @@ POST  /v1/sql/connections     {warehouse, name, url_prefix, kind: bearer|header|
 GET   /v1/sql/connections     ?warehouse=  names, prefixes, kinds; never a value
 PUT   /v1/sql/connections/{name}?warehouse=   {value, header_name?}
 DELETE /v1/sql/connections/{name}?warehouse=  pauses the SQL sinks naming its prefix or host (connection_deleted)
+POST  /v1/sql/post-prefixes   {warehouse, url_prefix}   the URLs the catalog's scheduled SQL may POST to; write level
+GET   /v1/sql/post-prefixes   ?warehouse=   the catalog's POST prefixes
+DELETE /v1/sql/post-prefixes  ?warehouse=&url_prefix=   the next POST there is refused (post_not_declared)
 GET   /v1/sinks/{id}/runs      state (queued, running, retry_wait, materialised, empty, failed, skipped), committed
                                {snapshot_id}, rows, requests, bytes_down, elapsed_ms, engine, error{code, message, remedy, …}
 ```
