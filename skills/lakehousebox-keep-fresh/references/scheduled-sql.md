@@ -201,6 +201,20 @@ lhbox sink connection delete weather --catalog <catalog> --yes    # pauses the S
 
 Kinds. bearer (Authorization: Bearer …), header (a header you name, e.g. X-API-Key), basic (user:password).
 
+A key your organisation already stored for agents. A web key (lhbox integration list, kind web: the key a hosted agent sends with fetch_url) can be a connection too, with no second copy of it:
+
+```
+lhbox sink connection create aemet --catalog <catalog> --integration aemet
+```
+
+The connection's prefix is the key's host (https://opendata.aemet.es/), and its kind and header are the key's.
+
+- It stays the person's key. Only the person who stored the web key attaches it, in a catalog of the same organisation. It is then sent only in queries that person wrote: their previews, and the sinks whose query they last set. Another writer's query that names the host gets no key, and the source answers 401 (auth_required). It is never sent once its owner leaves the organisation or is suspended.
+
+- One key, read at each run. Every run reads the key from the web key itself. To replace it, the owner deletes the web key and adds it again under the same name and host; every agent and connection that uses it follows. A web key deleted and not added again fails the queries that use it (connection_unreadable, the sink paused), and they never run without it.
+
+- A web key sent as a query parameter (key_param) cannot be used this way.
+
 The prefix is https://, a host name, and a path ending in /. Two connections of a catalog may not overlap. The credential is not sent on a redirect to another host. The host is the boundary: DuckDB compares URLs as text, so a path prefix does not keep the credential from other paths of the same host (/v1/../admin/).
 
 A header connection keeps the query on its own origin (its https host and port), because DuckDB would send a custom header on to wherever a redirect points.
