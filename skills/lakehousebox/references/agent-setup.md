@@ -207,7 +207,7 @@ Every error carries a remedy; read it before retrying. The full list: Errors and
 
 - Keep credentials out of the conversation. Never ask for the key, print it, or read the credentials file. --show-key and --show-secrets exist for a pipe into an engine, or for a person who asks.
 
-- One connection per machine. Revoke it on the account page, never by deleting the file: the agent would stay valid.
+- One connection per machine. Revoke it on the account page, never by deleting the file: the key would stay valid.
 
 - A bug in LakehouseBox itself, not in your SQL, and the remedy did not help: lhbox bug --title "…" --what "…" prints a filled-in issue for the public tracker. Show the link to the person, and file it yourself only when they ask. Never put a key, a secret or their data in it.
 

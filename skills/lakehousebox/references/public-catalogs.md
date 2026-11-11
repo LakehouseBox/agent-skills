@@ -261,7 +261,8 @@ Publishing single tables rather than a whole catalog, more than one public folde
 
 | what | figure | measured |
 |---|---|---|
-| CDN copy removed after an overwrite, delete or rename | 37 to 72 seconds; at most seven days if removal cannot run | current |
+| CDN copy removed after an overwrite, delete or rename | usually a few seconds (about a second, measured); a few minutes if that removal cannot run at once; at most seven days if neither runs | current |
+| reading a public catalog by name with no account | each address has an allowance of 600 catalog requests a minute that had to be looked up fresh (bursts of 200); answers are reused for 30 s and do not count; past the allowance the answer is 429 | current |
 | browsers keep a file with no Cache-Control | an hour (max-age=3600) | current |
 | a catalog made private | stops answering at once at the source, within 30 s at the CDN | current |
 | table-root read after a commit made directly by an engine | current within about ten minutes | current |

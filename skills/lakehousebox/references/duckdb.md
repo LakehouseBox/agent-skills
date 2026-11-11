@@ -75,6 +75,7 @@ Without --show-secrets, the secret is masked and the recipe starts with an error
 
 ```
 INSTALL iceberg; LOAD iceberg; INSTALL httpfs; LOAD httpfs;
+SET http_retries = 6; SET http_retry_backoff = 4;
 CREATE SECRET lhbox (TYPE ICEBERG, CLIENT_ID '<client_id>', CLIENT_SECRET '<client_secret>',
                          OAUTH2_SERVER_URI 'https://catalog.lakehousebox.com/v1/oauth/tokens');
 CREATE SECRET lhbox_s3 (TYPE S3, KEY_ID '<client_id>', SECRET '<client_secret>',

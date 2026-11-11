@@ -76,7 +76,7 @@ claude mcp add --transport http lakehousebox https://mcp.lakehousebox.com/mcp \
   --header 'Authorization: Bearer ${LHBOX_API_KEY}'
 ```
 
-The server checks the key with the API and forwards it unchanged. The key's grants decide what it can read. Create a key on the account page (Tokens), or run lhbox token create --name reporter --grant <catalog>:read.
+The server checks the key with the API and forwards it unchanged. The key's grants decide what it can read. Create a key on the account page (Settings › Access keys, New key), or run lhbox token create --name reporter --grant <catalog>:read.
 
 ### With the CLI
 
@@ -94,7 +94,7 @@ The same code runs as a local stdio process, for working on the server against a
 
 - For Claude Desktop it writes a uvx --from platform/mcp entry with the key in its environment. It goes in Claude Desktop's own configuration file, readable only by its owner.
 
-The package is not published on PyPI. The hosted server is the supported route.
+A local server offers the write tools only with LHBOX_MCP_WRITE_TOOLS=1 in its environment, and agent_brief and talk_to_agent only with LHBOX_MCP_AGENT_TOOLS=1; without them it has the six read tools. The package is not published on PyPI. The hosted server is the supported route.
 
 MCP tools (https://lakehousebox.com/docs/mcp/tools/), a page of its own: Each tool of the LakehouseBox MCP server, public catalogs, a catalog's AGENTS.md, how the queries run, where to compute, and the limits of the shared queue.
 
@@ -123,7 +123,7 @@ The code says what to change and the remedy how. Act on the remedy rather than r
 | not_found | check did_you_mean and list_tables |
 | connection_not_granted | the catalog exists and the person reads it, but this connection was not granted it: tell the person the remedy |
 | query_timeout | past 20 s: aggregate or filter; or your own DuckDB |
-| query_memory | past the 768 MB a server-side query has: fewer distinct GROUP BY keys, no huge lists or sorts; or your own DuckDB |
+| query_memory | past the memory a server-side query has (1.5 GB; on the default engine, a claimed account's read that runs out is run once more with 8 GB and room to spill to disk, when that lane is free): fewer distinct GROUP BY keys, no huge lists or sorts; or your own DuckDB |
 | busy | retry after retry_after_seconds; limit names the limit that was full |
 | rate_limited | more requests a second from one key than query_requests_per_second: retry after retry_after_seconds |
 | not_unclaimed | keep_account on an account a person already owns |

@@ -24,6 +24,8 @@ Everything belongs to an organisation. An organisation holds catalogs, a catalog
 
 People log in on the account page with email and password, or with Google. Each holds one of two roles, admin or member. The person who creates the organisation is its first admin.
 
+A person can add two protections to their own login, both under Settings on the account page. A passkey signs you in with the device's fingerprint, face or PIN, with no address and no password (up to 20 per account). Two-factor authentication asks for a 6-digit code from an authenticator app after the password; setting it up gives eight single-use backup codes, shown once. A passkey also answers that second step. Neither changes what a key or a token may do.
+
 Tokens are the organisation's machine identities: an agent, a script, a scheduled job. A token has its own API key, an organisation role (member by default) and its own catalog grants. A token never holds more than the person or token that created it. Its role and grants are capped by the creator's, at creation and at every edit.
 
 ## Organisation roles

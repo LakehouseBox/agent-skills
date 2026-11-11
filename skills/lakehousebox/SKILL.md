@@ -5,7 +5,7 @@ description: Work with LakehouseBox (lakehousebox.com), the managed Apache Icebe
 
 # LakehouseBox
 
-LakehouseBox keeps analytical data as Apache Iceberg tables, operated in Germany. The hierarchy is organisation →
+LakehouseBox keeps analytical data as Apache Iceberg tables, operated in Germany (Frankfurt, with a copy in Stockholm). The hierarchy is organisation →
 catalog → namespace → table, and SQL names a table `<catalog>.<namespace>.<table>`. The agent computes where it runs
 (DuckDB) when it can reach LakehouseBox, and through the MCP server's capped query when it cannot; LakehouseBox stores the tables, hands engines short-lived credentials and
 maintains the tables. Everything is in open formats the person can take elsewhere.
@@ -132,7 +132,7 @@ Load the one the task needs; each builds on this one.
 - `lakehousebox-load-data`: files into tables (CSV, Parquet, GeoParquet), the file bucket, upload-only keys for devices.
 - `lakehousebox-keep-fresh`: a table that fills itself, from a URL on a schedule or from a producer that sends rows.
 - `lakehousebox-share`: access for colleagues and agents, publishing a catalog, AGENTS.md and table descriptions.
-- `lakehousebox-hosted-agents`: a prompt LakehouseBox runs on a schedule next to the data (a preview).
+- `lakehousebox-hosted-agents`: a prompt LakehouseBox runs on a schedule next to the data.
 - `lakehousebox-portolan`: reading or hosting Portolan geospatial catalogs (STAC, GeoParquet, Cloud-Optimized GeoTIFF).
 
 Everything else is in the docs; each page has a Markdown copy at the same URL plus `index.md`, and

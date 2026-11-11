@@ -91,7 +91,7 @@ lhbox plan                      # what apply would change, with each sink query'
 lhbox apply                     # migrations first, then the rest
 ```
 
-- apply creates and updates: a missing sink, connection or POST prefix is created, a sink whose SQL file, schedule or min_rows changed is updated (its query previewed first, as lhbox sink update does), AGENTS.md and descriptions are written where they differ. Tables come from the migrations only.
+- apply creates and updates: a missing sink, connection or POST prefix is created, a sink whose SQL file, schedule, min_rows, engine, key or paused changed is updated (its query previewed first, as lhbox sink update does), AGENTS.md and descriptions are written where they differ. Tables come from the migrations only.
 
 - What the catalog has and the file does not name is listed as not in the file and kept. apply --prune deletes those sinks, connections and POST prefixes (never a table or a row) after you confirm (--yes when not at a terminal).
 

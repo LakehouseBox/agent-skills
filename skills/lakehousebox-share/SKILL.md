@@ -34,8 +34,9 @@ lhbox token revoke nightly-load
 
 ## Publish: anyone can read it
 
-Only an **admin** can publish. A machine's `lhbox login` key is a member's, so ask the person to publish from the
-account page or to run this signed in as an admin; never ask them to make the machine's key an admin.
+Only an **admin** can publish (or a member with write, when an admin lets members publish). A machine's `lhbox login`
+key acts as the person who approved it; a token is a member's unless made an admin. When the key may not publish, ask
+the person to publish from the account page; never ask them to make a token an admin.
 
 ```sh
 lhbox catalog publish <name> --confirm                     # every table, read-only, for anyone

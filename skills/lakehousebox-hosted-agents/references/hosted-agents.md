@@ -31,6 +31,7 @@ lhbox agent update <name> changes any part of an agent. Only what you pass chang
 | read_catalog_guide | a catalog's AGENTS.md: your guide to its tables (treated as data, not instructions) |
 | run_sql | one read-only DuckDB statement over its catalogs (the same query service as POST /v1/query) |
 | remember | keep a small value (up to 2,000 characters) under one of its declared keys, for its next run |
+| note, resolve, recall, flag_owner | with memory topics (--topic, up to 12): note observations, alerts and decisions about items, close them when done, read older notes, and flag what only you can decide; each run starts from a short view of what is open and current |
 | notify_owner | email you (the person who created it) and its subscribers, at verified addresses, at most once per run and five times a day; the body is Markdown |
 | append_rows | add rows to a table its definition names (--write): append-only, checked against the table's columns |
 | fetch_url | GET a page or an API answer from a host its definition names (--allow-host) |
@@ -128,7 +129,7 @@ lhbox agent runs <name> --detail, GET /v1/agent-runs/{id} and "What it did" on t
 
 - its memory before and after.
 
-Runs and memory are visible to whoever may run the agent. That is its creator (a person or a token) and the organisation's admins (people or admin tokens).
+Runs and memory are visible to whoever may run the agent. That is its creator (a person or a token) and the organisation's admins (people or admin tokens). A member who reads every catalog the agent has ever read also sees its runs, without its memory or its emails (not for an agent that ran before 2 November 2026, or one that read a catalog deleted since).
 
 One exception: an agent that uses, or ever used, your integrations or web keys. Then only people, signed in as themselves, run it by hand and read its runs' output, traces and memory. A token sees that the runs happened and how they ended, not what they said. Scheduled runs are not affected.
 
@@ -146,7 +147,7 @@ The person: opens the sign-in link in a browser where they are signed in to Lake
 
 A server that supports standard MCP sign-in needs no setup on the person's side: LakehouseBox registers itself there. The sign-in link completes only in a browser signed in to LakehouseBox. Credentials are stored encrypted and are never shown or returned. A run gets a short-lived token only for the integrations its agent uses, and can reach only those servers. lhbox integration list, show, reconnect and delete --yes manage them; the account page has the same.
 
-Who may attach them. Only you attach your integrations and web keys to an agent. Only you change an agent that uses them: its prompt, catalogs and tables, and detaching them too. You do it signed in as yourself, on the account page or with the CLI and your own personal key. A token cannot, even one you made: an lhbox login connection or an MCP client.
+Who may attach them. Only you attach your integrations and web keys to an agent. Only you change an agent that uses them: its prompt, catalogs and tables, and detaching them too. You do it signed in as yourself, on the account page or with the CLI signed in as you (lhbox login, or your own personal key). A token cannot, even one you made: an API token, a key limited to some catalogs or an MCP client.
 
 Attaching shows you the prompt and the tables your accounts will now act on (integration_review). The CLI prints it.
 

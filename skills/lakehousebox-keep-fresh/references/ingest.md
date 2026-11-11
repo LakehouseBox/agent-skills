@@ -50,7 +50,7 @@ POST /v1/sinks answers the key once: al_send_<12 hex>_<43 chars>. The sink keeps
 
 - It is accepted on exactly one route, POST /v1/sinks/{sink_id}. Anywhere else it answers 403 send_only.
 
-- An API key or a token on the send route is 403 send_only too.
+- An API key or a token may send too when it holds write on the catalog, or this sink's send grant (lhbox token update <token> --send <sink>) and read on the catalog. Any other is 403 forbidden; an MCP access token is 403 send_only.
 
 - To revoke it, delete the sink: the sink is the key.
 
@@ -72,7 +72,7 @@ POST /v1/sinks/{sink_id}
 | 200 {duplicate: true, batch_id, accepted, rejected, bytes, received_at, state: pending | committed} | the same batch id again: nothing written |
 | 400 not_an_array / empty_batch / missing_idempotency_key / invalid_batch_id | the body or the header |
 | 401 invalid_key | a key that is not this sink's, or a deleted sink's |
-| 403 send_only | the wrong kind of credential, either way |
+| 403 send_only / forbidden | an MCP access token, or an API key or token without the right to send to this sink |
 | 409 sink_disabled (disabled_reason: table_missing) | the table went away: recreate it and make a new sink |
 | 409 quota_exceeded | the organisation is over its storage tier (the gate runs before any write) |
 | 413 batch_too_large (limit_bytes) | over 16 MiB: split the array |
@@ -98,7 +98,7 @@ The roll policy is set per sink. Whichever limit is reached first rolls:
 
 - a fixed count of 1,000 pending batches.
 
-A roll is a commit, and a commit costs more the more snapshots the table holds. A roll every 300–900 s suits a producer sending under about a megabyte per five minutes. The maintenance sweep runs every 6 hours: it expires the table back to 20 snapshots and compacts the small files.
+A roll is a commit, and a commit costs more the more snapshots the table holds. A roll every 300–900 s suits a producer sending under about a megabyte per five minutes. The maintenance sweep runs every hour on the service: it expires the table back to 20 snapshots and compacts the small files.
 
 The first roll makes one commit. It adds an optional __ingest_ts (timestamptz) column and sets the metadata-retention properties: write.metadata.delete-after-commit.enabled=true and write.metadata.previous-versions-max=5. A table that already has both is left untouched.
 
@@ -142,7 +142,7 @@ Every roll recomputes this from the table and the store. Every retained snapshot
 
 - A repair is reported again for as long as the ledger still holds its batches pending, and its marker is kept until then. A marker left by a failed delete goes on the sink's next roll.
 
-- Until the repair is reported, those batches are pending in the ledger. The sink_lag alert fires at 3 x roll_seconds.
+- Until the repair is reported, those batches are pending in the ledger, and GET /v1/sinks/{id} counts them in lag.
 
 Duplicate detection at the intake has a bound. Ledger rows are pruned 7 days after commit, so a batch id replayed later than that is accepted again.
 
@@ -197,6 +197,10 @@ A row is rejected, never a batch, with one of these reasons:
 | bad_point | a mapping's point found only one of its two fields, or one that is not a number |
 | unsupported_type | a geography column, a geometry with a CRS of its own, or one inside a struct, list or map |
 | not_an_object | an element that is not a JSON object |
+| key_null | a keyed sink's row with a null in a key column |
+| bad_timestamp (field) | a mapping's timestamp found no time it could read, or one outside its skew guard, with fallback: reject |
+| unmatched_field (field) | a mapping's melt met a field no rule names, and its unmatched policy is reject |
+| no_rows | a mapping's melt made no row of the record |
 
 Three cases reject a whole batch, and the sink goes on:
 
@@ -253,7 +257,7 @@ GET    /internal/sinks            the roller's view (bootstrap secret; never ser
 POST   /internal/sinks/{id}/roll  the roller's report
 ```
 
-The sink commands are create, update, dedupe, list, get, delete and send. Every flag is in the CLI reference. A send takes its key from --send-key-file FILE, --send-key K or LHBOX_SEND_KEY, and its batch id from --batch-id ID.
+The sink commands are create, update, dedupe, list, get, delete and send, and for a device route device-token, mapping and test. Every flag is in the CLI reference. A send takes its key from --send-key-file FILE, --send-key K or LHBOX_SEND_KEY, and its batch id from --batch-id ID.
 
 lhbox connect mentions sinks in its notes: sinks_note, and ingest_url in GET /v1/connection. The audit log records sink.create, sink.delete and sink.roll. A sink.roll is recorded for a roll that did something (committed batches, added or rejected rows, refused a replace, stopped the sink), not for a check that found nothing to roll, and is kept 15 days.
 

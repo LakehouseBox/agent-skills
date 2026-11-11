@@ -15,8 +15,9 @@ LakehouseBox is data infrastructure for AI agents: managed Apache Iceberg tables
 | `lakehousebox-load-data` | workflow | files into tables (CSV, Parquet, GeoParquet) in one commit, the file bucket, upload-only keys for devices |
 | `lakehousebox-keep-fresh` | workflow | a table that fills itself: scheduled SQL from a URL, or an ingest sink a producer posts rows to |
 | `lakehousebox-share` | workflow | access for colleagues and agents, publishing a catalog, AGENTS.md and table descriptions |
-| `lakehousebox-hosted-agents` | workflow | a prompt LakehouseBox runs on a schedule next to the data (a preview) |
+| `lakehousebox-hosted-agents` | workflow | a prompt LakehouseBox runs on a schedule next to the data |
 | `lakehousebox-portolan` | use-case | reading a Portolan geospatial catalog hosted on LakehouseBox (no account needed), or hosting one |
+| `lakehousebox-home-assistant` | use-case | a Home Assistant's history into tables, then every state change posted as it happens |
 
 **Layers.** The base skill is what every LakehouseBox task needs. Workflow skills cover one capability of the
 service; use-case skills cover an end-to-end job and build on the layers below. `catalog.json` has the graph.
@@ -47,6 +48,7 @@ The connector, and the commands and DuckDB statements the skills give the agent,
 | `https://api.lakehousebox.com` | the `lhbox` CLI (sign-in approval, catalogs, tables, loading the person's files) and the description of a public catalog, read with no account |
 | `https://catalog.lakehousebox.com` | the Iceberg catalog that DuckDB and other engines read and write tables through |
 | `https://s3.lakehousebox.com` | the tables' and files' storage, read (and written, with an account) by DuckDB and the CLI |
+| `https://public-catalog.lakehousebox.com`, `https://public-s3.lakehousebox.com` | a public catalog attached by name with no account, and its files, through a CDN |
 | `https://lakehousebox.com/install.sh` | the CLI installer, downloaded once when the person installs it |
 | `https://extensions.duckdb.org` | DuckDB's own extensions (iceberg, httpfs, spatial), downloaded the first time each is used |
 

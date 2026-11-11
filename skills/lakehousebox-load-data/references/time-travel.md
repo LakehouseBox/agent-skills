@@ -7,7 +7,7 @@ Every commit to an Iceberg table makes a snapshot: the table as it was right aft
 
 ## How long snapshots are kept
 
-Table maintenance runs every 6 hours and expires old snapshots. What it keeps depends on the catalog's snapshot window, snapshot_retention_days:
+Table maintenance runs every hour on the service (every 6 hours by default on a self-hosted install) and expires old snapshots. What it keeps depends on the catalog's snapshot window, snapshot_retention_days:
 
 | catalog setting | what maintenance keeps, per table |
 |---|---|
@@ -29,7 +29,7 @@ The API form is PATCH /v1/warehouses/{id} with {"snapshot_retention_days": 30}, 
 
 Things to know about the window:
 
-- It takes effect at the next maintenance run, within 6 hours, for every table in the catalog.
+- It takes effect at the next maintenance run, within the hour on the service, for every table in the catalog.
 
 - A longer window keeps snapshots from then on. It cannot bring back snapshots already expired.
 

@@ -42,6 +42,8 @@ All twelve need the caller's key or token. All but open_public_catalog are bound
 
 - Columns (name, type, required, doc), partition spec, sort order, identifier fields and format version.
 
+- The table's properties (a value longer than 500 characters is cut). For a geometry table, clustering: the column maintenance keeps it in spatial order by, and its state (clustered, partly, unclustered or small).
+
 - The current snapshot summary, and the last N snapshots: commit time, operation, rows added and removed. They show the ingestion cadence and its gaps.
 
 - agents_md when the table's catalog has an AGENTS.md, so an agent sent straight to one table still learns of it.
@@ -112,7 +114,7 @@ All twelve need the caller's key or token. All but open_public_catalog are bound
 
 ### keep_account
 
-See With no account yet (https://lakehousebox.com/docs/mcp/#with-no-account-yet). A connection to an account a person already owns answers not_unclaimed.
+See With no account yet (https://lakehousebox.com/docs/mcp/#with-no-account-yet). A connection to an account a person already owns answers not_unclaimed. A connection made with an API key (lhbox new) answers claim_with_cli: the claim replaces the key, so lhbox claim --wait keeps the account and saves the new key.
 
 ### agent_brief and talk_to_agent
 
@@ -226,7 +228,7 @@ In a Claude cloud sandbox, every outside host was refused until the person allow
 
 ## Limits: no quota, one shared queue
 
-There is no query quota and nothing is metered. Instead, every query gets 20 seconds of compute on a query host that every tenant shares. Write filtered, aggregated SQL the first time. All these limits are enforced:
+There is no query quota. A query's CPU time is counted (cpu_ms in its answer) and shown with the month's compute, but no query is refused on it. Every query gets 20 seconds of compute on a query host that every tenant shares. Write filtered, aggregated SQL the first time. All these limits are enforced:
 
 | limit | value | past it |
 |---|---|---|
@@ -234,7 +236,7 @@ There is no query quota and nothing is metered. Instead, every query gets 20 sec
 | query_max_rows | 2,000 rows (default 200), about 50,000 characters | the answer is cut: truncated, truncated_by; a larger max_rows is reduced and the answer says so (max_rows_applied, max_rows_requested) |
 | queries_per_org | 4 of an organisation's queries run at once | the rest wait their turn (at most 8 waiting, at most 20 s), then 429 busy |
 | queries_per_principal | 4 queries running or waiting per key (or person) | 429 busy at once |
-| query_requests_per_second | 5 requests a second per key to query and get_object, bursts of 10 (a person's sessions and tokens share one) | 429 rate_limited, answered by the API without running anything |
+| query_requests_per_second | 5 requests a second per key to query, query_rw and get_object, bursts of 10 (a person's sessions and tokens share one) | 429 rate_limited, answered by the API without running anything |
 | unclaimed catalogs (lhbox new, before lhbox claim) | one small pool: 2 running and 2 waiting across every unclaimed organisation, a wait of at most 5 s | 429 busy (limit: pool_workers); lhbox duckdb has no such limit, and a claimed account leaves the pool |
 
 Organisations take turns, so one tenant's burst never starves the others. Every busy answer carries retry_after_seconds (and a Retry-After header on the API) and a limit naming which limit was full. queued_ms in a successful answer says how long the query waited.

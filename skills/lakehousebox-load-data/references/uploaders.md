@@ -90,7 +90,9 @@ Limits:
 
 - at most 10 drop-box uploaders per organisation by default;
 
-- while more than 1 GiB of one uploader's files waits to be stored (the organisation over its storage allowance, say), that uploader's next login is refused until it catches up.
+- while more than 1 GiB of one uploader's files waits to be stored (the organisation over its storage allowance, say), or more than 3 GiB of all its organisation's uploaders' files, that uploader's next login is refused until it catches up;
+
+- video, audio, web pages and programs are refused at upload (FTP 553); any other type the file bucket does not take is accepted, then dropped when it is passed on (File types (https://lakehousebox.com/docs/files/)).
 
 Revoking the uploader refuses its next login at once, and so does --expires-at once passed. To turn uploads into rows of a table, add an index rule (Files to rows (https://lakehousebox.com/docs/ingest/index-rules/)).
 

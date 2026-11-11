@@ -21,7 +21,7 @@ lhbox sink test weather_in captured-post.txt         # what the mapping makes of
 
 - Bodies: form-urlencoded (also with no Content-Type), one JSON object, a JSON array, NDJSON, or CSV with a header. At most 256 KiB. Each becomes the intake NDJSON above, one object per record. Form and CSV values are strings.
 
-- No header needed. The batch id is the Idempotency-Key when one is sent, else it is derived from the body. So a device's retry of the same post answers 200 duplicate.
+- No header needed. The batch id is the Idempotency-Key when one is sent, else it is derived from the body. So a device's retry of the same post within 5 minutes answers 200 duplicate; the same body later is a new reading.
 
 - A pinned body secret (--require-field FIELD=VALUE) is checked, and refused with 401 invalid_device_secret. The CLI sends only its SHA-256. With --strip FIELD it is removed before anything is stored, so a device's secret never lands in the bucket or in a rejects file. Errors never echo the body.
 

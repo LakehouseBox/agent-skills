@@ -93,7 +93,7 @@ Before its first row, every table the import writes gets two table properties:
 
 An append into a table that already has its own file size keeps its settings.
 
-The rows are written ORDER BY one column. By default, this is the first DATE or TIMESTAMP column in your files, so a query that filters on that column can skip whole files.
+The rows are written ORDER BY one column. By default, this is the first DATE or TIMESTAMP column in your files, so a query that filters on that column can skip whole files. Parquet files with a geometry column are written in Hilbert order of their primary geometry instead, so a geom && box filter skips files and row groups.
 
 - --order-by <column> names another column: choose the one your queries filter on most. A column the files do not have stops the import before anything is written.
 

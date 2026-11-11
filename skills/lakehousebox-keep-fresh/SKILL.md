@@ -35,7 +35,7 @@ lhbox sink resume docs_quakes                                              # the
   `--paused`, run it once, then resume.
 - **Sources that need an API key** take a *connection*, so the key never sits in the SQL
   ([scheduled-sql](references/scheduled-sql.md), "connections").
-- Five minutes is the shortest schedule.
+- One minute is the shortest schedule.
 
 ## Ingest sink: something sends
 

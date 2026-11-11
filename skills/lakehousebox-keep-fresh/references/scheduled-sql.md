@@ -162,7 +162,7 @@ The query runs on an executor of its own, whose only way out is a proxy that all
 
 - GET and HEAD, to ports 80 and 443 of public addresses, checked again on every redirect, and POST (http_post) only under a prefix the catalog declared;
 
-- a budget per run: 60 s, 768 MB, 1,000 requests and 1 GiB downloaded by default, each configurable per organisation;
+- a budget per run: 60 s, 768 MB, 1,000 requests and 1 GiB downloaded by default; the time, the requests and the download are configurable per organisation;
 
 - a rate per destination host shared by every LakehouseBox job.
 
@@ -174,7 +174,7 @@ Not available:
 
 - a request body to a URL your catalog has not declared for POST;
 
-- your catalog's own tables. Joining with them is planned.
+- your catalog's own tables in the same query as a URL: a derived sink reads the tables, and reads no URL.
 
 Pin the types of a JSON source (columns = {…}, or JSON and ->>): inference can change between fetches.
 
@@ -293,7 +293,7 @@ A sink feeds a format-version 2 table that is not partitioned, or a format-versi
 
 - a key on a format-version 3 table (key_unsupported): a key needs format version 2. Read the latest row per key with QUALIFY instead.
 
-A geometry column takes a GEOMETRY, WKB in a BLOB, or WKT in a VARCHAR. Build a point from two numbers with format('POINT ({} {})', lon, lat)::GEOMETRY; ST_GeomFromWKB(…) and, on engine 2.0, ST_GeomFromGeoJSON(…) work too. Scheduled SQL has no spatial extension, so ST_Point and ST_Transform are not available. A value that does not parse fails the run with type_mismatch and a sample. A geometry labelled OGC:CRS84 or EPSG:4326 (x = longitude) is taken as longitude/latitude. One in another coordinate system fails the same way.
+A geometry column takes a GEOMETRY, WKB in a BLOB, or WKT in a VARCHAR. Build a point from two numbers with format('POINT ({} {})', lon, lat)::GEOMETRY; ST_GeomFromWKB(…) and, on engine 2.0, ST_GeomFromGeoJSON(…) work too. A sink that reads URLs has no spatial extension, so ST_Point and ST_Transform are not available there (a derived sink has it). A value that does not parse fails the run with type_mismatch and a sample. A geometry labelled OGC:CRS84 or EPSG:4326 (x = longitude) is taken as longitude/latitude. One in another coordinate system fails the same way.
 
 ```
 -- a v3 table of positions, partitioned by day: lhbox sink create ... --create-table --format-version 3 --partition 'day(ts)'
@@ -407,6 +407,7 @@ PATCH /v1/sinks/{id}           {sql?, every?, offset?, paused?, key?, engine?, m
                                preview_empty unless allow_empty
 POST  /v1/sinks/{id}/run       one run now (a paused sink too); 409 run_already_queued
 POST  /v1/sql/connections     {warehouse, name, url_prefix, kind: bearer|header|basic, header_name?, value}
+                              or {warehouse, name, integration}   an organisation web key, no copy of it
 GET   /v1/sql/connections     ?warehouse=  names, prefixes, kinds; never a value
 PUT   /v1/sql/connections/{name}?warehouse=   {value, header_name?}
 DELETE /v1/sql/connections/{name}?warehouse=  pauses the SQL sinks naming its prefix or host (connection_deleted)
