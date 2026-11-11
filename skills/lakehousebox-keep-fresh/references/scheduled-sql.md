@@ -123,6 +123,19 @@ SELECT idema, ubi, fint::TIMESTAMPTZ AS fint, prec FROM o
 
 A byte the encoding has no character for fails the run with a sql_error naming its offset (it is never replaced by � in your table). decode_text is on engine 2.0 only. The decoded text is held in the run's memory beside the bytes.
 
+A URL from an earlier answer, and request headers: http_get. The readers take a URL written in the query. When the URL (or a token) comes from a first answer, or a source wants headers of its own, call LakehouseBox's http_get(url, headers := MAP {…}, encoding := '…'), which takes values, columns included. It answers one value per call, a struct: status (the HTTP status: a 404 is a row with status 404, not a failed run), headers (the response's, names in lower case; a repeated header's values joined by , , set-cookie's by a line break), body (the text, decoded by the Content-Type charset, else UTF-8; encoding names another) and url (the last one asked, after redirects). Example, AEMET's two steps (the first answer names the URL of the data), the key in a connection:
+
+```
+WITH s AS MATERIALIZED (
+       SELECT (http_get('https://opendata.aemet.es/opendata/api/observacion/convencional/todas')).body::JSON ->> 'datos' AS u),
+     d AS MATERIALIZED (SELECT (http_get(u)).body AS txt FROM s),
+     o AS (SELECT unnest(from_json(txt, '[{"idema":"VARCHAR","ubi":"VARCHAR","fint":"VARCHAR","prec":"DOUBLE"}]'),
+                         recursive := true) FROM d)
+SELECT idema, ubi, fint::TIMESTAMPTZ AS fint, prec FROM o
+```
+
+and a source that wants its own headers: http_get('https://…', headers := MAP {'Accept': 'text/html', 'Accept-Language': 'es'}). Each call is one request through the same proxy as every read, checked the same way (public addresses only, ports 80 and 443) and counted in the run's request and download budgets and the per-host rate; it follows up to 5 redirects, each a request of its own, checked again. A connection whose prefix the URL starts with adds its credential, as for the readers (the query must name the connection's host, as the readers' must); on a redirect to another host the Authorization and Cookie headers you set are dropped. Host, Content-Length, Connection, Accept-Encoding, User-Agent and Proxy-* are LakehouseBox's to set. What fails the run: the proxy's refusal (egress_refused, budget_exceeded, rate_limited), a connection that broke, a body over 64 MB, or a body that is not text in its encoding. Put a call in a MATERIALIZED CTE when its result is used more than once, so it is asked once. GET only; on engine 2.0 only.
+
 Zip archives. A file inside a zip archive at a URL is read by naming the reader: read_csv('zip://https://gtfs.ovapi.nl/nl/gtfs-nl.zip/routes.txt'), and zip_contents('https://…/feed.zip') lists the archive (the zipfs extension, loaded only for such a query). The archive comes through the same proxy as any URL and counts against the run's budget: it is downloaded whole, once per read. A compressed file inside it is decompressed whole into the run's memory before DuckDB reads it, so its uncompressed size has to fit the run. Measured on the Dutch GTFS feed (218 MB zip, 2026-10-23): trips.txt (61 MB, 842,644 rows) runs in 1 s; stop_times.txt (968 MB, 16.3 million rows) does not fit a run at any budget an organisation can be given today. FROM 'zip://…' without a reader is not supported. Only zip: not archive:// or compressed:// (tar, 7z and the like), not a zip inside a zip, and only an http(s) URL inside zip://.
 
 Several URLs may be read in one call: a list, or a list comprehension over page numbers. A URL may contain current_date. LakehouseBox writes the rows; the query never writes.
@@ -142,8 +155,6 @@ Not available:
 - local files, settings, other extensions, and secrets other than the catalog's connections (below);
 
 - request bodies (POST APIs);
-
-- a URL computed from another source's rows;
 
 - your catalog's own tables. Joining with them is planned.
 
