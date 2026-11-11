@@ -116,6 +116,15 @@ Work that creates or fills tables is not finished until they are described: do i
   `set_agents_md` over MCP). Over MCP, `list_tables` shows `agents_md.present: false` on a catalog you may write that
   has none. The template is in [agent-setup](references/agent-setup.md), "Finish: leave notes for the next reader".
 
+## Keep the setup in the repository
+
+A project that will be forked or rerun keeps its tables as numbered migrations (`lhbox migrate`) and the rest of the
+catalog (AGENTS.md, descriptions, POST prefixes, connections, scheduled SQL, hosted agents) in a `lakehouse.yaml`.
+Run `lhbox plan` and show the person what it would change before `lhbox apply`; never add `--prune` (deletes sinks,
+connections, prefixes) or `--publish` (changes who can read the catalog) without their say-so. A team on OpenTofu or
+Terraform uses the provider instead (`registry.terraform.io/lakehousebox/lakehousebox`): one tool per catalog. Both
+are in [migrations](references/migrations.md).
+
 ## The other skills
 
 Load the one the task needs; each builds on this one.
