@@ -28,7 +28,7 @@ curl -X POST https://api.lakehousebox.com/v1/sinks/<sink_id> \
 
 ## What a sink is
 
-A sink is the table's single committer, so a table has one sink at most (409 sink_exists for a second).
+Several sinks can feed one table when every one of them appends rows as they come: send sinks and scheduled SQL sinks without a key, and scheduled SQL sinks that do not replace the table. Each sink's batches are committed on their own, so one source that fails never holds back the others, and nothing is written twice. At most 8 sinks feed one table (409 too_many_sinks). A sink with a key (its rolls replace the rows that share it) or one that replaces the table stays alone on it: creating one beside another sink, adding a key to a sink that shares its table, or adding any sink to such a table answers 409 sink_exists, with the table's sinks in sinks.
 
 - The table must exist. Otherwise the answer is 404 table_not_found, with the namespace's tables.
 

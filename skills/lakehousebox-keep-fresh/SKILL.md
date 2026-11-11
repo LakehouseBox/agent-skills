@@ -5,7 +5,7 @@ description: Keep a LakehouseBox table filling itself - a scheduled SQL sink tha
 
 # Keep a table filled
 
-The `lakehousebox` skill has the ways in and the general rules. A **sink** is a table's single committer: LakehouseBox
+The `lakehousebox` skill has the ways in and the general rules. A **sink** commits what one source sends into a table: LakehouseBox
 turns what arrives into Iceberg commits on a rolling policy, so nothing of the person's has to keep running.
 
 ## First decision: who sends the data
@@ -46,7 +46,8 @@ lhbox sink get garden_readings                                                  
 ```
 
 - **The table must exist first**, and a format-version 2 table must be unpartitioned (version 3 may be partitioned by
-  time). One sink per table.
+  time). Several sinks may feed one table when each appends (no key, no replace mode; at most 8): one per source,
+  each failing on its own. A sink with a key or one that replaces the table has it to itself.
 - **The send key** can only send to that sink: give it to the producer, never the catalog's key. `--save` writes it
   to a file and never prints it.
 - **Rows are committed on a roll** (every 300 s by default, sooner on size or inactivity), so a send is not a row yet:

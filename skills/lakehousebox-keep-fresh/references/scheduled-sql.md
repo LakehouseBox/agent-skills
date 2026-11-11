@@ -333,7 +333,7 @@ lhbox sink create --catalog transit --name gtfs_trips --table gtfs.trips --creat
 
 - The table is format version 2 (--format-version 2 with --create-table; 409 replace_unsupported otherwise), not partitioned, with no key (400 mode_conflict). A sink whose table later becomes format version 3 pauses (table_unsupported).
 
-- One sink per table, as always: no other sink can feed a table that a replace sink feeds.
+- A replace sink is alone on its table: no other sink can feed it (409 sink_exists), and it cannot join a table that already has one. Appending sinks can share a table (up to 8): one scheduled query per source, each failing on its own.
 
 - The mode is fixed when the sink is created (409 mode_fixed): to change it, delete the sink and create it again. The table and its rows stay.
 
