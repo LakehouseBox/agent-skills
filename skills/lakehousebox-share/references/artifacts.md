@@ -124,7 +124,7 @@ A public page is opened by anyone on the internet, with no account, at its publi
 
 Public pages are turned on per organisation. Where they are on, the Share panel's General access offers Anyone on the internet.
 
-- Only the page's owner makes it public, signed in on the account page, after a recent sign-in. A key, an MCP connection and a hosted agent cannot, and neither can an admin for someone else's page.
+- Only the page's owner makes it public, signed in on the account page (asked to confirm it is them only when a catalog becomes public with the page). A key, an MCP connection and a hosted agent cannot, and neither can an admin for someone else's page.
 
 - The owner needs a verified address, and the organisation's setting for publishing catalogs has to let them publish: admins by default.
 
