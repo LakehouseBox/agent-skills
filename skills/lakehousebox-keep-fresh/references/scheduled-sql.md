@@ -194,7 +194,7 @@ FROM embalses."now".reservoir_status s JOIN embalses.ref.reservoirs r USING (res
 GROUP BY r.basin_id
 ```
 
-- It runs where your other server-side queries run, with the sink's catalog attached read-only, as the person who created the sink (or last changed its query): the runs stop, and the sink pauses (owner_lost_write), when that person no longer holds write on the catalog. A preview (lhbox sink preview) runs it the same way, with the 20 seconds of a server-side query, and writes nothing; it needs scheduled SQL enabled for the organisation.
+- It runs where your other server-side queries run, with the sink's catalog attached read-only, as the person who created the sink (or last set its query): the runs stop, and the sink pauses (owner_lost_write), when that person no longer holds write on the catalog. Someone who writes the catalog takes a query over by setting it, the same text included (lhbox sink update <sink> --sql …), and resuming the sink. A preview (lhbox sink preview) runs it the same way, with the 20 seconds of a server-side query, and writes nothing; it needs scheduled SQL enabled for the organisation.
 
 - Its own catalog only. A query naming another catalog's table is refused at preview, create and change with 400 catalog_not_this_sinks, even when you can read that catalog. To combine two catalogs, copy what you need into this one first.
 
@@ -311,7 +311,7 @@ every is at least 1 minute by default (5 minutes until 2026-10-23); an operator 
 
 - A failure the next attempt may fix is retried within the slot after 30 s, 2 min and 8 min. That covers the source or the executor being unavailable, and a timeout. A run that needed more memory than a run has (query_memory) is not retried: it fails at once, and the next run (a manual one too) can start straight away.
 
-- A sink whose runs all failed for 24 hours pauses itself (paused_reason: failing). So does one whose table is gone (table_missing) or changed into one it cannot feed (table_unsupported), whose organisation lost the feature (not_enabled), or whose creator, or the person who last changed its query or engine (sql_author), no longer holds write on the catalog (owner_lost_write).
+- A sink whose runs all failed for 24 hours pauses itself (paused_reason: failing). So does one whose table is gone (table_missing) or changed into one it cannot feed (table_unsupported), whose organisation lost the feature (not_enabled), or whose creator, or the person who last set its query or engine (sql_author), no longer holds write on the catalog (owner_lost_write).
 
 - Runs append, unless the sink has a key (--key): then each run replaces the rows that share it. Without a key, a source that republishes rows lands them again at every run. Read the latest per key with QUALIFY row_number() OVER (PARTITION BY <key> ORDER BY __ingest_ts DESC) = 1. A sink can also replace the whole table at every run (below).
 
