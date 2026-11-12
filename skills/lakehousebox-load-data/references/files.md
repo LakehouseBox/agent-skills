@@ -34,7 +34,7 @@ lhbox file put PATH [KEY] --catalog garden does the same as cp up, and lhbox fil
 
 - Uploading a folder, its contents go under the prefix you give (cp and sync). put without a key uses the folder's name as the prefix. A folder is uploaded recursively, with or without --recursive.
 
-- Hidden files (.DS_Store, .git/) are skipped.
+- Hidden files (.DS_Store, .git/) are skipped, except a Zarr v2 store's metadata files (.zarray, .zattrs, .zgroup, .zmetadata), which go up with the store.
 
 - Downloading, a key ending in /, or --recursive, is a folder. Everything under it is written into the local directory with the relative paths kept: data means data/, never data2/.
 
