@@ -9,6 +9,12 @@ Part of Access and permissions (https://lakehousebox.com/docs/access/).
 
 An invitation is valid for 7 days. The invitee follows the link in the mail, or runs the lhbox org accept --token <token> line the invite prints. An address with no account yet joins when it signs up.
 
+An invitation says which catalogs the person gets. --catalog <name> gives read, --catalog <name>:write gives write; repeat it for up to 20 catalogs. The person holds them the moment they join. Without --catalog, a new member reads only the catalogs open to the whole organisation. An invitation as admin takes no list: an admin writes every catalog.
+
+A catalog deleted before the person joins is skipped. The answer to accepting lists what was given (access_granted) and what was not (access_skipped).
+
+A person invited with no catalog, into an organisation with none open, has nothing to connect to. lhbox signup answers 403 forbidden for them and keeps nothing. They accept on the account page instead, or an admin gives them a catalog first.
+
 An admin can withdraw an invitation nobody has accepted yet. GET /v1/orgs/{org}/invitations lists the pending ones with their invitation_id; the invite's answer carries it too. DELETE /v1/orgs/{org}/invitations/{invitation_id} withdraws one. Its link then stops working, and signing up with the address no longer applies it.
 
 ### Domain claims
@@ -31,7 +37,7 @@ The person: publishes that TXT record in the domain's DNS, at that very name. A 
 
 ### Domain join
 
-With domain join on, a person whose address is on a verified domain is offered membership. The account page asks, and lhbox org offers lists it. They join as a member only if they accept, with their own login or API key. Accepting is the person's act: nobody is added automatically, and an organisation's token is offered nothing.
+With domain join on, a person whose address is on a verified domain is offered membership. The account page asks, and lhbox org offers lists it. They join as a member only if they accept, with their own login or API key. Someone who joins this way reads the catalogs open to the whole organisation and no others, until an admin grants more. Accepting is the person's act: nobody is added automatically, and an organisation's token is offered nothing.
 
 A person who left the organisation, or was removed from it, is not offered it again. They are matched by their account and by their address (lower case, a +tag ignored). So a new account on the same address is not offered it either: an admin's invitation is the way back. A departure is remembered for 12 months, as a one-way hash of the address and never the address itself. Then it is forgotten. Older departures are covered under Numbers and dates (https://lakehousebox.com/docs/access/#numbers-and-dates).
 

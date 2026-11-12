@@ -12,6 +12,7 @@ lhbox whoami                                              # who you are, your le
 lhbox catalog grants sales                                # who holds what on a catalog, and how
 lhbox catalog grant sales --principal <id> --level read   # give read on one catalog
 lhbox catalog revoke sales --principal <id>               # take it away; their key pair rotates
+lhbox catalog update sales --access organisation          # or let every member of the organisation read it
 lhbox org policy                                          # what members may do, and whom to ask
 lhbox audit --since 7d                                    # who did what this week
 ```
@@ -34,7 +35,9 @@ Tokens are the organisation's machine identities: an agent, a script, a schedule
 |---|---|---|
 | see the organisation, its catalogs, members, tokens and usage | yes | yes |
 | invite and remove members, change roles, claim domains, rename the organisation | yes | no |
+| read and write catalogs | write on every catalog | the catalogs they created or were granted, and read on those open to the organisation |
 | create a catalog | yes | yes, and gets write on it |
+| change a catalog's general access | yes | no |
 | rotate a catalog's credentials, delete or restore it | yes | no |
 | publish or unpublish a catalog | yes, unless publishing is set to nobody (unpublishing always) | no, unless publishing is open to members (then on catalogs they can write) |
 | grant or revoke read and write | on every catalog | only where they hold write, never above their own level, and only grants they made |
@@ -50,7 +53,7 @@ The last human admin cannot leave, be removed or be demoted. Tokens do not count
 ```
 lhbox org list                                    # your organisations: name, id, your role
 lhbox org members                                 # its people and their roles
-lhbox org invite --email ana@example.com --role member
+lhbox org invite --email ana@example.com --catalog sales --catalog ops:write   # a member, with two catalogs
 lhbox org role --principal <id> --role admin      # an organisation keeps at least one admin
 lhbox org domain --domain example.com             # prints the DNS TXT record to publish
 lhbox org domain --domain example.com --verify    # once the record is published
@@ -62,7 +65,7 @@ Joining an organisation (https://lakehousebox.com/docs/access/organisation/), a 
 
 ## What members may do
 
-An admin decides three things for the whole organisation. They are on the account page under Settings › General › Member permissions, or in lhbox org policy. Everyone in the organisation can read them. Only an admin who is a person changes them; a token cannot, whatever its role.
+An admin decides four things for the whole organisation. They are on the account page under Settings › General › Member permissions, or in lhbox org policy. Everyone in the organisation can read them. Only an admin who is a person changes them; a token cannot, whatever its role.
 
 The API checks each one whenever the thing is made, whatever made the request: the account page, the CLI, an MCP client or a script.
 
@@ -71,6 +74,7 @@ The API checks each one whenever the thing is made, whatever made the request: t
 | publish_catalogs | admins; members (admins, and member people on a catalog they can write; a member token never publishes); or nobody (admins included) | admins |
 | connect_agents | members (admins and members) or admins: tokens (lhbox token create), lhbox login approvals, MCP clients approved on the consent page, and personal API keys | members |
 | hosted_agents | members or admins: who may create hosted agents (https://lakehousebox.com/docs/hosted-agents/) | members |
+| new_catalogs | not a permission but a default: the general access a new catalog starts with, restricted or organisation | restricted |
 
 A token counts as what its organisation role says: a member token is a member here.
 
@@ -84,19 +88,24 @@ Changing a setting never undoes what exists:
 
 - Tokens, connections and hosted agents made before keep working until someone revokes or deletes them.
 
+- Catalogs that exist keep their general access when new_catalogs changes.
+
 A refused request answers 403 org_policy_forbids. It carries the setting (policy), its value, and a remedy naming the organisation's admins to ask. Every change is recorded in the audit log as org.policy_update, with each setting's value before and after.
 
 ```
 lhbox org policy                                          # the settings, what you may do, whom to ask
 lhbox org policy --connect-agents admins                  # admin: only admins connect agents from now on
 lhbox org policy --publish-catalogs nobody                # admin: nobody publishes; public catalogs stay public
+lhbox org policy --new-catalogs organisation              # admin: new catalogs start open to every member
 ```
 
 ## Catalog grants: read and write
 
 Each person or token holds read, write or nothing on each catalog:
 
-- A member holds read on every catalog of the organisation, by membership. An admin can revoke it catalog by catalog.
+- A member reads no catalog until given access. They hold what they are granted and what they created.
+
+- On a catalog open to the whole organisation, every member holds read (see General access).
 
 - Whoever creates a catalog holds write on it.
 
@@ -121,6 +130,42 @@ lhbox catalog revoke sales --principal <id>
 ```
 
 A catalog cannot be shared with another organisation. To let someone outside read it, send them the read-only recipe (lhbox connect --readonly --show-secrets). Or have an admin make it public (lhbox catalog publish).
+
+## General access
+
+Every catalog has one setting for the members of its organisation:
+
+| setting | in the API | who reads the catalog |
+|---|---|---|
+| Restricted | org_access: none | admins, its creator, and the people and tokens granted it |
+| Everyone in the organisation | org_access: read | the same, plus every member, and anyone who joins later |
+
+A new catalog is Restricted. Its creator can open it when creating it. An admin can make open the default for new catalogs with new_catalogs (see What members may do). An MCP connection cannot ask for an open catalog: it creates a Restricted one, and a person opens it.
+
+```
+lhbox catalog create sales --access organisation       # open from the start
+lhbox catalog update sales --access organisation       # admin: every member reads it from now on
+lhbox catalog update sales --access restricted --yes   # admin: only the people and tokens granted it
+lhbox catalog get sales                                # the setting, and your level
+```
+
+On a catalog that exists, only an admin of the organisation changes it: a person, or a token with the admin role. On the account page it is in the catalog's Access section.
+
+A member reading an open catalog is listed with via: membership. Write still takes a grant.
+
+Opening a catalog gives every member read on it. A browser session is asked for a recent sign-in first. It is refused with 409 scoped_grants_held while a member who would start reading holds a namespace grant there. The answer names them: revoke those grants, then open it.
+
+Making a catalog Restricted takes it from the members who read it only as members. It also reaches what they made and fetched:
+
+- Tokens they created are capped to what their creator still holds. Hosted agents of theirs that read it are paused.
+
+- If one of them fetched the catalog's read-only key pair, that pair is replaced. A recipe pasted into an engine stops working: run lhbox connect for a fresh one.
+
+Admins, the creator, and people and tokens with a grant of their own keep their access. At a terminal the CLI says how many members lose the catalog and asks; anywhere else, pass --yes. GET /v1/catalogs/{id}/org-access returns those counts before you change anything.
+
+A member without access still sees that the catalog exists. lhbox catalog list shows its name, id and size with level none. Its tables, its files and its recipe are refused with 403 forbidden, which names the admins to ask.
+
+Each change is recorded in the audit log as warehouse.org_access, with the value before and after and the number of members it reached.
 
 ## Tokens for agents
 
@@ -203,6 +248,7 @@ Engine credentials (https://lakehousebox.com/docs/access/credentials/), a page o
 | a machine or agent | lhbox token revoke <name>, or the account page | at once, for the token and every token it created; key pairs they were handed are rotated |
 | a person's or token's access to one catalog | lhbox catalog revoke <catalog> --principal <id> | at once; a key pair they were handed is rotated within seconds |
 | a person | an admin removes them from the organisation | at once; their grants and tokens go too, and the key pairs they or their tokens were handed are rotated |
+| every member's read on an open catalog | lhbox catalog update <catalog> --access restricted --yes (admin) | at once; the read-only key pair is rotated within seconds if one of them fetched it |
 | an uploader | lhbox catalog uploader revoke <catalog> --uploader <name> | at once |
 | a sink's send key | lhbox sink delete <sink> | at once |
 | every copy of a catalog's key pair | lhbox catalog rotate <catalog> (admin) | old keys, catalog tokens made from them and storage credentials issued from them, at once |
@@ -251,6 +297,9 @@ lhbox audit --org <org> --action 'token.*' --limit 200
 |---|---|---|
 | 403 org_policy_forbids | the organisation's member permissions keep this to admins | ask one of the admins its remedy names |
 | 403 mcp_human_only | an MCP connection asked for an account action | do it yourself, with the CLI or the account page |
+| 403 forbidden with level: none | you were not given this catalog | ask one of the people its can_grant names |
+| 409 scoped_grants_held | opening the catalog would end the namespace grants it names | revoke them, then open it; or keep it Restricted |
+| confirmation_required from catalog update --access restricted | members would lose the catalog, and no terminal to ask | read the count in the answer, then pass --yes |
 | a write refused with a read credential | you hold read on this catalog | ask someone with write to grant it |
 | a recipe that stopped working | its key pair was rotated | fetch a fresh one: lhbox connect, or the account page |
 | the last admin cannot leave or be demoted | an organisation keeps one human admin | make another person admin first |
@@ -262,7 +311,7 @@ Every command is in the CLI reference (https://lakehousebox.com/docs/cli/); the 
 
 | what | figure |
 |---|---|
-| invitation | valid 7 days |
+| invitation | valid 7 days; at most 20 catalogs |
 | lhbox login code | valid 15 minutes |
 | catalog token, storage credentials | about an hour |
 | rotation after access is taken away | within seconds |
