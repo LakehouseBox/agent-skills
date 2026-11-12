@@ -33,7 +33,8 @@ Tokens are the organisation's machine identities: an agent, a script, a schedule
 
 | capability | admin | member |
 |---|---|---|
-| see the organisation, its catalogs, members, tokens and usage | yes | yes |
+| see the organisation, its members, tokens and usage | yes | yes |
+| see a catalog: its name, size and access list | every catalog | the catalogs they hold something on |
 | invite and remove members, change roles, claim domains, rename the organisation | yes | no |
 | read and write catalogs | write on every catalog | the catalogs they created or were granted, and read on those open to the organisation |
 | create a catalog | yes | yes, and gets write on it |
@@ -163,7 +164,11 @@ Making a catalog Restricted takes it from the members who read it only as member
 
 Admins, the creator, and people and tokens with a grant of their own keep their access. At a terminal the CLI says how many members lose the catalog and asks; anywhere else, pass --yes. GET /v1/catalogs/{id}/org-access returns those counts before you change anything.
 
-A member without access still sees that the catalog exists. lhbox catalog list shows its name, id and size with level none. Its tables, its files and its recipe are refused with 403 forbidden, which names the admins to ask.
+A member without access does not see the catalog. It is not in lhbox catalog list or on the account page. Every request that names it gets 404 warehouse_not_found, the answer a name nobody used gets: nothing says whether the catalog exists. The same goes for a member whose read an admin revoked on an open catalog.
+
+What else names a catalog follows the same rule for that member. A token's or a service account's grants on it are counted (grants_hidden), not named. An agent that reads it is not listed. Creating a catalog with its name answers 409 already_exists, which says the name is taken and nothing more.
+
+A member who holds only a namespace or a table of a catalog still sees the catalog, with level none and what they hold in it.
 
 Each change is recorded in the audit log as warehouse.org_access, with the value before and after and the number of members it reached.
 
@@ -297,7 +302,8 @@ lhbox audit --org <org> --action 'token.*' --limit 200
 |---|---|---|
 | 403 org_policy_forbids | the organisation's member permissions keep this to admins | ask one of the admins its remedy names |
 | 403 mcp_human_only | an MCP connection asked for an account action | do it yourself, with the CLI or the account page |
-| 403 forbidden with level: none | you were not given this catalog | ask one of the people its can_grant names |
+| 404 warehouse_not_found for a catalog a colleague named | no catalog has that name, or it was not shared with you | check the name, then ask an admin of the organisation for access |
+| 403 forbidden with level: none | you hold a namespace or a table of this catalog, not the catalog | ask one of the people its can_grant names |
 | 409 scoped_grants_held | opening the catalog would end the namespace grants it names | revoke them, then open it; or keep it Restricted |
 | confirmation_required from catalog update --access restricted | members would lose the catalog, and no terminal to ask | read the count in the answer, then pass --yes |
 | a write refused with a read credential | you hold read on this catalog | ask someone with write to grant it |
