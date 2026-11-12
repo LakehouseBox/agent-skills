@@ -17,6 +17,7 @@ where they hold write, never above their own level ([access](references/access.m
 | a program, a server, or an agent that should not act as the person | a token with exactly the grants it needs | [access](references/access.md) |
 | a colleague | invite them to the organisation from the account page, then grant read or write on the catalog | [access](references/access.md) |
 | anyone, with no account | publish the catalog | [public-catalogs](references/public-catalogs.md) |
+| people of the organisation, as a page they open: a dashboard, a report, a map | publish an artifact: `lhbox artifact publish page.html --title "The garden" --catalog <catalog>`; the person shares it on the page | [artifacts](references/artifacts.md) |
 
 ## Agents and programs: the narrowest grant that works
 
@@ -73,3 +74,5 @@ The AGENTS.md of a public catalog is public too: nothing in it the owner would n
 - [access-credentials](references/access-credentials.md): the credentials an engine gets and how long each lives.
 - [public-catalogs](references/public-catalogs.md): what publishing makes readable, the public page, reading with no
   account, attaching by name, allowances, risks.
+- [artifacts](references/artifacts.md): writing a page that reads the catalogs live with each viewer's own
+  permissions, publishing it and its next versions, what a viewer without access sees, limits.

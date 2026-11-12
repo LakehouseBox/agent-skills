@@ -33,6 +33,7 @@ lhbox agent update <name> changes any part of an agent. Only what you pass chang
 | remember | keep a small value (up to 2,000 characters) under one of its declared keys, for its next run |
 | note, resolve, recall, flag_owner | with memory topics (--topic, up to 12): note observations, alerts and decisions about items, close them when done, read older notes, and flag what only you can decide; each run starts from a short view of what is open and current |
 | notify_owner | email you (the person who created it) and its subscribers, at verified addresses, at most once per run and five times a day; the body is Markdown |
+| publish_artifact, read_artifact, list_artifacts | publish a page for people, and the next versions of the pages it keeps (the ones it published or was given, until their owner takes one back), at most five versions a run; Artifacts (https://lakehousebox.com/docs/artifacts/) |
 | append_rows | add rows to a table its definition names (--write): append-only, checked against the table's columns |
 | fetch_url | GET a page or an API answer from a host its definition names (--allow-host) |
 | view_image | look at an image in one of its catalogs' files (only on a model that sees images) |

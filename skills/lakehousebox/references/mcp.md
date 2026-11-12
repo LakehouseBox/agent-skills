@@ -94,7 +94,7 @@ The same code runs as a local stdio process, for working on the server against a
 
 - For Claude Desktop it writes a uvx --from platform/mcp entry with the key in its environment. It goes in Claude Desktop's own configuration file, readable only by its owner.
 
-A local server offers the write tools only with LHBOX_MCP_WRITE_TOOLS=1 in its environment, and agent_brief and talk_to_agent only with LHBOX_MCP_AGENT_TOOLS=1; without them it has the six read tools. The package is not published on PyPI. The hosted server is the supported route.
+A local server offers the write tools only with LHBOX_MCP_WRITE_TOOLS=1 in its environment, agent_brief and talk_to_agent only with LHBOX_MCP_AGENT_TOOLS=1, and the three artifact tools only with LHBOX_MCP_ARTIFACT_TOOLS=1; without them it has the six read tools. The package is not published on PyPI. The hosted server is the supported route.
 
 MCP tools (https://lakehousebox.com/docs/mcp/tools/), a page of its own: Each tool of the LakehouseBox MCP server, public catalogs, a catalog's AGENTS.md, how the queries run, where to compute, and the limits of the shared queue.
 
@@ -129,7 +129,7 @@ The code says what to change and the remedy how. Act on the remedy rather than r
 | not_unclaimed | keep_account on an account a person already owns |
 | missing_credential | no key configured (a local developer server) |
 | unreachable | the request never reached the API (or it changes nothing when sent twice): safe to retry |
-| outcome_unknown | a query_rw or talk_to_agent reached the API and its answer was lost: it may have taken effect. Check as the remedy says (query the table, agent_brief) before sending it again |
+| outcome_unknown | a query_rw, talk_to_agent or publish_artifact reached the API and its answer was lost: it may have taken effect. Check as the remedy says (query the table, agent_brief, list_artifacts) before sending it again |
 | route_missing | the API behind the server predates a route |
 | redirected | the API answered with a redirect (an http:// address, a redirecting proxy): set LHBOX_URL to location |
 
@@ -162,6 +162,7 @@ The last five are the server's own envelopes. The full list: Errors and help (ht
 | a Claude sandbox refuses a script holding a key (why keyless_duckdb_sql comes first) |  | 2026-10-12 |
 | Claude cloud sandbox: outside hosts refused until the domain was allowed; pip needed the proxy bypass off |  | 2026-10-12 |
 | read_agents_md added; clients connected earlier need a reconnect |  | 2026-09-28 |
+| publish_artifact, read_artifact, list_artifacts added |  | 2026-11-12 |
 
 The server is one file built on the official mcp Python package, pinned.
 

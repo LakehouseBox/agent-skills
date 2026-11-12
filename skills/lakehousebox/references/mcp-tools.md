@@ -7,9 +7,9 @@ Part of MCP (https://lakehousebox.com/docs/mcp/).
 
 ## The tools
 
-Seven tools only read, and are marked so (readOnlyHint, idempotentHint). Five change things: query_rw, document_table, set_agents_md, keep_account and talk_to_agent. query_rw is marked destructiveHint, so a client that honours it asks before it runs.
+Nine tools only read, and are marked so (readOnlyHint, idempotentHint). Six change things: query_rw, document_table, set_agents_md, keep_account, talk_to_agent and publish_artifact. query_rw is marked destructiveHint, so a client that honours it asks before it runs.
 
-All twelve need the caller's key or token. All but open_public_catalog are bounded by the caller's grants. Name tables the way DuckDB does: catalog.namespace.table. A table in a catalog you cannot read answers 404, like one that does not exist.
+All fifteen need the caller's key or token. All but open_public_catalog are bounded by the caller's grants. Name tables the way DuckDB does: catalog.namespace.table. A table in a catalog you cannot read answers 404, like one that does not exist.
 
 | tool | what it does | API |
 |---|---|---|
@@ -25,6 +25,9 @@ All twelve need the caller's key or token. All but open_public_catalog are bound
 | keep_account | a link and a code that let the person keep an account the client set up | POST /v1/agent/identity/claim |
 | agent_brief | what one of your hosted agents needs from you, what it remembers, its recent runs | GET /v1/agents/{agent}/brief |
 | talk_to_agent | a message to one of your hosted agents, and its answer; your yes applies what it proposed | POST /v1/agents/{agent}/talk |
+| list_artifacts | the artifacts this connection can see: pages published for people | GET /v1/artifacts |
+| read_artifact | one artifact's current version: its page files as text | GET /v1/artifacts/{id}/files |
+| publish_artifact | publishes a page for people, or the next version of one | POST /v1/artifacts |
 
 ### list_tables
 
@@ -125,6 +128,20 @@ Your hosted agents, from your own assistant: ask Claude what your agent did last
 - talk_to_agent sends what you said. The agent answers in reply, and may propose a change: a new version of its instructions (before, after), or items to mark done. A proposal changes nothing until you answer it. Your next message decides it: say yes and it is applied (acted.applied), say no and it is dropped (acted.discarded), or ask for something different and the agent proposes again. Only the message right after the proposal decides it (when the agent did not answer it, agent_did_not_answer, send the same words again: they still decide it); after anything else, the proposal stays waiting in the brief. The server waits up to 180 s for the answer. Every change is a new version of the agent, and earlier versions can be restored. Each message uses your organisation's monthly inference allowance.
 
 - The CLI does the same: lhbox agent brief <name>, lhbox agent talk <name> "…".
+
+### publish_artifact, read_artifact and list_artifacts
+
+An artifact is a page people of your organisation open on LakehouseBox: a dashboard, a report, a map. Its script reads the catalogs live, in the browser of whoever opens it, with that person's permissions. Artifacts (https://lakehousebox.com/docs/artifacts/) says how to write one.
+
+- publish_artifact takes the whole page as html, the catalogs its SQL reads, and a title. It answers the page's url. With artifact_id it publishes the next version of a page this connection published; note says what changed. The connection must read every catalog it names as a whole.
+
+- A new page is private to the person behind the connection. The person: opens the url and shares the page there. No tool shares, renames or deletes an artifact.
+
+- read_artifact returns the current version's page files as text, each cut at 64 KB. Read a page before you change it. A file marked truncated is not the whole file: do not publish a version built from it.
+
+- list_artifacts returns what this connection can see. A connection approved on the consent page, and an agent's key, see the artifacts they published. A person's own API key also sees theirs and those shared with them.
+
+- A lost answer to publish_artifact is outcome_unknown: call list_artifacts before publishing again.
 
 ### What the server tells the agent
 
