@@ -112,11 +112,50 @@ To change a page, publish its next version: pass artifact_id to the API and the 
 
 - A new artifact is private: only the person it belongs to opens it.
 
-- The person shares it on the page itself: with named members of the organisation, or with the whole organisation. An agent's key, an MCP connection and a hosted agent cannot share, delete or duplicate an artifact.
+- The person shares it on the page itself: with named members of the organisation, with the whole organisation, or with anyone on the internet (below). An agent's key, an MCP connection and a hosted agent cannot share, delete or duplicate an artifact.
 
 - Sharing lets someone open the page. It gives them no data: a viewer who does not read a catalog sees a note such as "You can't read garden" in the panels that query it. The Share panel says so for each person before they are added.
 
 - A page is opened by a person signed in on the account page. An API key cannot open one.
+
+## Making a page public
+
+A public page is opened by anyone on the internet, with no account, at its public link. Around the page we show its title, the organisation that published it, Use this in your account, Get started and Report. Search engines are asked not to index it.
+
+Public pages are turned on per organisation. Where they are on, the Share panel's General access offers Anyone on the internet.
+
+- Only the page's owner makes it public, signed in on the account page, after a recent sign-in. A key, an MCP connection and a hosted agent cannot, and neither can an admin for someone else's page.
+
+- The owner needs a verified address, and the organisation's setting for publishing catalogs has to let them publish: admins by default.
+
+- A public page reads public catalogs only. If the page names a private catalog, the panel lists it with its tables and its size, and making the page public makes that catalog public too. Anyone on the internet can then read and copy every table of it, not only what the page shows. You confirm each catalog by typing its name.
+
+- A public page keeps only the version it shows. Its earlier versions are deleted when it becomes public, and each new version replaces the one before. Whoever opens the page can read its files, so put nothing in them you would not publish.
+
+- An organisation makes at most 10 pages public a day.
+
+- While a page is public, a version that names a catalog which is not public is refused with 409 artifact_public_private_data. An agent goes on publishing versions of a public page under that rule.
+
+- If a catalog is made private again while a public page reads it, visitors see "This catalog is no longer public" in the panels that query it, and the owner is told on the page.
+
+Making the page private again takes it off the web at once. The panel then offers to make private the catalogs that going public had published, and no others.
+
+A page stops being public when it is deleted, when its owner leaves the organisation, and when public pages are turned off for the organisation. A restored page is private.
+
+| over the API |  |
+|---|---|
+| PATCH /v1/artifacts/{id} with {"sharing": "public", "dry_run": true} | answers the plan: each catalog, and for a private one its tables, its size and the name to confirm |
+| PATCH /v1/artifacts/{id} with {"sharing": "public", "confirm_catalogs": {"<warehouse id>": "<name>"}} | makes it public, from a browser session |
+| PATCH /v1/artifacts/{id} with {"sharing": "private", "unpublish_catalogs": ["<warehouse id>"]} | makes it private, and those catalogs with it |
+| GET /v1/artifacts/{id} | public_url, and for its owner public.copies |
+
+### Use this in your account
+
+A visitor who is signed in, or who signs in or signs up from the public page, gets a private copy of the page in their own organisation. The copy reads the same public catalogs under the same names, so it works at once, and it says where it came from. Nothing but the page is copied. The owner of the original sees how many copies were made. Over the API it is POST /v1/artifacts/{id}/duplicate on a public page, with {"org_id"} to choose the organisation.
+
+### Reports
+
+Report on a public page sends us what the visitor says is wrong with it. We can take a page off the web. Its owner then sees that it was taken down and why, and cannot make it public again until we lift that.
 
 ## A hosted agent that keeps a page
 
@@ -151,6 +190,11 @@ A hosted agent (https://lakehousebox.com/docs/hosted-agents/) whose definition h
 | 429 rate_limited | More than 30 versions in an hour from one key. Publish when the content changes, not on a timer. |
 | 429 artifact_publish_limit | A hosted agent's run published its 5 versions. |
 | 409 artifact_several_files | A hosted agent tried to update a page made of several files. Its owner updates it with lhbox artifact publish <folder>. |
+| 403 public_artifacts_not_enabled | Public pages are not turned on for the organisation. |
+| 400 confirmation_required | Making the page public would make a private catalog public. Send its name in confirm_catalogs; the answer lists what is missing. |
+| 409 artifact_public_private_data | A public page reads public catalogs only. Name public catalogs, or have the owner make the page private first. |
+| 403 artifact_public_blocked | We took the page off the web. It cannot be made public again until that is lifted. |
+| 403 address_not_verified | The owner's address is not verified yet. |
 | 403 artifacts_not_allowed | The hosted agent's definition does not have artifacts. Whoever manages it turns it on. |
 
 ## Numbers and dates
