@@ -120,7 +120,7 @@ To change a page, publish its next version: pass artifact_id to the API and the 
 
 ## Making a page public
 
-A public page is opened by anyone on the internet, with no account, at its public link. Around the page we show its title, the organisation that published it, Use this in your account, Get started and Report. Search engines are asked not to index it.
+A public page is opened by anyone on the internet, with no account, at its public link. Around the page we show its title, the organisation that published it, Use this in your account, Get started and Report, and Follow where its owner lets visitors subscribe to the page's agent. Search engines are asked not to index it.
 
 Public pages are turned on per organisation. Where they are on, the Share panel's General access offers Anyone on the internet.
 
@@ -142,12 +142,15 @@ Making the page private again takes it off the web at once. The panel then offer
 
 A page stops being public when it is deleted, when its owner leaves the organisation, and when public pages are turned off for the organisation. A restored page is private.
 
+Making a page public is also where its owner decides whether visitors may subscribe to its agent's updates: Letting visitors follow a page.
+
 | over the API |  |
 |---|---|
 | PATCH /v1/artifacts/{id} with {"sharing": "public", "dry_run": true} | answers the plan: each catalog, and for a private one its tables, its size and the name to confirm |
 | PATCH /v1/artifacts/{id} with {"sharing": "public", "confirm_catalogs": {"<warehouse id>": "<name>"}} | makes it public, from a browser session |
 | PATCH /v1/artifacts/{id} with {"sharing": "private", "unpublish_catalogs": ["<warehouse id>"]} | makes it private, and those catalogs with it |
 | GET /v1/artifacts/{id} | public_url, and for its owner public.copies |
+| PATCH /v1/artifacts/{id} with {"follow": true, "follow_ack": {"catalogs": ["<warehouse id>"], "integrations": false}} | lets visitors subscribe to the page's agent, from a browser session; {"follow": false} stops it |
 
 ### Use this in your account
 
@@ -157,9 +160,48 @@ A visitor who is signed in, or who signs in or signs up from the public page, ge
 
 Report on a public page sends us what the visitor says is wrong with it. We can take a page off the web. Its owner then sees that it was taken down and why, and cannot make it public again until we lift that.
 
+### Letting visitors follow a page
+
+A visitor of a public page can subscribe by email to what the page's agent writes about it. They follow the agent, for that page: its updates, and the note of each version it publishes.
+
+The page's owner decides, and it is off until they turn it on. The choice is offered when the page is made public and afterwards in the Share panel, and only for a page that has an agent.
+
+Nobody reads an update before it is emailed. Not the owner, and not us. So before the owner says yes, the panel names what the agent reads that is not public: the private catalogs it reads or has read, and whether it uses a person's connected accounts. What the agent writes may carry what it read there. If the agent is later given another private catalog, the emails stop until the owner confirms again.
+
+- Only the owner turns it on, signed in on the account page, after a recent sign-in. A key, an agent and an admin cannot. The owner or an admin turns it off.
+
+- Turning it off stops the emails at once and keeps the list. So does making the page private, giving the page to another agent or taking it from its agent, and a takedown. The owner turns it on again on purpose.
+
+- The emails also stop while public pages are turned off for the organisation.
+
+- Deleting the page deletes the addresses. A restored page has none.
+
+- The owner sees how many people subscribed and the last things the agent said. The owner never sees an address.
+
+- A page takes at most 200 subscribers.
+
+For a visitor:
+
+- Follow asks for an email address. We send one email with a link to confirm it. Nothing else is sent to an address until that link is followed.
+
+- Every email has the page's link, the organisation that published it, "Made with LakehouseBox" and a link to unsubscribe. Mail apps that show an unsubscribe button use the same link.
+
+- Unsubscribing erases the address from the page's list.
+
+- No account is made.
+
+The answer to a subscription is always the same, whether the page takes subscribers or not and whether the address is already subscribed. An address is sent at most one confirmation per page a day and three a week.
+
+| over the API |  |
+|---|---|
+| GET /v1/artifacts/{id} | follow: on, live, and for the owner agent, agent_reads, subscribers, updates |
+| PATCH /v1/artifacts/{id} with {"follow": true, "follow_ack": {...}} | turns it on. follow_ack repeats follow.agent_reads: the ids of its catalogs and its integrations. 400 confirmation_required carries what the agent reads now |
+| POST /v1/a/{id}/open | follow: {"agent": "<name>"} when visitors may subscribe, else null |
+| POST /v1/a/{id}/subscribe with {"email": "<address>"} | no account needed; always 202 |
+
 ## A hosted agent that keeps a page
 
-A hosted agent (https://lakehousebox.com/docs/hosted-agents/) whose definition has artifacts gets publish_artifact, read_artifact and list_artifacts. A new agent has it; turn it on for an older one with lhbox agent update <name> --artifacts.
+A hosted agent (https://lakehousebox.com/docs/hosted-agents/) whose definition has artifacts gets publish_artifact, read_artifact, list_artifacts and post_update. A new agent has it; turn it on for an older one with lhbox agent update <name> --artifacts.
 
 - A page the agent publishes is private and belongs to the person who created the agent.
 
@@ -170,6 +212,8 @@ A hosted agent (https://lakehousebox.com/docs/hosted-agents/) whose definition h
 - The person takes a page back the same way ({"agent": null}), or gives it to another agent. From then the agent that kept it no longer lists, reads or updates it (404 artifact_not_found), even when it made the page. It can still publish a new page: to stop that, change its task or turn its artifacts off (lhbox agent update <name> --no-artifacts).
 
 - A run publishes at most 5 versions. A test run checks the page and publishes nothing.
+
+- post_update says one short thing about a page the agent keeps: plain text, at most 600 characters, no link or address. It goes to the people who already get the agent's notices, as one of its notices of the day (it leaves the run's own notice free). Where the page's owner lets visitors follow the page, it is also emailed to the page's subscribers, as written. At most one update per page in a run, 3 in a run and 2 per page a day. A test run posts nothing.
 
 - The agent publishes one self-contained HTML file. It cannot update a page made of several page files, and its version never renames the page: the title is its owner's.
 
