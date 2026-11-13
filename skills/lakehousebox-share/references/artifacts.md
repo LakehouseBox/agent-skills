@@ -36,11 +36,15 @@ lhbox.panel(document.getElementById('total'), async (el) => {
 
 | call | what it does |
 |---|---|
-| lhbox.query(sql, {params}) | Runs one DuckDB statement in the viewer's browser and answers {columns, rows}. Each row is an object keyed by column name. params fills the ? marks of a prepared statement. |
+| lhbox.query(sql, {params}) | Runs one DuckDB statement in the viewer's browser and answers {columns, rows}. columns is a list of {name, type}, in the statement's order, with a DuckDB type name such as bigint, double, varchar, date, timestamp or decimal(18,3). Each row is an object keyed by column name. params fills the ? marks of a prepared statement. |
 | lhbox.panel(element, fn) | Runs fn(element). When the viewer cannot read a catalog the function queries, the element shows a note naming it, such as "You can't read garden", and the rest of the page keeps working. |
 | lhbox.duckdb() | The engine's connection with the catalogs attached, for Arrow results and prepared statements. |
 | lhbox.asset(path) | The address of one of the artifact's own files that loads now. Use it for a file fetched late, such as an image shown on a click. |
 | lhbox.open(url) | Asks LakehouseBox to open a link. The person sees the address and confirms before a new tab opens. |
+| lhbox.download(name, data) | Offers a file the page made, such as a CSV of a result: data is a Blob, a string or bytes, at most 25 MB. The person sees the file's name and size and confirms before it is saved. Answers a promise: true once saved. |
+| lhbox.copy(text) | Puts text on the clipboard, at most 1 MB. Call it from a click or a key press. Answers a promise: true once copied. |
+| lhbox.setState(text, {push}), lhbox.onState(fn), lhbox.state | The page's own place (a view, a filter, a selection) as one string of at most 2,000 characters, kept in the address of the page around it, so a reload, a copied link and Back return to it. setState replaces the address; {push: true} adds a step to the browser's history. onState(fn) hears the address change (Back, Forward, a link) and returns a function that stops it. lhbox.state is the place the page was opened at. |
+| lhbox.engine | The engine the page runs: duckdb-wasm-2.0.0, or duckdb-wasm-1.5.6 for a version published before 13 November 2026 (below). |
 | lhbox.catalogs, lhbox.unreadable, lhbox.viewer | The catalogs attached, the ones this viewer cannot read with the reason, and the viewer's name. |
 
 - Name tables catalog.namespace.table, as in lhbox query and the MCP query tool. Test each statement there first: the same SQL runs in the page. Another organisation's public catalog <handle>/<catalog> is read as <handle>_<catalog>.namespace.table.
@@ -57,6 +61,14 @@ lhbox.panel(document.getElementById('total'), async (el) => {
 
 - A page laid out to the window, such as a full-screen map, says <meta name="lhbox-layout" content="fill">.
 
+- Inside the frame, location.hash is not the address people see or share. A page with views of its own keeps its place with lhbox.setState and reads it back from lhbox.state and lhbox.onState.
+
+- The frame cannot save files or reach the clipboard by itself (a link with download, navigator.clipboard): use lhbox.download and lhbox.copy.
+
+## The engine
+
+The page's SQL runs in DuckDB 2.0.0, compiled to WebAssembly, in the viewer's browser. A version keeps the engine it was published with: versions published before 13 November 2026 run DuckDB 1.5.6, and publishing the page again moves it to 2.0.0. Both read the same tables with the same SQL. A query over many files of a partitioned table is the one you will notice: on a page that reads a year-partitioned table of 39 files, that query took about 1 s on 2.0.0 against 3 s on 1.5.6 (Chromium; measured 13 November 2026).
+
 ## Time
 
 The page's engine runs in UTC, as the query tools do, so the same statement answers the same in both. now() - INTERVAL 14 DAY, date_trunc('day', ts), ts::DATE and strftime(ts, …) work on a TIMESTAMP WITH TIME ZONE column, and a day is a UTC day for every viewer.
@@ -72,10 +84,12 @@ The page runs in a sandboxed frame on a host of its own, apart from the account 
 | it can | it cannot |
 |---|---|
 | read the catalogs it names, as the viewer | read a catalog it did not name, or one the viewer cannot read |
-| load its own files and assets | send a request to any other host: no fetch, no external images or fonts |
+| load its own files and assets, fonts included | send a request to any other host: no fetch, no external images or fonts |
 | load a script or a stylesheet from cdnjs.cloudflare.com, cdn.jsdelivr.net or unpkg.com | load a script from anywhere else |
 | draw with inline SVG, canvas, CSS and its own JavaScript | use cookies, storage, forms or popups, or leave its frame |
 | show basemap tiles from tiles.lakehousebox.com | see anything of the account page or the viewer's session |
+
+A font is an asset: put the .woff2 file in assets/ and name it in the page's CSS as @font-face { font-family: 'Source Sans 3'; src: url(../assets/source-sans-3-400.woff2) format('woff2'); }. Fonts from Google Fonts or any other host are blocked.
 
 Put nothing private in the HTML. Whoever the page is shared with can read its source, so no secret, no copied rows and no personal data belong in the file. Data stays in the tables, and each viewer sees only what they may read.
 
@@ -90,13 +104,15 @@ Name every catalog the page's SQL reads. You can only name catalogs you read as 
 | an MCP host | the publish_artifact tool, with read_artifact and list_artifacts |
 | a hosted agent | the same three tools, when its definition has artifacts |
 
-A page of several files is a folder: page/ holds index.html and the other page files, assets/ holds images and other binary files, and the page refers to an asset as ../assets/<name>. lhbox artifact pull writes that folder and lhbox artifact publish <folder> publishes it back as the next version.
+A page of several files is a folder: page/ holds index.html and the other page files, assets/ holds images, fonts and other binary files, and the page refers to an asset as ../assets/<name>. lhbox artifact pull writes that folder and lhbox artifact publish <folder> publishes it back as the next version. A folder published as a new artifact gets an artifact.json too, with the artifact's id and catalogs, so publishing the same folder again makes its next version, not a second artifact.
+
+An asset is stored under the SHA-256 of its content (assets/<sha256>.woff2), and the publish rewrites each assets/<name> in the page files to that stored name. A pulled page therefore does not match its source file for file: compare the page with your source after replacing the stored names, or keep the source as the one you edit.
 
 Over the API a folder is three steps. POST /v1/artifacts without html starts a pending version. Each file goes up with PUT /v1/artifacts/{id}/versions/{version}/files/{name}. POST /v1/artifacts/{id}/versions/{version}/publish shows it. Nothing is shown until that last call answers.
 
 ## Versions
 
-To change a page, publish its next version: pass artifact_id to the API and the MCP tool, or --artifact to the CLI.
+To change a page, publish its next version: pass artifact_id to the API and the MCP tool, or --artifact to the CLI. With --artifact and no --catalog, the CLI names the catalogs the artifact reads now.
 
 - A version is the whole page. What you do not send is not in it, except the artifact's assets, which a version sent in one call goes on naming.
 
@@ -240,6 +256,7 @@ A hosted agent (https://lakehousebox.com/docs/hosted-agents/) whose definition h
 | 403 artifact_public_blocked | We took the page off the web. It cannot be made public again until that is lifted. |
 | 403 address_not_verified | The owner's address is not verified yet. |
 | 403 artifacts_not_allowed | The hosted agent's definition does not have artifacts. Whoever manages it turns it on. |
+| http_499 with no message from an upload | The connection closed before an answer came: a timeout or a reset on the way. On a CI runner whose uploads hang, run sudo sysctl -w net.ipv4.tcp_mtu_probing=1 on the runner first, then publish again. |
 
 ## Numbers and dates
 
@@ -255,8 +272,11 @@ A hosted agent (https://lakehousebox.com/docs/hosted-agents/) whose definition h
 | reading a page's files back | 60 an hour for each key |
 | artifacts in an organisation | 200 |
 | a deleted artifact | restorable by the person for 7 days |
+| lhbox.download | 25 MB a file |
+| lhbox.copy | 1 MB of text |
+| lhbox.setState | 2,000 characters |
 
-Measured on 12 November 2026, in Chromium and WebKit: the page's engine is DuckDB 1.5.6 in the browser. Loading its time-zone support adds about 0.1 s to the first query and 1.6 MB to the first open in a browser.
+Measured on 12 November 2026 on DuckDB 1.5.6, in Chromium and WebKit: loading the engine's time-zone support adds about 0.1 s to the first query and 1.6 MB to the first open in a browser. On 2.0.0 it is about 0.04 s and 0.7 MB (13 November 2026).
 
 ---
 HTML version: https://lakehousebox.com/docs/artifacts/ · every page: https://lakehousebox.com/llms.txt · everything in one file: https://lakehousebox.com/llms-full.txt
