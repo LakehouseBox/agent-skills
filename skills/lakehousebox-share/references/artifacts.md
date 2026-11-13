@@ -43,7 +43,9 @@ lhbox.panel(document.getElementById('total'), async (el) => {
 | lhbox.open(url) | Asks LakehouseBox to open a link. The person sees the address and confirms before a new tab opens. |
 | lhbox.download(name, data) | Offers a file the page made, such as a CSV of a result: data is a Blob, a string or bytes, at most 25 MB. The person sees the file's name and size and confirms before it is saved. Answers a promise: true once saved. |
 | lhbox.copy(text) | Puts text on the clipboard, at most 1 MB. Call it from a click or a key press. Answers a promise: true once copied. |
-| lhbox.setState(text, {push}), lhbox.onState(fn), lhbox.state | The page's own place (a view, a filter, a selection) as one string of at most 2,000 characters, kept in the address of the page around it, so a reload, a copied link and Back return to it. setState replaces the address; {push: true} adds a step to the browser's history. onState(fn) hears the address change (Back, Forward, a link) and returns a function that stops it. lhbox.state is the place the page was opened at. |
+| lhbox.setState(text, {push}), lhbox.onState(fn), lhbox.state | The page's own place (a view, a filter, a selection) as one string of at most 2,000 characters, kept in the address of the page around it, so a reload, a copied link and Back return to it. setState replaces the address; {push: true} adds a step to the browser's history. onState(fn) hears the address change (Back, Forward, a link) and returns a function that stops it. lhbox.state is the place the page was opened at, once lhbox.ready() has resolved (below). |
+| lhbox.link | The address that opens this page at its current place, for a "copy link" button: lhbox.copy(lhbox.link). For a private page or one shared with the organisation it is the page's address in the account, https://lakehousebox.com/app/#artifact=<id>&s=<state>; for a public page, the public page's address, https://lakehousebox.com/app/a/public-page?<id>#s=<state>. Without a state, the part from &s= or #s= is left out. It follows setState, Back and Forward, and a change of the page's sharing. It never grants access: whoever opens it signs in, or opens the public page, and sees what they may read. |
+| lhbox.ready() | A promise that resolves with lhbox once LakehouseBox has answered the page, with lhbox.state and lhbox.link set. It rejects with code: 'no_viewer' when the page is opened by itself, outside LakehouseBox. |
 | lhbox.engine | The engine the page runs: duckdb-wasm-2.0.0, or duckdb-wasm-1.5.6 for a version published before 13 November 2026 (below). |
 | lhbox.catalogs, lhbox.unreadable, lhbox.viewer | The catalogs attached, the ones this viewer cannot read with the reason, and the viewer's name. |
 
@@ -62,6 +64,8 @@ lhbox.panel(document.getElementById('total'), async (el) => {
 - A page laid out to the window, such as a full-screen map, says <meta name="lhbox-layout" content="fill">.
 
 - Inside the frame, location.hash is not the address people see or share. A page with views of its own keeps its place with lhbox.setState and reads it back from lhbox.state and lhbox.onState.
+
+- lhbox.state and lhbox.link are empty until lhbox.ready() resolves. A page that reads them as the module loads never opens at the linked place (the console says so). Wait for the answer first: const { state } = await lhbox.ready(); showView(state); lhbox.onState(showView);
 
 - The frame cannot save files or reach the clipboard by itself (a link with download, navigator.clipboard): use lhbox.download and lhbox.copy.
 
