@@ -171,6 +171,19 @@ Making a page public is also where its owner decides whether visitors may subscr
 | PATCH /v1/artifacts/{id} with {"sharing": "private", "unpublish_catalogs": ["<warehouse id>"]} | makes it private, and those catalogs with it |
 | GET /v1/artifacts/{id} | public_url, and for its owner public.copies |
 | PATCH /v1/artifacts/{id} with {"follow": true, "follow_ack": {"catalogs": ["<warehouse id>"], "integrations": false}} | lets visitors subscribe to the page's agent, from a browser session; {"follow": false} stops it |
+| GET /v1/a/{id}/card | the share card, with no account: title, description, url, image (url, width, height, alt, or null) |
+
+### When the link is shared
+
+A public page's link shows a preview in chats and posts (WhatsApp, LinkedIn, Slack, X): the page's title, a line of description and an image. The page's head carries them for every public page, with nothing to set up. Without your own description the line names your organisation; without your own image the preview shows LakehouseBox's.
+
+To choose them, publish with a description and a thumbnail, an image in the folder's assets/ (1200 × 630 pixels, PNG, JPEG or WebP, at most 5 MB):
+
+```
+lhbox artifact publish site/ --description "Spain's reservoirs and rain, live." --thumbnail card.png
+```
+
+artifact.json keeps both, so the next lhbox artifact publish site/ sends them again. Over the API they are description (one line, at most 300 characters) and thumbnail (the image's stored name, assets/<sha256>.<ext>) in POST /v1/artifacts. A version that does not send them keeps the ones before, so a hosted agent's updates keep the card; --description "" removes the description. A thumbnail over 5 MB is refused when the version is published. A preview follows a change to the page (renamed, made private) within a minute. A self-hosted install serves the page without the preview tags.
 
 ### Use this in your account
 
