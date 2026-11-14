@@ -398,7 +398,7 @@ The full contracts are in the API reference (https://lakehousebox.com/docs/api/)
 POST  /v1/sql/preview          {warehouse, sql, table?, engine?, format_version?} -> rows (<= 50), row_count,
                                rows_shown, truncated, truncated_by, max_rows_applied, max_chars_applied,
                                values_truncated[{row, column, length}], columns{name, duckdb_type, type}, problems, create_table_schema, create_table_format_version,
-                               format_version_source, fits_table / table_error, egress{requests, bytes_down, hosts},
+                               format_version_source, fits_table / table_error, egress{requests, bytes_down, hosts (reached), refused?[{host, reason}]},
                                engine, engine_version
 POST  /v1/sinks                {name, warehouse, table, sql, every, offset?, paused?, create_table?, format_version?,
                                partition?, key?, engine?, mode?: append|replace, min_rows?, replace_existing?}   write level
