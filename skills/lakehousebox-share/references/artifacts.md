@@ -97,6 +97,46 @@ A font is an asset: put the .woff2 file in assets/ and name it in the page's CSS
 
 Put nothing private in the HTML. Whoever the page is shared with can read its source, so no secret, no copied rows and no personal data belong in the file. Data stays in the tables, and each viewer sees only what they may read.
 
+## Making a good page
+
+What makes a page people come back to, learnt building Embalses (the worked example: how it was made (https://lakehousebox.com/examples/embalses/)). A publish answers warnings for what it can see of these, each with the fix and a link back here.
+
+### Draw the page before the data
+
+Show the title, the layout and placeholders shaped like what comes (cards, rows, a grey map) at once. Clear every placeholder when its query answers, and when it fails, or the page shimmers for ever.
+
+### Say how fresh the data is
+
+Show when the data was last updated, from a timestamp in the data itself, in the reader's time zone: new Date(value).toLocaleString().
+
+### Store the tables for the page
+
+How fast a page opens depends more on its tables than on its code. Give a page tables compacted and pre-aggregated to what it draws, and measure the second open as well as the first.
+
+### Give every view a state
+
+Give each view, filter and selection a state from the start with lhbox.setState, and open at lhbox.state once lhbox.ready() resolves; location.hash is not the address people share. A page that replaces an older site maps the old links to a state, so links already shared keep working.
+
+### Set the link preview when you publish
+
+A public page's preview comes from the publish, never from tags in the page: Open Graph, Twitter, JSON-LD and icon tags in the HTML do nothing. Publish with --description and --thumbnail (When the link is shared).
+
+### Name the sources, offer the data
+
+Name each source and its licence on the page. Offer what a chart shows as a table and as a CSV (lhbox.download), not only as a chart.
+
+### Read everything from the catalog
+
+The page reads its data with lhbox.query: no JSON bundled into the page, no requests to other hosts, map outlines as GEOMETRY columns of a table. Ship images, fonts and a basemap's .pmtiles as assets; data the page queries belongs in a table.
+
+### Keep the source in git
+
+Keep the page's files in a repository and publish from CI, the commit's subject as the version's note: lhbox artifact publish page/ --note "$(git log -1 --format=%s)".
+
+### Fit a phone and the reader's language
+
+Lay the page out for a phone's width (<meta name="viewport" content="width=device-width, initial-scale=1">), name its language (<html lang="es">) and format numbers and dates in the reader's language (toLocaleString(), Intl.NumberFormat).
+
 ## Publishing
 
 Name every catalog the page's SQL reads. You can only name catalogs you read as a whole: a grant on some namespaces or tables is refused, and so is a catalog your key was not given.
@@ -111,6 +151,8 @@ Name every catalog the page's SQL reads. You can only name catalogs you read as 
 A page of several files is a folder: page/ holds index.html and the other page files, assets/ holds images, fonts and other binary files, and the page refers to an asset as ../assets/<name>. lhbox artifact pull writes that folder and lhbox artifact publish <folder> publishes it back as the next version. A folder published as a new artifact gets an artifact.json too, with the artifact's id and catalogs, so publishing the same folder again makes its next version, not a second artifact.
 
 An asset is stored under the SHA-256 of its content (assets/<sha256>.woff2), and the publish rewrites each assets/<name> in the page files to that stored name. A pulled page therefore does not match its source file for file: compare the page with your source after replacing the stored names, or keep the source as the one you edit.
+
+Every publish answers warnings: a list, empty when there is nothing to say, of {code, message, remedy, docs} about the page's index.html (no lang, no viewport, tags a preview never reads, location.hash, requests and loads from hosts the frame blocks, a public page without a description or a thumbnail, assets over 2 MB the page loads). They never stop a publish: fix them in the next version. The CLI prints them after the address, and docs links the section of Making a good page that explains each.
 
 Over the API a folder is three steps. POST /v1/artifacts without html starts a pending version. Each file goes up with PUT /v1/artifacts/{id}/versions/{version}/files/{name}. POST /v1/artifacts/{id}/versions/{version}/publish shows it. Nothing is shown until that last call answers.
 
