@@ -176,11 +176,31 @@ To change a page, publish its next version: pass artifact_id to the API and the 
 
 - A new artifact is private: only the person it belongs to opens it.
 
-- The person shares it on the page itself: with named members of the organisation, with the whole organisation, or with anyone on the internet (below). An agent's key, an MCP connection and a hosted agent cannot share, delete or duplicate an artifact.
+- The person shares it on the page itself: with named members of the organisation, with the whole organisation, or with anyone on the internet (below). An agent's key, an MCP connection and a hosted agent cannot share or duplicate an artifact. They can delete one they may publish to: Deleting a page.
 
 - Sharing lets someone open the page. It gives them no data: a viewer who does not read a catalog sees a note such as "You can't read garden" in the panels that query it. The Share panel says so for each person before they are added.
 
 - A page is opened by a person signed in on the account page. An API key cannot open one.
+
+## Deleting a page
+
+A deleted page goes to the trash. Nobody opens it from then: its address answers as if it never existed. It can be restored for 30 days, with the same id and address, and then its files are removed.
+
+```
+lhbox artifact delete Ab12Cd34 --yes      # asked on a terminal without --yes
+lhbox artifact ls --deleted               # the trash
+lhbox artifact restore Ab12Cd34
+```
+
+- Who deletes: the person it belongs to, and an admin of the organisation. A key, an MCP connection (delete_artifact) and a hosted agent (delete_artifact) delete the pages they may publish to: the ones they made, and for a hosted agent the ones it keeps. Anyone else is refused.
+
+- A page that is public or shared with people can be deleted. The answer says who lost access: anyone on the internet, every member of the organisation, the people it was shared with by name.
+
+- When an agent or an admin deletes a page, the person it belongs to gets an email with the way to restore it (at most five such emails an hour; the Deleted list has every one).
+
+- A restored page is private, whatever it was. The people it was shared with by name keep it; its owner shares it again from the page. Whoever may delete a page may restore it, except through an MCP connection.
+
+- DELETE /v1/artifacts/{id}, POST /v1/artifacts/{id}/restore, GET /v1/artifacts?deleted=true.
 
 ## Making a page public
 
@@ -251,7 +271,7 @@ Nobody reads an update before it is emailed. Not the owner, and not us. So befor
 
 - The emails also stop while public pages are turned off for the organisation.
 
-- Deleting the page deletes the addresses. A restored page has none.
+- While the page is deleted, nobody subscribed gets an email. Its addresses are deleted with its files, 30 days after; a page restored before then keeps them, and the emails start again when its owner turns them on again.
 
 - The owner sees how many people subscribed and the last things the agent said. The owner never sees an address.
 
@@ -332,7 +352,7 @@ A hosted agent (https://lakehousebox.com/docs/hosted-agents/) whose definition h
 | publishing | 30 versions an hour for each key; a hosted agent's run 5 |
 | reading a page's files back | 60 an hour for each key |
 | artifacts in an organisation | 200 |
-| a deleted artifact | restorable by the person for 7 days |
+| a deleted artifact | in the trash, restorable for 30 days |
 | lhbox.download | 25 MB a file |
 | lhbox.copy | 1 MB of text |
 | lhbox.setState | 2,000 characters |

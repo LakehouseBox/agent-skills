@@ -7,9 +7,9 @@ Part of MCP (https://lakehousebox.com/docs/mcp/).
 
 ## The tools
 
-Nine tools only read, and are marked so (readOnlyHint, idempotentHint). Six change things: query_rw, document_table, set_agents_md, keep_account, talk_to_agent and publish_artifact. query_rw is marked destructiveHint, so a client that honours it asks before it runs.
+Nine tools only read, and are marked so (readOnlyHint, idempotentHint). Seven change things: query_rw, document_table, set_agents_md, keep_account, talk_to_agent, publish_artifact and delete_artifact. query_rw and delete_artifact are marked destructiveHint, so a client that honours it asks before they run.
 
-All fifteen need the caller's key or token. All but open_public_catalog are bounded by the caller's grants. Name tables the way DuckDB does: catalog.namespace.table. A table in a catalog you cannot read answers 404, like one that does not exist.
+All sixteen need the caller's key or token. All but open_public_catalog are bounded by the caller's grants. Name tables the way DuckDB does: catalog.namespace.table. A table in a catalog you cannot read answers 404, like one that does not exist.
 
 | tool | what it does | API |
 |---|---|---|
@@ -28,6 +28,7 @@ All fifteen need the caller's key or token. All but open_public_catalog are boun
 | list_artifacts | the artifacts this connection can see: pages published for people | GET /v1/artifacts |
 | read_artifact | one artifact's current version: its page files as text | GET /v1/artifacts/{id}/files |
 | publish_artifact | publishes a page for people, or the next version of one | POST /v1/artifacts |
+| delete_artifact | deletes a page this connection published, into the trash for 30 days | DELETE /v1/artifacts/{id} |
 
 ### list_tables
 
@@ -129,19 +130,21 @@ Your hosted agents, from your own assistant: ask Claude what your agent did last
 
 - The CLI does the same: lhbox agent brief <name>, lhbox agent talk <name> "…".
 
-### publish_artifact, read_artifact and list_artifacts
+### publish_artifact, read_artifact, list_artifacts and delete_artifact
 
 An artifact is a page people of your organisation open on LakehouseBox: a dashboard, a report, a map. Its script reads the catalogs live, in the browser of whoever opens it, with that person's permissions. Artifacts (https://lakehousebox.com/docs/artifacts/) says how to write one.
 
 - publish_artifact takes the whole page as html, the catalogs its SQL reads, and a title. It answers the page's url. With artifact_id it publishes the next version of a page this connection published; note says what changed. The connection must read every catalog it names as a whole.
 
-- A new page is private to the person behind the connection. The person: opens the url and shares the page there. No tool shares, renames or deletes an artifact.
+- A new page is private to the person behind the connection. The person: opens the url and shares the page there. No tool shares or renames an artifact.
 
 - read_artifact returns the current version's page files as text, each cut at 64 KB. Read a page before you change it. A file marked truncated is not the whole file: do not publish a version built from it.
 
 - list_artifacts returns what this connection can see. A connection approved on the consent page, and an agent's key, see the artifacts they published. A person's own API key also sees theirs and those shared with them.
 
 - A lost answer to publish_artifact is outcome_unknown: call list_artifacts before publishing again.
+
+- delete_artifact deletes a page this connection published (a page someone else published is refused). It goes to the trash: nobody opens it, and it can be restored for 30 days with the same id and address, on the account page or with lhbox artifact restore <id>. The answer says who lost access; the person behind the connection gets an email.
 
 ### What the server tells the agent
 

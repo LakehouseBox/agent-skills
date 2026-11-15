@@ -163,6 +163,7 @@ The last five are the server's own envelopes. The full list: Errors and help (ht
 | Claude cloud sandbox: outside hosts refused until the domain was allowed; pip needed the proxy bypass off |  | 2026-10-12 |
 | read_agents_md added; clients connected earlier need a reconnect |  | 2026-09-28 |
 | publish_artifact, read_artifact, list_artifacts added |  | 2026-11-12 |
+| delete_artifact added |  | 2026-11-15 |
 
 The server is one file built on the official mcp Python package, pinned.
 
