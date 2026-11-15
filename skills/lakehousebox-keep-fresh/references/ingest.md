@@ -34,7 +34,7 @@ Several sinks can feed one table when every one of them appends rows as they com
 
 - Partitioning. A format-version 2 table must be unpartitioned. A format-version 3 table may be partitioned by time: day, hour, month or year of a date or timestamp column. Any other partition is refused (409 partitioned_table_unsupported). A roll writes one file per partition, so an identity or bucket partition would cut every roll into many small files.
 
-- The sink never partitions a table itself. Create it partitioned (lhbox table create garden.garden.events --format-version 3 --partition 'day(ts)' --column ts:timestamptz:required), or partition it with your engine.
+- The sink never partitions a table itself. Create it partitioned (lhbox table create garden.garden.events --format-version 3 --partition 'day(ts)' --column ts:timestamptz:required), or partition it with your engine. Partitioning a format-version 2 table under a sink disables the sink at its next roll (disabled_reason: partitioned_table_unsupported; a keyed sink: upsert_needs_unpartitioned), and the batches wait. Remove the partition and the sink is active again within minutes (a keyed sink: PATCH {key}).
 
 - Geography is refused. A geography column, or a geometry column with a CRS of its own, answers 409 unsupported_column_type. A sink writes longitude/latitude geometries ("Positions and shapes" below).
 
@@ -156,7 +156,7 @@ lhbox sink create garden --table garden.observations --name observations_in --ke
 lhbox sink update observations_in --key observation_id   # an existing sink
 ```
 
-- The latest wins. A keyed sink rolls its batches in the order they arrived. Inside a roll, the row received last wins; among the rows of one batch, the last one. A row already in the table with the same key is replaced.
+- The latest wins. A keyed sink rolls its batches in the order they arrived. Inside a roll, the row received last wins; among the rows of one batch, the last one. A row already in the table with the same key is replaced, unless it was received later (by __ingest_ts): a batch received first but stored after a roll took a later one leaves its older rows out (counted as stale_rows in the roll's upsert step).
 
 - A row with a null in a key column is a row reject (key_null).
 
