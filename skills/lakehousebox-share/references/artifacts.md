@@ -156,7 +156,7 @@ An asset is stored under the SHA-256 of its content (assets/<sha256>.woff2), and
 
 Every publish answers warnings: a list, empty when there is nothing to say, of {code, message, remedy, docs} about the page's index.html (no lang, no viewport, tags a preview never reads, location.hash, requests and loads from hosts the frame blocks, a public page without a description or a thumbnail, assets over 2 MB the page loads). They never stop a publish: fix them in the next version. The CLI prints them after the address, and docs links the section of Making a good page that explains each.
 
-Over the API a folder is three steps. POST /v1/artifacts without html starts a pending version. Each file goes up with PUT /v1/artifacts/{id}/versions/{version}/files/{name}. POST /v1/artifacts/{id}/versions/{version}/publish shows it. Nothing is shown until that last call answers.
+Over the API a folder is three steps. POST /v1/artifacts without html starts a pending version. Each file goes up with PUT /v1/artifacts/{id}/versions/{version}/files/{name}. POST /v1/artifacts/{id}/versions/{version}/publish shows it. Nothing is shown until that last call answers. A pending version that is not published within 24 hours is deleted, and an artifact keeps at most three pending versions: starting a fourth deletes the oldest.
 
 ## Versions
 
@@ -326,6 +326,9 @@ A hosted agent (https://lakehousebox.com/docs/hosted-agents/) whose definition h
 | 404 artifact_not_found | No artifact you can see has that id. lhbox artifact ls lists yours. |
 | 403 claim_required | The organisation was made without an account. The person keeps it first: lhbox claim. |
 | 409 artifact_limit | The organisation keeps 200 artifacts. Publish a version of an existing one, or have the person delete one. |
+| 409 artifact_version_superseded | Another version of the page was published while this one was being sent. Send it again. |
+| 409 artifact_version_gone | The pending version was deleted (unpublished for 24 hours, or a fourth was started). Start the version again. |
+| 409 artifact_author_lost_read | A copy of a page whose publisher no longer reads one of its catalogs. Someone who reads it publishes the page again, or an admin takes it over; then copy it. |
 | 413 artifact_too_large | A page file is over 2 MB, an asset over 20 MB, or the version over 25 MB. Read the data from a table instead of shipping it. |
 | 415 artifact_type_refused | The file type is not one an artifact holds. See the limits below. |
 | 429 rate_limited | More than 30 versions in an hour from one key. Publish when the content changes, not on a timer. |
