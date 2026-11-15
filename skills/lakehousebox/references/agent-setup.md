@@ -55,7 +55,7 @@ On a computer with a browser, lhbox login opens the account page and waits up to
 
 The key the CLI saves acts as the person: it can do what they can do on the website, in every organisation they belong to, for 30 days. Then run lhbox login again. They can see or revoke it under Settings › Access keys.
 
-No browser on this computer (an SSH session, a cloud sandbox, a server): lhbox login uses the code login by itself, or ask for it with --no-browser. It prints a link and a code; say "Open this link, type the code XXXX-XXXX when it asks, and allow it." The code lives 15 minutes; --no-wait prints the link and exits, --resume checks later (exit 0 approved, exit 3 still waiting). That login saves the same key: it acts as the person.
+No browser on this computer (an SSH session, a cloud sandbox, a server): lhbox login uses the code login by itself, or ask for it with --no-browser. It prints a link and a code; say "Open this link, type the code XXXX-XXXX when it asks, and allow it." The code lives 15 minutes; --no-wait prints the link and exits (its code lives an hour, for a person who sees the message later), --resume checks later (exit 0 approved, exit 3 still waiting). That login saves the same key: it acts as the person.
 
 A key limited to some catalogs is made by the person on the website (Settings › Access keys) or with lhbox token create, and given to you as LHBOX_API_KEY; lhbox login never makes one.
 
@@ -227,7 +227,7 @@ Every error carries a remedy; read it before retrying. The full list: Errors and
 | CSV of 14 MB into a table (read_csv) | ~2 s, one commit | 2026-09-21 |
 | 44 files loaded one statement each | 44 commits | 2026-09-20 |
 | one download stream, Madrid to the store | 39 MB/s; 468 MB/s from a server in the store's data centre | 2026-09-21, before the store moved to Frankfurt (2026-10-28); not re-timed |
-| login code, claim code | 15 minutes; a day | current |
+| login code, claim code | 15 minutes (an hour with --no-wait); a day | current |
 | catalog token and storage credentials | about an hour, refreshed by the engine | current |
 | a provisioning catalog | retried every 30 s for up to 10 minutes | current |
 

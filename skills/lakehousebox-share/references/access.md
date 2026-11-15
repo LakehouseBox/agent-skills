@@ -186,7 +186,7 @@ A login is yes or no. The key it saves acts as you: it can do what you can do on
 
 On a computer with a browser, lhbox login opens the account page. You sign in if needed and click Allow; the browser comes back to this computer and the CLI is signed in. An agent running on this computer can give you the link instead: it works when you open it on this computer.
 
-Without a browser here (an SSH session, a server), or with --no-browser, the CLI prints a link and a code. Open the link anywhere, type the code the terminal shows, and allow it. A link alone can come from anyone: allow only a login you started yourself, and deny any code someone sent you. The code is valid for 15 minutes.
+Without a browser here (an SSH session, a server), or with --no-browser, the CLI prints a link and a code. Open the link anywhere, type the code the terminal shows, and allow it. A link alone can come from anyone: allow only a login you started yourself, and deny any code someone sent you. The code is valid for 15 minutes (an hour with --no-wait).
 
 The CLI saves the key to ~/.config/lhbox/credentials.json and never prints it, unless you pass --show-key.
 
@@ -318,7 +318,7 @@ Every command is in the CLI reference (https://lakehousebox.com/docs/cli/); the 
 | what | figure |
 |---|---|
 | invitation | valid 7 days; at most 20 catalogs |
-| lhbox login code | valid 15 minutes |
+| lhbox login code | valid 15 minutes (an hour with --no-wait) |
 | catalog token, storage credentials | about an hour |
 | rotation after access is taken away | within seconds |
 | manual lhbox catalog rotate | can take a minute |
