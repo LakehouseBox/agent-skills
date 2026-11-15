@@ -142,6 +142,8 @@ APIs that answer a POST: http_post. http_post(url, body, headers := MAP {…}, e
 
 - so does each retry of a failed run (a run that POSTs is not retried within itself).
 
+unnest(http_post(…)) (or http_get) is refused (http_call_repeated): it would send one request per field of the answer. Call it once in a subquery and expand that: SELECT unnest(r) FROM (SELECT http_post(…) AS r).
+
 Declare only endpoints where a repeated request does no harm, such as a viewer's query sent as a form, never one that submits, books or changes something. Removing a prefix (lhbox sink post-prefix remove) pauses the catalog's SQL sinks that POST under it. Example, a form, then a token from a first POST used in a second:
 
 ```
@@ -271,7 +273,7 @@ Keys in the query string (?api_key=…) and OAuth client credentials are not sup
 
 ## The table
 
-The query's columns are matched to the table's by name and cast to its types before anything is stored. A column the table lacks, a required column missing, or a value that does not cast fails the run. The error names the column and a sample value.
+The query's columns are matched to the table's by name and cast to its types before anything is stored. A column the table lacks, a required column missing, or a value that does not cast fails the run. The error names the column and a sample value. A struct field the table's struct lacks is a column the table lacks too (unknown_column, naming it as s.z, l[].z inside a list).
 
 create_table makes the table from the query's columns, in the format version you choose: format_version 2 or 3 (--format-version 3). Without it, the table gets the catalog's default format version, as lhbox table create does (lhbox catalog update --default-format-version 3 changes it). The query's columns never choose the version. A query that does not fit it is refused before any table is made, and the error names field: "format_version", where the version came from (format_version_source: request or catalog_default) and a remedy:
 
