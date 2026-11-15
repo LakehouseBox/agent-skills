@@ -75,6 +75,7 @@ POST /v1/sinks/{sink_id}
 | 403 send_only / forbidden | an MCP access token, or an API key or token without the right to send to this sink |
 | 409 sink_disabled (disabled_reason: table_missing) | the table went away: recreate it and make a new sink |
 | 409 quota_exceeded | the organisation is over its storage tier (the gate runs before any write) |
+| 409 batch_in_progress (Retry-After: 1) | a batch with the same Idempotency-Key is being stored right now: retry with the same key, it answers duplicate |
 | 413 batch_too_large (limit_bytes) | over 16 MiB: split the array |
 | 502 storage_error | the store refused the write and nothing was recorded: safe to retry with the same batch id |
 
