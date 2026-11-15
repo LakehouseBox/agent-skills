@@ -145,7 +145,8 @@ CREATE TABLE acme_corp.demo.cities AS SELECT * FROM read_parquet(['a.parquet', '
 INSERT INTO acme_corp.demo.cities SELECT * FROM read_parquet('more-cities.parquet');   -- into a table that exists
 COPY acme_corp.demo.cities FROM 'more-cities.parquet' (FORMAT PARQUET);
 CREATE TABLE acme_corp.demo.orders AS SELECT * FROM read_csv(['a.csv', 'b.csv'], union_by_name=true);   -- CSV: the list in ONE statement
--- CREATE OR REPLACE TABLE is not supported on an Iceberg catalog: DROP TABLE acme_corp.demo.orders; then CREATE TABLE again
+-- CREATE OR REPLACE TABLE is not supported on an Iceberg catalog. To rebuild the rows in one commit:
+BEGIN; DELETE FROM acme_corp.demo.orders; INSERT INTO acme_corp.demo.orders SELECT * FROM read_csv('c.csv'); COMMIT;
 ```
 
 Put the whole file list in one statement: 40 files in one statement took 2.4 s, one by one 66 s (2026-09-20). Things to know when DuckDB writes on its own:
@@ -154,7 +155,7 @@ Put the whole file list in one statement: 40 files in one statement took 2.4 s, 
 
 - Settings a table needs before its first row. A table DuckDB created has neither the 128 MiB file size nor ZSTD. DuckDB writes SNAPPY by default: a 5,210-polygon table took 722 MB as SNAPPY and 461 MB as ZSTD (DuckDB 1.5.6, 2026-10-02). Set them with CALL set_iceberg_table_properties('acme_corp.demo.cities', {'write.parquet.compression-codec': 'zstd'}). For the file size, ALTER TABLE … SET (…) stored a property under another name, which the writer ignored. Then DETACH and ATTACH the catalog again before the INSERT. In the same attached session, DuckDB kept the table metadata it had loaded and still wrote SNAPPY. Performance (https://lakehousebox.com/docs/performance/) has the full loading recipe.
 
-- CREATE OR REPLACE TABLE is refused: DROP TABLE, then CREATE TABLE again.
+- CREATE OR REPLACE TABLE is refused. To rebuild a table's rows, BEGIN; DELETE FROM t; INSERT INTO t SELECT …; COMMIT; is one commit: readers see the old rows until it lands, and a run that fails or is killed before COMMIT leaves them (measured on DuckDB 2.0.0 and 1.5.6, 2026-11-15). A change of schema needs DROP TABLE, then CREATE TABLE: two commits, with a few seconds in which readers get "table does not exist". Swapping in a table built aside by name is not atomic either: DuckDB 2.0 refuses DROP and ALTER TABLE … RENAME in one transaction.
 
 - Retry on 409. Another writer, or the platform's maintenance, can commit between your read and your commit. DuckDB then raises CommitFailedException … branch "main" has changed and does not retry. An unattended job should catch it, wait a few seconds and re-run the statement (gotchas (https://lakehousebox.com/docs/engines/)).
 

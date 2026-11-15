@@ -38,7 +38,7 @@ The CLI needs Python 3.9 or newer and comes only from this installer. The lakeho
 
 - Use DuckDB 2.0.0, or at least 1.5.5 to write. Older versions write metadata the catalog's maintenance cannot read. For spatial filters with &&, use 1.5.6 or newer.
 
-- There is no CREATE OR REPLACE TABLE. Run DROP TABLE, then CREATE TABLE.
+- There is no CREATE OR REPLACE TABLE. To rebuild a table's rows, BEGIN; DELETE FROM t; INSERT INTO t SELECT …; COMMIT; is one commit: readers see the old rows until it lands, and a run that fails or is killed before COMMIT leaves them. Only a change of schema needs DROP TABLE, then CREATE TABLE: two commits, and for a few seconds readers get "table does not exist".
 
 - A 409, or CommitFailedException … branch "main" has changed, is not a permission problem. Another writer committed first, often the catalog's maintenance. Wait a few seconds and run the statement again.
 
@@ -107,6 +107,23 @@ lhbox duckdb passes the credential to DuckDB through a private file that is dele
 - lhbox duckdb --persist stores the credential as DuckDB secrets on disk, so a later import duckdb in Python needs only the ATTACH line it prints. The cost: the credential then lives in ~/.duckdb/stored_secrets. lhbox catalog rotate <name> revokes it.
 
 In Python, lhbox --json connect --engine duckdb --show-secrets returns the recipe; its sql field is the ATTACH block. Read it in code and never print it. lhbox table import and the recipes use DuckDB's Python package (pip install 'duckdb>=2.0.0'); only the lhbox duckdb shell needs the duckdb program.
+
+### Without the CLI
+
+Where lhbox cannot be installed (a sandbox that refuses curl | sh) but a key is at hand as LHBOX_API_KEY, the same recipe is one HTTP call, the one lhbox connect makes:
+
+```
+import json, os, urllib.request, duckdb
+
+q = "warehouse=<catalog>&engine=duckdb"            # add &level=write only when the work writes
+req = urllib.request.Request("https://api.lakehousebox.com/v1/connection?" + q,
+                             headers={"Authorization": "Bearer " + os.environ["LHBOX_API_KEY"]})
+recipe = json.load(urllib.request.urlopen(req))
+con = duckdb.connect()
+con.execute(recipe["sql"])                         # the ATTACH block: never print it or write it to a log
+```
+
+The answer's sql holds the catalog's credential in clear: treat it like --show-secrets output, never print it, log it or save it. Read the key from the environment; never paste it into code.
 
 Run the DuckDB 2.0 shell from an agent. When its output goes to an agent rather than a terminal, it switches to agent mode. Results come back as compact Markdown tables with each column's type. A long result shows its first and last 20 rows, with a footer giving the row count: read it before drawing conclusions. Errors come back as JSON. Pipe SQL in, as in echo "SELECT …;" | lhbox duckdb --catalog <name>. See DuckDB's agent mode.
 
@@ -202,6 +219,7 @@ You then have list_tables, describe_table, query (one read-only DuckDB statement
 | a timeout on catalog create | the call may have finished anyway | check lhbox catalog list before running it again |
 | duckdb_binary_not_found | lhbox duckdb needs the duckdb program | brew install duckdb, or https://duckdb.org/install |
 | an error asking for pytz | a timestamp with time zone fetched into Python | pip install pytz, or cast it to VARCHAR |
+| Could not remove file .tmp/duckdb_temp_storage…, or a crash at exit, after a large write | DuckDB spills to .tmp in the working directory, and that folder refuses deletes (a mounted or synced folder) | run from a writable temp directory, or SET temp_directory = '<a writable temp path>' before the work |
 
 Every error carries a remedy; read it before retrying. The full list: Errors and help. Each engine's own gotchas: Engines.
 

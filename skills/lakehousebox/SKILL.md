@@ -87,7 +87,8 @@ SELECT * FROM <catalog>.<namespace>.<table> LIMIT 10;
 2. **ATTACH.** Let `lhbox duckdb` or `lhbox connect` write it. By hand, DuckDB attaches the bare bucket name
    (`ATTACH '<handle>--<catalog>'`); `ATTACH 's3://…'` attaches read-only and every INSERT fails. PyIceberg and Spark
    want the opposite, `warehouse='s3://<bucket>/'`.
-3. **No `CREATE OR REPLACE TABLE`**: `DROP TABLE`, then `CREATE TABLE`.
+3. **No `CREATE OR REPLACE TABLE`**: rebuild the rows with `BEGIN; DELETE FROM t; INSERT INTO t SELECT …; COMMIT;`
+   (one commit, readers never see it empty); only a schema change needs `DROP TABLE`, then `CREATE TABLE`.
 4. **A 409, or `CommitFailedException … branch "main" has changed`**, means another writer (often maintenance)
    committed first: wait a few seconds and run the statement again. It is not a permission problem.
 5. **One statement over many files is one commit**: `lhbox table import raw.trips

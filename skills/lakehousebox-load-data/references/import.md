@@ -217,7 +217,7 @@ INSERT INTO analytics.events.clicks SELECT * FROM read_json('day3.jsonl');
 
 - A table DuckDB creates itself is format version 2, whatever the catalog's default. It does not get the 128 MiB file size or the sort order. How tables are laid out (https://lakehousebox.com/docs/performance/) shows the CALL set_iceberg_table_properties and the ordered INSERT to add.
 
-- CREATE OR REPLACE TABLE is not supported on an Iceberg catalog: DROP TABLE, then CREATE TABLE again.
+- CREATE OR REPLACE TABLE is not supported on an Iceberg catalog. To reload a table, BEGIN; DELETE FROM t; INSERT INTO t SELECT …; COMMIT; is one commit: readers see the old rows until it lands, and a run that fails or is killed before COMMIT leaves them. Only a change of schema needs DROP TABLE, then CREATE TABLE (two commits; readers get "table does not exist" in between).
 
 - DuckDB's own CREATE TABLE … AS SELECT cannot make a geometry table. Create a version-3 table first, then insert into it with the spatial extension loaded:
 

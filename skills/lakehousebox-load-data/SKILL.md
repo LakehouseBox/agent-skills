@@ -63,7 +63,8 @@ lhbox catalog agents-md analytics --set AGENTS.md          # write it, or update
 
 Every commit is a snapshot: `lhbox table get` lists them, and an older one can be read or made current again
 ([time-travel](references/time-travel.md); the rollback is a PyIceberg or Spark call today). Snapshots are kept for a
-limited time, so roll back soon. To redo a table, `DROP TABLE` then import again (no `CREATE OR REPLACE`).
+limited time, so roll back soon. To redo a table's rows, `BEGIN; DELETE FROM t; INSERT INTO t SELECT …; COMMIT;` (one commit, readers never see it
+empty; no `CREATE OR REPLACE`); only a schema change needs `DROP TABLE`, then the import again.
 
 ## Files that are not tables
 
