@@ -8,11 +8,13 @@ An artifact is one page that people of your organisation open on LakehouseBox: a
 ```
 lhbox artifact publish garden.html --title "The garden, last 14 days" --catalog garden   # a new page: prints its address
 lhbox artifact ls                                                # the artifacts this key can see
-lhbox artifact pull a_z1lgMWNSby3J9iOsUiFdGw garden-page         # its files into a folder, to change them
+lhbox artifact pull Xk3f9QaZ garden-page                         # its files into a folder, to change them
 lhbox artifact publish garden-page --note "Added soil moisture"  # the next version of the same page
 ```
 
 A new artifact is private to the person behind the key that published it. The person: opens the address the publish printed, and shares the page from there if others should see it. An agent never shares a page.
+
+An artifact has one id, eight letters and digits (Xk3f9QaZ), and one address, https://lakehousebox.com/a/<id>, whoever it is shared with: the API's artifact_id and url, lhbox artifact ls and the MCP tools all name it so, and its id and address do not change when its sharing does. Opening the address does what the sharing allows. A public page opens for anyone, with no account. Any other page opens in the account after a sign-in, for the people who may see it; for anyone else the address answers exactly as for an id that does not exist. While a page is public its address also carries the words of its title (/a/<id>/<title words>); the id alone decides which page opens, and a private page's address never carries its title. The longer ids artifacts had before (a_ and 22 characters) and the addresses built on them still open the same page.
 
 ## Writing the page
 
@@ -44,7 +46,7 @@ lhbox.panel(document.getElementById('total'), async (el) => {
 | lhbox.download(name, data) | Offers a file the page made, such as a CSV of a result: data is a Blob, a string or bytes, at most 25 MB. The person sees the file's name and size and confirms before it is saved. Answers a promise: true once saved. |
 | lhbox.copy(text) | Puts text on the clipboard, at most 1 MB. Call it from a click or a key press. Answers a promise: true once copied. |
 | lhbox.setState(text, {push}), lhbox.onState(fn), lhbox.state | The page's own place (a view, a filter, a selection) as one string of at most 2,000 characters, kept in the address of the page around it, so a reload, a copied link and Back return to it. setState replaces the address; {push: true} adds a step to the browser's history. onState(fn) hears the address change (Back, Forward, a link) and returns a function that stops it. lhbox.state is the place the page was opened at, once lhbox.ready() has resolved (below). |
-| lhbox.link | The address that opens this page at its current place, for a "copy link" button: lhbox.copy(lhbox.link). For a private page or one shared with the organisation it is the page's address in the account, https://lakehousebox.com/app/#artifact=<id>&s=<state>; for a public page, the public page's address, https://lakehousebox.com/a/<short id>/<the title's words>#s=<state> (the short id, eight letters and digits, decides which page opens; the words follow the title). Without a state, the part from &s= or #s= is left out. It follows setState, Back and Forward, and a change of the page's sharing. It never grants access: whoever opens it signs in, or opens the public page, and sees what they may read. |
+| lhbox.link | The address that opens this page at its current place, for a "copy link" button: lhbox.copy(lhbox.link). It is the page's one address with its place, https://lakehousebox.com/a/<id>#s=<state>, and for a public page the words of its title after the id, https://lakehousebox.com/a/<id>/<the title's words>#s=<state> (the id decides which page opens; the words follow the title). Without a state, the part from #s= is left out. It follows setState, Back and Forward, and a change of the page's sharing. It never grants access: whoever opens it signs in, or opens the public page, and sees what they may read. |
 | lhbox.ready() | A promise that resolves with lhbox once LakehouseBox has answered the page, with lhbox.state and lhbox.link set. It rejects with code: 'no_viewer' when the page is opened by itself, outside LakehouseBox. |
 | lhbox.engine | The engine the page runs: duckdb-wasm-2.0.0, or duckdb-wasm-1.5.6 for a version published before 13 November 2026 (below). |
 | lhbox.catalogs, lhbox.unreadable, lhbox.viewer | The catalogs attached, the ones this viewer cannot read with the reason, and the viewer's name. |
@@ -211,7 +213,7 @@ Making a page public is also where its owner decides whether visitors may subscr
 | PATCH /v1/artifacts/{id} with {"sharing": "public", "dry_run": true} | answers the plan: each catalog, and for a private one its tables, its size and the name to confirm |
 | PATCH /v1/artifacts/{id} with {"sharing": "public", "confirm_catalogs": {"<warehouse id>": "<name>"}} | makes it public, from a browser session |
 | PATCH /v1/artifacts/{id} with {"sharing": "private", "unpublish_catalogs": ["<warehouse id>"]} | makes it private, and those catalogs with it |
-| GET /v1/artifacts/{id} | public_url (https://lakehousebox.com/a/<short_id>/<the title's words>; the page's artifact_id in place of short_id opens it too), and for its owner public.copies |
+| GET /v1/artifacts/{id} | url and, while the page is public, public_url, the same address (https://lakehousebox.com/a/<id>/<the title's words>), and for its owner public.copies |
 | PATCH /v1/artifacts/{id} with {"follow": true, "follow_ack": {"catalogs": ["<warehouse id>"], "integrations": false}} | lets visitors subscribe to the page's agent, from a browser session; {"follow": false} stops it |
 | GET /v1/a/{id}/card | the share card, with no account: title, description, url, image (url, width, height, alt, or null) |
 
