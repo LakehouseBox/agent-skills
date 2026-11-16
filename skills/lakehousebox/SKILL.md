@@ -32,6 +32,7 @@ server-side answer hits a limit it carries `local_compute`, which says what to t
 
 ```sh
 curl -fsSL https://lakehousebox.com/install.sh | sh   # one Python 3 file, no dependencies
+# a sandbox that refuses `curl | sh`: pip install lakehousebox   (the same file, from PyPI)
 lhbox login      # prints a link and a code: give the person both; they approve once in the browser
 lhbox doctor     # PASS/FAIL per check, exit 1 on FAIL
 lhbox duckdb     # the DuckDB shell with the catalog attached; the key never reaches the screen

@@ -30,7 +30,7 @@ The person: clicks Allow on the page that opens in their browser (or on the link
 
 The examples use the catalog acme_corp. Yours has its own name: run lhbox catalog list and use what it shows.
 
-The CLI needs Python 3.9 or newer and comes only from this installer. The lakehousebox and lhbox packages on PyPI are name reservations, not the CLI.
+The CLI needs Python 3.9 or newer. Where a sandbox refuses curl … | sh, install the same file from PyPI instead: pip install lakehousebox (or pipx install lakehousebox) gives the lhbox command; upgrade it with pip install -U lakehousebox. The PyPI package lhbox is a name reservation, not the CLI.
 
 ## Five rules that prevent most failures
 
