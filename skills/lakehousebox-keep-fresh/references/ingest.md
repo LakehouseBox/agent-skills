@@ -170,7 +170,7 @@ A key that follows arrival time (a feed republishing today's rows) rewrites noth
 
 - Past 256 MiB of rewritten files in one roll, nothing is committed and the sink is disabled (upsert_rewrite_too_large).
 
-- What a key needs: a format-version 2, unpartitioned table, and columns of a key type. The key types are string, integer, date, time, timestamp, uuid, decimal and boolean, never a float.
+- What a key needs: a format-version 2, unpartitioned table (new tables are version 3 unless asked: create it with lhbox table create … --format-version 2), and columns of a key type. The key types are string, integer, date, time, timestamp, uuid, decimal and boolean, never a float.
 
 - A key the roller cannot apply disables the sink with an upsert_* reason and leaves the batches waiting. Changing the key makes the sink active again: PATCH {key}, or null to append again (lhbox sink update <sink> --no-key).
 

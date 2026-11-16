@@ -154,7 +154,7 @@ CREATE TABLE acme_corp.sales.orders AS
 
 From the CLI, lhbox table import sales.orders 'path/*.csv' does the same in one commit, for CSV or Parquet. --mode append adds to an existing table. A GeoParquet keeps its geometry metadata. More: Importing files.
 
-A table with a geometry column needs a format-version 3 table first, because DuckDB creates version 2: lhbox table create acme_corp.demo.places --format-version 3 --column id:long:required:identifier --column geom:geometry, then INSERT into it. lhbox table import … --format-version 3 does this for a GeoParquet.
+A table with a geometry column needs a format-version 3 table first, because DuckDB's own CREATE TABLE makes version 2 (lhbox table create makes 3 in a catalog created since 2026-11-15; the flag below makes it 3 anywhere): lhbox table create acme_corp.demo.places --format-version 3 --column id:long:required:identifier --column geom:geometry, then INSERT into it. lhbox table import … --format-version 3 does this for a GeoParquet.
 
 Sample data, when they have none yet. lhbox duckdb --catalog commons/pubdata attaches the public datasets read-only as commons_pubdata: weather, holidays, countries, places and more. Prompts and starter queries: Sample data.
 

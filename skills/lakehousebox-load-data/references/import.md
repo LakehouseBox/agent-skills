@@ -74,7 +74,7 @@ When the commit's outcome is unclear. If DuckDB reports an error during the comm
 
 ## Format version
 
-A new table gets the catalog's default format version. That is 2, unless it was changed with lhbox catalog update <catalog> --default-format-version 3. --format-version 2|3 overrides it for one import; it applies only to --mode create.
+A new table gets the catalog's default format version. That is 3 for a catalog created since 2026-11-15 (2 before), unless it was changed with lhbox catalog update <catalog> --default-format-version 2|3. A table PyIceberg will write needs 2. --format-version 2|3 overrides it for one import; it applies only to --mode create.
 
 | version | read and written by | geometry |
 |---|---|---|
