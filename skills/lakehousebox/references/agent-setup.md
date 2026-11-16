@@ -61,6 +61,25 @@ A key limited to some catalogs is made by the person on the website (Settings �
 
 Running lhbox login on a machine that is already signed in answers Still connected and starts nothing; --new forces a fresh sign-in.
 
+## A machine that starts empty: connect_machine
+
+A cloud session, a CI runner or a hosted sandbox starts with no login. If the person has already approved the LakehouseBox connector (the MCP server below) in your host, do not ask them for a new lhbox login: call the connector's connect_machine tool. It returns a token for this machine that lasts about an hour:
+
+```
+export LHBOX_URL=https://api.lakehousebox.com LHBOX_API_KEY='<token from connect_machine>'
+lhbox duckdb --catalog acme_corp                # or lhbox query, lhbox table list, …
+```
+
+- It gives this machine the connector's catalogs at the connector's level, never more. It reads only, unless you ask for level: write and the connector was approved to write.
+
+- Keep it in the environment. Never write it to a file.
+
+- When it expires, a command answers invalid_token: call connect_machine again. The person is not asked.
+
+- Revoking the connector (Settings › Access keys) ends the token at once. A DuckDB shell that is already open keeps its catalog session for the rest of that session's hour.
+
+- lhbox duckdb attaches with a catalog token that it renews while the machine token lasts.
+
 ## Without an account: lhbox new, then lhbox claim
 
 When there is no account, or nobody to approve right now, do not stop. Make a catalog for yourself and let the person keep it later.
@@ -205,7 +224,7 @@ If you cannot run commands, or your sandbox cannot reach s3.lakehousebox.com (ch
 
 The person: adds https://mcp.lakehousebox.com/mcp as a custom connector and approves it in the browser.
 
-You then have list_tables, describe_table, query (one read-only DuckDB statement on our side, at most 2,000 rows and 20 seconds), get_object, read_agents_md and open_public_catalog. With write approved, query_rw changes data one statement at a time, document_table and set_agents_md leave the notes above, and keep_account keeps an account the client set up. Heavier work and bulk loads need DuckDB on a machine; administration is the CLI or the account page. More: MCP.
+You then have list_tables, describe_table, query (one read-only DuckDB statement on our side, at most 2,000 rows and 20 seconds), get_object, read_agents_md and open_public_catalog. With write approved, query_rw changes data one statement at a time, document_table and set_agents_md leave the notes above, and keep_account keeps an account the client set up. connect_machine signs in a machine where you run commands for about an hour (see above). Heavier work and bulk loads need DuckDB on a machine; administration is the CLI or the account page. More: MCP.
 
 ## When it fails
 

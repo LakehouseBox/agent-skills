@@ -7,9 +7,9 @@ Part of MCP (https://lakehousebox.com/docs/mcp/).
 
 ## The tools
 
-Nine tools only read, and are marked so (readOnlyHint, idempotentHint). Seven change things: query_rw, document_table, set_agents_md, keep_account, talk_to_agent, publish_artifact and delete_artifact. query_rw and delete_artifact are marked destructiveHint, so a client that honours it asks before they run.
+Nine tools only read, and are marked so (readOnlyHint, idempotentHint). connect_machine changes no data (readOnlyHint) but gives a machine a new token on each call. Seven change things: query_rw, document_table, set_agents_md, keep_account, talk_to_agent, publish_artifact and delete_artifact. query_rw and delete_artifact are marked destructiveHint, so a client that honours it asks before they run.
 
-All sixteen need the caller's key or token. All but open_public_catalog are bounded by the caller's grants. Name tables the way DuckDB does: catalog.namespace.table. A table in a catalog you cannot read answers 404, like one that does not exist.
+All seventeen need the caller's key or token. All but open_public_catalog are bounded by the caller's grants. Name tables the way DuckDB does: catalog.namespace.table. A table in a catalog you cannot read answers 404, like one that does not exist.
 
 | tool | what it does | API |
 |---|---|---|
@@ -19,6 +19,7 @@ All sixteen need the caller's key or token. All but open_public_catalog are boun
 | get_object | one file of a catalog's file storage, by key (a photo whose key a table holds) | GET /v1/object |
 | read_agents_md | a catalog's AGENTS.md, labelled as the owner's words | GET /v1/catalogs/{id}/agents-md |
 | open_public_catalog | another organisation's PUBLIC catalog, by <handle>/<catalog> | GET /v1/public/<handle>/<catalog>/connection |
+| connect_machine | a token of about an hour for a machine where the agent runs commands, with this connection's access | POST /v1/sandbox-token |
 | query_rw | one DuckDB statement that writes, run on our side | POST /v1/query_rw |
 | document_table | a table's description and its columns' descriptions, in one commit | PATCH /v1/table |
 | set_agents_md | writes a catalog's AGENTS.md | PUT /v1/catalogs/{id}/agents-md |
@@ -115,6 +116,25 @@ All sixteen need the caller's key or token. All but open_public_catalog are boun
 - On a public catalog it is public at once.
 
 - The CLI does the same: lhbox catalog agents-md <catalog> --set AGENTS.md.
+
+### connect_machine
+
+For a machine where the agent runs commands and that starts with no login: a cloud session, a CI job, a sandbox. The person approved the connector once, so the machine does not need a new browser approval. Over an approved connection (OAuth), the tool returns a token. The agent sets it in the machine's environment, never in a file:
+
+```
+export LHBOX_URL=https://api.lakehousebox.com LHBOX_API_KEY='<token>'
+lhbox duckdb --catalog <catalog>
+```
+
+- Never more than the connection. The token has the connection's catalogs and grants. It reads only, unless the agent asks for level: "write" and the connection was approved to write (else insufficient_scope). It never carries account:manage, and it cannot create keys or tokens or change access, as the connection cannot.
+
+- About an hour. It never outlives the connection's own authorisation. When it expires, commands answer invalid_token: call connect_machine again. A token from connect_machine cannot mint another one.
+
+- Revoked with the connection. Revoking the connector under Settings › Access keys refuses the token at once. lhbox duckdb attaches with a catalog token of about an hour, which it renews while the machine token lasts. A shell already open keeps that catalog token, and the storage sessions it was given, for the rest of their hour.
+
+- A connection made with an API key answers sandbox_token_mcp_only: that key already works on a machine of your own.
+
+- At most 60 per hour per connection; each one is in the audit log (mcp.sandbox_token), without the token.
 
 ### keep_account
 

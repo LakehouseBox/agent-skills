@@ -143,6 +143,8 @@ The last five are the server's own envelopes. The full list: Errors and help (ht
 
 - The API refuses such a connection everything that grants or removes access, whatever its scopes. That covers API keys and tokens, grants, invitations, members and roles, domains, integrations, sinks and uploaders. It covers publishing or deleting a catalog, the password, two-factor and the account itself. The answer is 403 mcp_human_only, or 403 mcp_no_credentials for a key or token. Those stay on the account page, in lhbox or with an API key.
 
+- A machine it equips gets the same access, for about an hour. connect_machine returns a token bound to the connection: the same grants, no wider scope, and refused at once when the connection is revoked.
+
 - It never receives a catalog's static key pair. GET /v1/connection answers it credentials: "vended_only": only storage credentials that expire within about an hour. The one exception is a public catalog's shared reader key, which is public by design (GET /v1/public/{handle}/{catalog}/connection, the open_public_catalog tool).
 
 - With catalogs:write it can also drop a namespace and set lifecycle rules that delete blob files by age. It can turn on a catalog's virtual-hosted address, whose certificate lists the bucket names in the public Certificate Transparency logs. It can edit a catalog's AGENTS.md, which other agents read and which is public on a public catalog.
@@ -164,6 +166,7 @@ The last five are the server's own envelopes. The full list: Errors and help (ht
 | read_agents_md added; clients connected earlier need a reconnect |  | 2026-09-28 |
 | publish_artifact, read_artifact, list_artifacts added |  | 2026-11-12 |
 | delete_artifact added |  | 2026-11-15 |
+| connect_machine added |  | 2026-11-15 |
 
 The server is one file built on the official mcp Python package, pinned.
 
