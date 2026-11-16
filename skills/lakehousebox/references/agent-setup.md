@@ -187,7 +187,7 @@ Finish: leave notes for the next reader. A table you created or filled is not do
 
 - Describe every table you made, and its columns: lhbox table document <catalog>.<ns>.<table> --doc "One row per …" --column name="…" (over MCP, document_table).
 
-- Write the catalog's AGENTS.md when it has none, or bring it up to date when you changed what it describes: lhbox catalog agents-md <catalog> --set AGENTS.md (at most 64 KB; over MCP, set_agents_md). lhbox catalog agents-md <catalog> shows whether there is one.
+- Write the catalog's AGENTS.md when it has none, or bring it up to date when you changed what it describes: lhbox catalog agents-md <catalog> --set AGENTS.md (at most 64 KB; over MCP, set_agents_md). lhbox catalog agents-md <catalog> shows whether there is one. To start from what the catalog already records (each table's description, its columns and their docs, row counts, last updates), save a draft, fill in its TODOs and set it: lhbox catalog agents-md <catalog> --draft > AGENTS.md. The draft is never set on its own.
 
 An AGENTS.md that works has these sections:
 
