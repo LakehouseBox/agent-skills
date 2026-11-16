@@ -43,16 +43,15 @@ FROM (SELECT unnest(features) AS f
 ```
 lhbox sink preview --catalog analytics --sql @quakes.sql --limit 3    # runs once, writes nothing
 lhbox sink create --catalog analytics --name docs_quakes --table docs_example.quakes \
-      --sql @quakes.sql --every 1h --offset 7m --create-table --paused
+      --sql @quakes.sql --every 1h --offset 7m --key quake_id --create-table --paused
 lhbox sink run docs_quakes --wait                                      # one run now, until committed
 lhbox sink runs docs_quakes                                            # state, rows, requests, bytes, errors
 lhbox sink resume docs_quakes                                          # start the schedule
-lhbox sink update docs_quakes --key quake_id                           # one row per quake
 ```
 
 The preview shows the rows and each column's Iceberg type. With --table, it also says whether they fit an existing table. It carries at most 50 rows and 50,000 characters per value (--limit only chooses how many of those to print); when it cut either, the answer says so (truncated, truncated_by, rows_shown, values_truncated). A run keeps every row and the whole value.
 
---create-table makes the table from the query's columns. --every 1h --offset 7m runs the query at seven minutes past every hour (UTC). --paused holds the schedule until you have seen one run.
+--create-table makes the table from the query's columns. --key quake_id keeps one row per quake (below); a key needs a format-version 2 table, so the table is made format version 2. Give the key here, at creation: a key added later with lhbox sink update is refused (409 key_unsupported) when the table was made format version 3, the catalog's default. --every 1h --offset 7m runs the query at seven minutes past every hour (UTC). --paused holds the schedule until you have seen one run.
 
 This feed covers a whole hour, so a quake is read by several runs. With a key, each run replaces the rows that share it, and the latest one wins (see a key (https://lakehousebox.com/docs/ingest/#a-key-one-row-per-key-not-one-per-send)). Without a key, runs append, and a quake read by two runs is stored twice. Every row carries __ingest_ts, the time its run was committed. A reader can use it to keep the latest row per key:
 
