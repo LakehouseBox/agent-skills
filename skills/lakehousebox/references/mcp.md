@@ -64,7 +64,7 @@ Until the person keeps it, the client's catalog:
 
 To keep it, call keep_account. It returns a link and a code.
 
-The person: opens the link, signs up or logs in, and types the code. The connection then stops working: they reconnect once, signed in, to the same data.
+The person: opens the link, signs up or logs in, and keeps it. The connection then stops working: they reconnect once, signed in, to the same data.
 
 ### A scheduled or headless agent: a key
 

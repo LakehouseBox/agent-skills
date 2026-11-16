@@ -55,7 +55,7 @@ On a computer with a browser, lhbox login opens the account page and waits up to
 
 The key the CLI saves acts as the person: it can do what they can do on the website, in every organisation they belong to, for 30 days. Then run lhbox login again. They can see or revoke it under Settings › Access keys.
 
-No browser on this computer (an SSH session, a cloud sandbox, a server): lhbox login uses the code login by itself, or ask for it with --no-browser. It prints a link and a code; say "Open this link, type the code XXXX-XXXX when it asks, and allow it." The code lives 15 minutes; --no-wait prints the link and exits (its code lives an hour, for a person who sees the message later), --resume checks later (exit 0 approved, exit 3 still waiting). That login saves the same key: it acts as the person.
+No browser on this computer (an SSH session, a cloud sandbox, a server): lhbox login uses the code login by itself, or ask for it with --no-browser. It prints a link and a code; say "Open this link and allow it (the code XXXX-XXXX is filled in)." The code lives 15 minutes; --no-wait prints the link and exits (its code lives an hour, for a person who sees the message later), --resume checks later (exit 0 approved, exit 3 still waiting). That login saves the same key: it acts as the person.
 
 A key limited to some catalogs is made by the person on the website (Settings › Access keys) or with lhbox token create, and given to you as LHBOX_API_KEY; lhbox login never makes one.
 
@@ -84,7 +84,7 @@ Until a person claims it, the catalog:
 
 lhbox new refuses when this machine already holds a key: --force replaces it, and lhbox --profile scratch new keeps both. It also refuses while LHBOX_API_KEY is set. One network address can make 5 such catalogs an hour and 20 a day.
 
-The person: say "Open this link, sign up or log in, type the code XXXX-XXXX, keep the catalog in your organisation, and tick write if I should keep writing." The code lives a day.
+The person: say "Open this link, sign up or log in, keep the catalog in your organisation, and tick write if I should keep writing." The code lives a day.
 
 Approving moves the catalog into their organisation. It is renamed lakehouse_2 if that name is taken. Your old key stops working at that moment; lhbox claim --resume --wait saves the new one, at the level the person chose.
 

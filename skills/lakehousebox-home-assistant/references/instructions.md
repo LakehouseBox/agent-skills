@@ -37,7 +37,7 @@ In this order:
 
 - lhbox whoami answers: a key is already saved. Use it, and make a catalog for the history: lhbox catalog create lakehouse.
 
-- The person is at the keyboard: lhbox login prints a link and a code; they sign up or log in, type the code, tick write and approve. Then lhbox catalog create lakehouse.
+- The person is at the keyboard: lhbox login prints a link and a code; they sign up or log in, tick write and approve. Then lhbox catalog create lakehouse.
 
 - Otherwise, and this is the usual case when you are setting this up on your own:
 
@@ -155,7 +155,7 @@ Name entities by statistic_id: the statistics' name is empty for most entities.
 lhbox claim
 ```
 
-It prints a link and a code. Give both to the person: they open the link, sign up or log in, type the code, choose where the catalog goes and pick read and write (the page offers read first). Tell them so in those words: with read, the live feed cannot be created. Then:
+It prints a link and a code. Give both to the person: they open the link, sign up or log in, choose where the catalog goes and pick read and write (the page offers read first). Tell them so in those words: with read, the live feed cannot be created. Then:
 
 ```
 lhbox claim --resume --wait

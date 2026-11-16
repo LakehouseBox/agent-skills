@@ -54,7 +54,7 @@ lhbox claim --resume --wait   # after they approve: this machine's new key, save
 
 Until a person claims it: 1 GB, nothing public, data writes only (`403 claim_required` for keys, grants, publishing,
 sinks), deleted with its data after 72 hours (`lhbox status` says how long is left). Running `lhbox new` accepts the
-Terms for whoever runs you: tell the person. The person opens the link, signs up or logs in, types the code and
+Terms for whoever runs you: tell the person. The person opens the link, signs up or logs in and
 chooses their organisation; at that moment your earlier key stops working and `lhbox claim --resume --wait` saves the
 new one. Measured on production on 2026-10-12: `lhbox new` 1.3 s, a first table about 6 s later.
 
