@@ -154,7 +154,7 @@ On a catalog that exists, only an admin of the organisation changes it: a person
 
 A member reading an open catalog is listed with via: membership. Write still takes a grant.
 
-Opening a catalog gives every member read on it. A browser session is asked for a recent sign-in first. It is refused with 409 scoped_grants_held while a member who would start reading holds a namespace grant there. The answer names them: revoke those grants, then open it.
+Opening a catalog gives every member read on it. It is refused with 409 scoped_grants_held while a member who would start reading holds a namespace grant there. The answer names them: revoke those grants, then open it.
 
 Making a catalog Restricted takes it from the members who read it only as members. It also reaches what they made and fetched:
 

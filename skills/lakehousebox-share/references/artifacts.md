@@ -210,7 +210,7 @@ A public page is opened by anyone on the internet, with no account, at its publi
 
 Public pages are turned on per organisation. Where they are on, the Share panel's General access offers Anyone on the internet.
 
-- Only the page's owner makes it public, signed in on the account page (asked to confirm it is them when they signed in more than 12 hours ago). A key, an MCP connection and a hosted agent cannot, and neither can an admin for someone else's page.
+- Only the page's owner makes it public, signed in on the account page. A key, an MCP connection and a hosted agent cannot, and neither can an admin for someone else's page.
 
 - The owner needs a verified address, and the organisation's setting for publishing catalogs has to let them publish: admins by default.
 
@@ -267,7 +267,7 @@ The page's owner decides, and it is off until they turn it on. The choice is off
 
 Nobody reads an update before it is emailed. Not the owner, and not us. So before the owner says yes, the panel names what the agent reads that is not public: the private catalogs it reads or has read, and whether it uses a person's connected accounts. What the agent writes may carry what it read there. If the agent is later given another private catalog, the emails stop until the owner confirms again.
 
-- Only the owner turns it on, signed in on the account page, after a recent sign-in. A key, an agent and an admin cannot. The owner or an admin turns it off.
+- Only the owner turns it on, signed in on the account page. A key, an agent and an admin cannot. The owner or an admin turns it off.
 
 - Turning it off stops the emails at once and keeps the list. So does making the page private, giving the page to another agent or taking it from its agent, and a takedown. The owner turns it on again on purpose.
 
