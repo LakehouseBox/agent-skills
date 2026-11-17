@@ -230,7 +230,28 @@ lhbox sink connection replace weather --catalog <catalog> --value @new-token.txt
 lhbox sink connection delete weather --catalog <catalog> --yes    # pauses the SQL sinks that name its prefix or host
 ```
 
-Kinds. bearer (Authorization: Bearer …), header (a header you name, e.g. X-API-Key), basic (user:password).
+Kinds. bearer (Authorization: Bearer …), header (a header you name, e.g. X-API-Key), basic (user:password), and query (URL query parameters, below).
+
+A key the source wants in the URL: query. Some APIs take the key, or a user and password, as query parameters (?api_key=…, ?user=…&password=…). A query connection holds one to eight NAME = value pairs and appends them to the query string of every request under its prefix:
+
+```
+lhbox sink connection create stations --catalog <catalog> --url-prefix https://api.example.org/v2/ \
+    --param user=env:STATIONS_USER --param password=@password.txt
+lhbox sink connection create maps --catalog <catalog> --url-prefix https://maps.example.org/ --param api_key --value-env MAPS_KEY
+lhbox sink connection replace stations --catalog <catalog> --param password=@new.txt    # user is kept
+```
+
+Each --param takes its value from @FILE, @- (stdin, one parameter only) or env:VAR, never from the command line; a single bare --param NAME takes --value, --value-env or a hidden prompt. A replace changes the parameters it names and keeps the others; --replace-all makes the ones given the whole set.
+
+- Only http_get and http_post send them. DuckDB's own readers (read_json('https://…')) cannot: fetch the URL with http_get and parse its body (from_json, read_csv of the text). A reader that meets a 401 under such a prefix answers auth_required naming the connection.
+
+- The query never sets them itself. A URL in the SQL that already names one of the parameters, in any case, is refused before any request (query_param_conflict): remove it from the URL.
+
+- The values never come back. The url that http_get answers is the URL as the query wrote it. Every error and run record has the values replaced by <redacted>, as written and in their encoded forms (percent, JSON, HTML). In the headers and body of an answer to a request that carried them, a value of 8 characters or more is replaced the same way; a shorter one (a user id, a language code) is left alone, since masking it would change ordinary data.
+
+- Redirects. A redirect is followed to its target without the parameters, and they are added again only when the target is under the prefix. A source whose Location echoes one of them has it removed first; a Location that still holds a value in another shape (a return URL nested in a parameter, the path) is not followed and fails the run.
+
+- An organisation web key sent as a query parameter (key_param) cannot be attached with --integration yet: store it as a query connection.
 
 A key your organisation already stored for agents. A web key (lhbox integration list, kind web: the key a hosted agent sends with fetch_url) can be a connection too, with no second copy of it:
 
@@ -244,7 +265,7 @@ The connection's prefix is the key's host (https://opendata.aemet.es/), and its 
 
 - One key, read at each run. Every run reads the key from the web key itself. To replace it, the owner deletes the web key and adds it again under the same name and host; every agent and connection that uses it follows. A web key deleted and not added again fails the queries that use it (connection_unreadable, the sink paused), and they never run without it.
 
-- A web key sent as a query parameter (key_param) cannot be used this way.
+- A web key sent as a query parameter (key_param) cannot be used this way; make a query connection instead.
 
 The prefix is https://, a host name, and a path ending in /. Two connections of a catalog may not overlap. The credential is not sent on a redirect to another host. The host is the boundary: DuckDB compares URLs as text, so a path prefix does not keep the credential from other paths of the same host (/v1/../admin/).
 
@@ -408,9 +429,10 @@ PATCH /v1/sinks/{id}           {sql?, every?, offset?, paused?, key?, engine?, m
                                preview_empty unless allow_empty
 POST  /v1/sinks/{id}/run       one run now (a paused sink too); 409 run_already_queued
 POST  /v1/sql/connections     {warehouse, name, url_prefix, kind: bearer|header|basic, header_name?, value}
+                              or {warehouse, name, url_prefix, kind: query, params: {NAME: value, …}}   (1 to 8)
                               or {warehouse, name, integration}   an organisation web key, no copy of it
-GET   /v1/sql/connections     ?warehouse=  names, prefixes, kinds; never a value
-PUT   /v1/sql/connections/{name}?warehouse=   {value, header_name?}
+GET   /v1/sql/connections     ?warehouse=  names, prefixes, kinds (param_names for query); never a value
+PUT   /v1/sql/connections/{name}?warehouse=   {value, header_name?}, or {params, replace_all?} for kind query
 DELETE /v1/sql/connections/{name}?warehouse=  pauses the SQL sinks naming its prefix or host (connection_deleted)
 POST  /v1/sql/post-prefixes   {warehouse, url_prefix}   the URLs the catalog's scheduled SQL may POST to; write level
 GET   /v1/sql/post-prefixes   ?warehouse=   the catalog's POST prefixes
