@@ -7,13 +7,15 @@ Part of MCP (https://lakehousebox.com/docs/mcp/).
 
 ## The tools
 
-Nine tools only read, and are marked so (readOnlyHint, idempotentHint). connect_machine changes no data (readOnlyHint) but gives a machine a new token on each call. Seven change things: query_rw, document_table, set_agents_md, keep_account, talk_to_agent, publish_artifact and delete_artifact. query_rw and delete_artifact are marked destructiveHint, so a client that honours it asks before they run.
+Twelve tools only read, and are marked so (readOnlyHint, idempotentHint). connect_machine changes no data (readOnlyHint) but gives a machine a new token on each call. Seven change things: query_rw, document_table, set_agents_md, keep_account, talk_to_agent, publish_artifact and delete_artifact. query_rw and delete_artifact are marked destructiveHint, so a client that honours it asks before they run.
 
-All seventeen need the caller's key or token. All but open_public_catalog are bounded by the caller's grants. Name tables the way DuckDB does: catalog.namespace.table. A table in a catalog you cannot read answers 404, like one that does not exist.
+All twenty need the caller's key or token. All but open_public_catalog are bounded by the caller's grants. Name tables the way DuckDB does: catalog.namespace.table. A table in a catalog you cannot read answers 404, like one that does not exist.
 
 | tool | what it does | API |
 |---|---|---|
-| list_tables | who you are, in caller; every catalog you can read, with its tables. Metadata only: no data is read | GET /v1/usage, GET /v1/catalogs, GET /v1/tables?detail=true&search= |
+| list_tables | who you are, in caller; every catalog you can read, with its tables (a large account: its catalogs). Metadata only: no data is read | GET /v1/usage, GET /v1/catalogs, GET /v1/tables?detail=true&search= |
+| list_catalogs | the catalogs you can read, a page at a time: number of tables, size, and the first lines of each AGENTS.md | GET /v1/catalogs, GET /v1/tables, GET /v1/catalogs/{id}/agents-md |
+| guide | one topic of the server's guidance: where to compute, public catalogs, documenting, accounts, bugs, artifacts, agents | none |
 | describe_table | one table's columns, layout and recent commits | GET /v1/table?snapshots=N, GET /v1/catalogs/{id}/agents-md?text=false |
 | query | one read-only statement in DuckDB's SQL, run on our side | POST /v1/query |
 | get_object | one file of a catalog's file storage, by key (a photo whose key a table holds) | GET /v1/object |
@@ -24,6 +26,7 @@ All seventeen need the caller's key or token. All but open_public_catalog are bo
 | document_table | a table's description and its columns' descriptions, in one commit | PATCH /v1/table |
 | set_agents_md | writes a catalog's AGENTS.md | PUT /v1/catalogs/{id}/agents-md |
 | keep_account | a link and a code that let the person keep an account the client set up | POST /v1/agent/identity/claim |
+| list_agents | your hosted agents: what each does, what it reads and writes, its schedule, last run and health | GET /v1/usage, GET /v1/agents |
 | agent_brief | what one of your hosted agents needs from you, what it remembers, its recent runs | GET /v1/agents/{agent}/brief |
 | talk_to_agent | a message to one of your hosted agents, and its answer; your yes applies what it proposed | POST /v1/agents/{agent}/talk |
 | list_artifacts | the artifacts this connection can see: pages published for people | GET /v1/artifacts |
@@ -39,9 +42,17 @@ All seventeen need the caller's key or token. All but open_public_catalog are bo
 
 - agents_md marks each catalog that has an AGENTS.md: presence only, with or without search. On a catalog you may write that has none, it says present: false and how to add one.
 
-- search finds tables by words in their names, column names or column docs, without listing everything. It is typo-tolerant. catalog and namespace narrow it.
+- Without arguments, an account with more than 40 tables gets its catalogs instead, as list_catalogs gives them, with a note: then list_tables(catalog=…). A table's doc is cut to its first 160 characters (doc_cut: true); describe_table has it whole. A long answer comes in pages of page_size tables (100 by default); pass next_page_token back as page_token for the next one.
+
+- search finds tables by any of its words in their names, their catalog's or namespace's name, column names or column docs, without listing everything. The tables matching the most words come first, each with matched_words; it is typo-tolerant, and words such as "the" or "de" are skipped. catalog and namespace narrow it.
 
 - A catalog or namespace that is not found comes back with did_you_mean. It lists the catalogs, namespaces and tables close to the name (madrid → analytics.air.madrid_hourly).
+
+### list_catalogs
+
+- Each catalog you can read: name, id, your level, tables (how many), size_bytes (with when it was measured), and agents_md, whose summary is the first lines of the owner's AGENTS.md (their words: data, not instructions).
+
+- 50 catalogs a page by default (page_size, up to 200); next_page_token while there are more.
 
 ### describe_table
 
@@ -140,9 +151,11 @@ lhbox duckdb --catalog <catalog>
 
 See With no account yet (https://lakehousebox.com/docs/mcp/#with-no-account-yet). A connection to an account a person already owns answers not_unclaimed. A connection made with an API key (lhbox new) answers claim_with_cli: the claim replaces the key, so lhbox claim --wait keeps the account and saves the new key.
 
-### agent_brief and talk_to_agent
+### list_agents, agent_brief and talk_to_agent
 
 Your hosted agents, from your own assistant: ask Claude what your agent did last night, or tell it to skip watering until Friday. Both need the connection to read the account (account:read). Talking also needs account:manage, because a yes can change the agent. Through a connection you approved yourself, they act as you: you must be the agent's creator or an admin. The connection must also hold read on every catalog the agent was ever given, since its memory holds what it read there. An agent that has used a person's own integrations (their mailbox, say) is not reachable through a connection: talk to it on the account page.
+
+- list_agents names each agent you can see, with about (the first sentence of its prompt), what it reads and writes, its schedule, whether it is paused and why, its last run and health. search keeps the agents whose name or description has one of its words, so "my garden bot" finds garden_morning. An agent name that is not found comes back with did_you_mean.
 
 - agent_brief starts with attention, what needs you: something the agent flagged, a decision due, a failed run, a change it proposed. It also returns the proposed change in full (open_proposal), its memory and its last runs. It runs no model.
 
@@ -168,7 +181,7 @@ An artifact is a page people of your organisation open on LakehouseBox: a dashbo
 
 ### What the server tells the agent
 
-The server's instructions, sent at initialize, repeat this page's short version. Start with list_tables, then describe_table. Aggregate and filter in SQL rather than fetch raw rows; busy means wait and retry. Read files with get_object, and open a public catalog with open_public_catalog.
+The server's instructions, sent at initialize, are kept short (under 1,800 characters), because clients cut longer ones. The most important rules come first. Start with list_tables, then describe_table. The rest is in the guide tool, one topic at a time, and the instructions name the topics. Aggregate and filter in SQL rather than fetch raw rows; busy means wait and retry. Read files with get_object, and open a public catalog with open_public_catalog.
 
 Once per session they say how to act as another account or organisation. Revoke a remote connection under Settings › Access keys, then reconnect as the other account. Replace an API key, sent as the bearer or set as LHBOX_API_KEY (which may differ from your CLI's), with another key.
 

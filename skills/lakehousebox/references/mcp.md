@@ -94,7 +94,7 @@ The same code runs as a local stdio process, for working on the server against a
 
 - For Claude Desktop it writes a uvx --from platform/mcp entry with the key in its environment. It goes in Claude Desktop's own configuration file, readable only by its owner.
 
-A local server offers the write tools only with LHBOX_MCP_WRITE_TOOLS=1 in its environment, agent_brief and talk_to_agent only with LHBOX_MCP_AGENT_TOOLS=1, and the three artifact tools only with LHBOX_MCP_ARTIFACT_TOOLS=1; without them it has the six read tools. The package is not published on PyPI. The hosted server is the supported route.
+A local server offers the write tools only with LHBOX_MCP_WRITE_TOOLS=1 in its environment, list_agents, agent_brief and talk_to_agent only with LHBOX_MCP_AGENT_TOOLS=1, and the four artifact tools only with LHBOX_MCP_ARTIFACT_TOOLS=1; without them it has the eight read tools. The package is not published on PyPI. The hosted server is the supported route.
 
 MCP tools (https://lakehousebox.com/docs/mcp/tools/), a page of its own: Each tool of the LakehouseBox MCP server, public catalogs, a catalog's AGENTS.md, how the queries run, where to compute, and the limits of the shared queue.
 
