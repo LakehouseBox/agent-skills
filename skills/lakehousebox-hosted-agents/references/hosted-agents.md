@@ -104,7 +104,13 @@ A schedule is a cron line of five fields, evaluated in a time zone, so summer ti
 
 - Three scheduled runs failing in a row pause the agent and email you.
 
+- An agent LakehouseBox paused (it kept failing, or you lost access to its catalogs or tables) emails you a reminder after three days, then every week, until you resume it.
+
+- Three scheduled runs in a row that did not start (skipped, or refused because the runs or tokens were used up) email you once, and not again until it runs.
+
 - A scheduled run that ends "needs attention" emails you its final message.
+
+- lhbox agent list and GET /v1/agents show each agent's health: state is active, on_demand, paused (by a person), stopped (by LakehouseBox; reason says why), failing or not_running, with since, last_succeeded_at and slots_not_run.
 
 The account page previews the next five runs.
 
