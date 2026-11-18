@@ -19,7 +19,13 @@ An admin can withdraw an invitation nobody has accepted yet. GET /v1/orgs/{org}/
 
 ### Domain claims
 
-A domain claim (admin) does nothing until it is verified. The claim answers a TXT record, _lakehousebox.<domain>, with a random value. Publish it in the domain's DNS; --verify looks it up.
+A domain claim (admin) is proven one of two ways.
+
+- By your address: an admin of the organisation has a verified address on exactly that domain. That is enough to switch domain join on, with no DNS step. It is not exclusive: other organisations with an admin there can do the same, and none can once an organisation verifies the domain by DNS. It holds while such an admin does: when the last one leaves, stops being an admin or changes address, the offers stop.
+
+- By DNS: the claim answers a TXT record, _lakehousebox.<domain>, with a random value. Publish it in the domain's DNS; --verify looks it up. A domain verified this way is the organisation's alone, and it is what single sign-on, key policies and the directory need.
+
+A claim proven neither way does nothing.
 
 The person: publishes that TXT record in the domain's DNS, at that very name. A record reached through a CNAME does not count.
 
@@ -31,13 +37,13 @@ The person: publishes that TXT record in the domain's DNS, at that very name. A 
 
 - A week in which the domain's DNS gives no answer at all also unverifies it.
 
-- Unverifying also switches domain join off.
+- Unverifying also switches domain join off, unless an admin's address still proves one of the organisation's claims.
 
 - Once yours is gone, another organisation that publishes its own value takes the domain over at its next verify.
 
 ### Domain join
 
-With domain join on, a person whose address is on a verified domain is offered membership. The account page asks, and lhbox org offers lists it. They join as a member only if they accept, with their own login or API key. Someone who joins this way reads the catalogs open to the whole organisation and no others, until an admin grants more. Accepting is the person's act: nobody is added automatically, and an organisation's token is offered nothing.
+With domain join on, a person whose address is on a proven domain is offered membership. The account page asks, and lhbox org offers lists it. They join as a member only if they accept, with their own login or API key. Someone who joins this way reads the catalogs open to the whole organisation and no others, until an admin grants more. Accepting is the person's act: nobody is added automatically, and an organisation's token is offered nothing.
 
 A person who left the organisation, or was removed from it, is not offered it again. They are matched by their account and by their address (lower case, a +tag ignored). So a new account on the same address is not offered it either: an admin's invitation is the way back. A departure is remembered for 12 months, as a one-way hash of the address and never the address itself. Then it is forgotten. Older departures are covered under Numbers and dates (https://lakehousebox.com/docs/access/#numbers-and-dates).
 

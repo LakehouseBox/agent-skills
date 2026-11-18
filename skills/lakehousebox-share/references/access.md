@@ -56,9 +56,9 @@ lhbox org list                                    # your organisations: name, id
 lhbox org members                                 # its people and their roles
 lhbox org invite --email ana@example.com --catalog sales --catalog ops:write   # a member, with two catalogs
 lhbox org role --principal <id> --role admin      # an organisation keeps at least one admin
-lhbox org domain --domain example.com             # prints the DNS TXT record to publish
+lhbox org domain --domain example.com             # claims it; prints the DNS TXT record that makes it yours alone
 lhbox org domain --domain example.com --verify    # once the record is published
-lhbox org set --domain-join on                    # offer membership to people on the verified domain
+lhbox org set --domain-join on                    # offer membership to people on the domain
 lhbox org offers && lhbox org join --org <handle> # a person on that domain: see the offer, accept it
 ```
 
