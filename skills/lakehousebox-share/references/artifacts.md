@@ -255,6 +255,25 @@ artifact.json keeps both, so the next lhbox artifact publish site/ sends them ag
 
 A person with an account can make a private copy of a public page in their own organisation (the public page itself has no button for it). The copy reads the same public catalogs under the same names, so it works at once, and it says where it came from. Nothing but the page is copied. The owner of the original sees how many copies were made. Over the API it is POST /v1/artifacts/{id}/duplicate on a public page, with {"org_id"} to choose the organisation.
 
+### Your organisation's brand
+
+An organisation on the enterprise plan can put its own logo, name and link above its public pages, where LakehouseBox's logo is otherwise. The bar keeps Report and a small Made with LakehouseBox link whatever the brand says.
+
+An admin sets it on the account page, under Settings › General › Public page brand, or over the API:
+
+- The link must be an https address on a domain your organisation has verified by DNS (Settings › General › Email domains), or on a subdomain of one: https://datos.madrid.es/ once madrid.es is verified. If the domain stops being verified, the bar stops showing the link and keeps the name and logo.
+
+- The logo is a PNG, JPEG or WebP image, at most 200 KB and 2048 pixels a side, shown 28 pixels tall. SVG is refused. A transparent PNG about 200 pixels tall looks best.
+
+- If the organisation leaves the enterprise plan, its pages show LakehouseBox's bar again. The brand is kept and comes back if the plan does.
+
+| over the API |  |
+|---|---|
+| GET /v1/orgs/{org}/brand | the brand, whether public pages show it, and the verified domains a link may point to |
+| PATCH /v1/orgs/{org}/brand with {"name": "…", "link": "https://…"} | sets the name and the link; null clears one |
+| PUT /v1/orgs/{org}/brand/logo with the image as the body | sets the logo |
+| DELETE /v1/orgs/{org}/brand/logo, DELETE /v1/orgs/{org}/brand | removes the logo, or the whole brand |
+
 ### Reports
 
 Report on a public page sends us what the visitor says is wrong with it. We can take a page off the web. Its owner then sees that it was taken down and why, and cannot make it public again until we lift that.
