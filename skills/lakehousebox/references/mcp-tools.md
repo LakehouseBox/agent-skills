@@ -44,7 +44,7 @@ All twenty need the caller's key or token. All but open_public_catalog are bound
 
 - Without arguments, an account with more than 40 tables gets its catalogs instead, as list_catalogs gives them, with a note: then list_tables(catalog=…). A table's doc is cut to its first 160 characters (doc_cut: true); describe_table has it whole. A long answer comes in pages of page_size tables (100 by default); pass next_page_token back as page_token for the next one.
 
-- search finds tables by any of its words in their names, their catalog's or namespace's name, column names or column docs, without listing everything. The tables matching the most words come first, each with matched_words; it is typo-tolerant, and words such as "the" or "de" are skipped. catalog and namespace narrow it.
+- search finds tables by any of its words in their names, their catalog's or namespace's name, column names or column docs, without listing everything. The tables matching the most words come first, each with matched_words; it is typo-tolerant (a word with a dropped, doubled or, in a long word, changed letter), and words such as "the" or "de" are skipped. In a search of several words a table found only through such a near-spelling is left out. catalog and namespace narrow it.
 
 - A catalog or namespace that is not found comes back with did_you_mean. It lists the catalogs, namespaces and tables close to the name (madrid → analytics.air.madrid_hourly).
 
