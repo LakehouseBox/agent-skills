@@ -167,6 +167,7 @@ The last five are the server's own envelopes. The full list: Errors and help (ht
 | publish_artifact, read_artifact, list_artifacts added |  | 2026-11-12 |
 | delete_artifact added |  | 2026-11-15 |
 | connect_machine added |  | 2026-11-15 |
+| object_history, restore_change added |  | 2026-11-17 |
 
 The server is one file built on the official mcp Python package, pinned.
 
