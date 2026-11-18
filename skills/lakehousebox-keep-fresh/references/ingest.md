@@ -256,6 +256,7 @@ DELETE /v1/sinks/{id|name}        write level; 202 {pending_batches_discarded}; 
 POST   /v1/sinks/{id}             the send key only (above)
 GET    /internal/sinks            the roller's view (bootstrap secret; never served publicly)
 POST   /internal/sinks/{id}/roll  the roller's report
+POST   /internal/sinks/{id}/table-change  the roller's first-roll change to the table, for object history
 ```
 
 The sink commands are create, update, dedupe, list, get, delete and send, and for a device route device-token, mapping and test. Every flag is in the CLI reference. A send takes its key from --send-key-file FILE, --send-key K or LHBOX_SEND_KEY, and its batch id from --batch-id ID.
