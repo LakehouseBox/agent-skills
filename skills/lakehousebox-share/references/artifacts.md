@@ -206,7 +206,7 @@ lhbox artifact restore Ab12Cd34
 
 ## Making a page public
 
-A public page is opened by anyone on the internet, with no account, at its public link. Around the page we show its title, the organisation that published it, Use this in your account, Get started and Report, and Follow where its owner lets visitors subscribe to the page's agent. Search engines are asked not to index it.
+A public page is opened by anyone on the internet, with no account, at its public link. Around the page we show its title, who published it and Report, and Follow where its owner lets visitors subscribe to the page's agent. The LakehouseBox logo opens our site in a new tab. Search engines are asked not to index it.
 
 Public pages are turned on per organisation. Where they are on, the Share panel's General access offers Anyone on the internet.
 
@@ -253,7 +253,7 @@ artifact.json keeps both, so the next lhbox artifact publish site/ sends them ag
 
 ### Use this in your account
 
-A visitor who is signed in, or who signs in or signs up from the public page, gets a private copy of the page in their own organisation. The copy reads the same public catalogs under the same names, so it works at once, and it says where it came from. Nothing but the page is copied. The owner of the original sees how many copies were made. Over the API it is POST /v1/artifacts/{id}/duplicate on a public page, with {"org_id"} to choose the organisation.
+A person with an account can make a private copy of a public page in their own organisation (the public page itself has no button for it). The copy reads the same public catalogs under the same names, so it works at once, and it says where it came from. Nothing but the page is copied. The owner of the original sees how many copies were made. Over the API it is POST /v1/artifacts/{id}/duplicate on a public page, with {"org_id"} to choose the organisation.
 
 ### Reports
 
