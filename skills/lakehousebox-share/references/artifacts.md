@@ -91,11 +91,13 @@ The page runs in a sandboxed frame on a host of its own, apart from the account 
 |---|---|
 | read the catalogs it names, as the viewer | read a catalog it did not name, or one the viewer cannot read |
 | load its own files and assets, fonts included | send a request to any other host: no fetch, no external images or fonts |
-| load a script or a stylesheet from cdnjs.cloudflare.com, cdn.jsdelivr.net or unpkg.com | load a script from anywhere else |
-| draw with inline SVG, canvas, CSS and its own JavaScript | use cookies, storage, forms or popups, or leave its frame |
+| load a script or a stylesheet from cdnjs.cloudflare.com, cdn.jsdelivr.net or unpkg.com, with a <script>, a <link> or an import, also one added while the page runs | load a script from anywhere else, or fetch anything from those three hosts: a library that downloads its own parts from there (a worker, WebAssembly, data files) fails |
+| draw with inline SVG, canvas, CSS and its own JavaScript | use cookies, storage, forms or popups, or leave its frame: localStorage throws a SecurityError |
 | show basemap tiles from tiles.lakehousebox.com | see anything of the account page or the viewer's session |
 
 A font is an asset: put the .woff2 file in assets/ and name it in the page's CSS as @font-face { font-family: 'Source Sans 3'; src: url(../assets/source-sans-3-400.woff2) format('woff2'); }. Fonts from Google Fonts or any other host are blocked.
+
+Ship the libraries the page uses as its own files: <script src="d3.min.js"> beside index.html keeps working whatever the library fetches and whichever host is down. lhbox artifact check names, by file and line, each address in the page's files that the frame blocks (file_other_host).
 
 Put nothing private in the HTML. Whoever the page is shared with can read its source, so no secret, no copied rows and no personal data belong in the file. Data stays in the tables, and each viewer sees only what they may read.
 
@@ -129,7 +131,7 @@ Name each source and its licence on the page. Offer what a chart shows as a tabl
 
 ### Read everything from the catalog
 
-The page reads its data with lhbox.query: no JSON bundled into the page, no requests to other hosts, map outlines as GEOMETRY columns of a table. Ship images, fonts and a basemap's .pmtiles as assets; data the page queries belongs in a table.
+The page reads its data with lhbox.query: no rows copied into the HTML, no requests to other hosts, map outlines as GEOMETRY columns of a table. Ship images, fonts and a basemap's .pmtiles as assets; data the page queries belongs in a table. The one exception is a small file for the first view, written from a table (Draw before the engine is up).
 
 ### Keep the source in git
 
@@ -138,6 +140,79 @@ Keep the page's files in a repository and publish from CI, the commit's subject 
 ### Fit a phone and the reader's language
 
 Lay the page out for a phone's width (<meta name="viewport" content="width=device-width, initial-scale=1">), name its language (<html lang="es">) and format numbers and dates in the reader's language (toLocaleString(), Intl.NumberFormat).
+
+## Writing a fast page
+
+What made Embalses fast on a phone. The numbers were measured on that page in November 2026; a page of yours depends on its own tables and code.
+
+### Draw before the engine is up
+
+The engine starts on the first query, and on a phone that first answer takes seconds. Draw the first view from a small file shipped with the page, and let the live data replace it: fetch('outlines.json') beside index.html, written from the table the page reads. On Embalses a 41 KB (compressed) file of outlines drew the map in about 0.6 s, where it had waited for the engine and a query. Keep the file to what the first view draws, and write it again when its table changes.
+
+The frame has no storage (localStorage throws), so a result cannot be kept for the next visit: the small file is what makes every visit's first view fast.
+
+### No layout shift
+
+Give every element its final size before its data comes:
+
+- A canvas sized by the script gets the same shape in CSS: canvas { width: 100%; aspect-ratio: 1 / 0.8 } when the script draws it 0.8 times as high as it is wide.
+
+- A placeholder is as long as the value that replaces it: 000.0 hm³, not ….
+
+- A table's placeholder has the real header and the real number of rows, each of the real height.
+
+With these three, Embalses' layout shift on a phone went from about 0.21 to about 0.02.
+
+### Load a library when it is first needed
+
+Load what only a click or a later view uses at that moment, not with the page: add its <script>, or import() it, from the code that needs it, and keep the promise so it loads once. Ship it as a page file (What the page can reach).
+
+### Put each file where it belongs
+
+A folder's page/ takes .html .css .js .json .geojson .csv .svg, at most three folders deep; assets/ takes only .png .jpg .jpeg .webp .gif .avif .woff2 .parquet .pmtiles .mp4, directly in it. A .json, .js or .geojson in assets/ stops the publish before anything is sent; lhbox artifact check <folder> says so without publishing.
+
+### Give each click one small table
+
+The first read of a table costs its metadata, about 300 to 600 ms per table on Embalses, and the page's queries run one at a time: Promise.all over three queries takes as long as the three in a row. So:
+
+- Precompute what a click shows into one small table with a derived sink (https://lakehousebox.com/docs/scheduled-sql/#reading-the-catalogs-own-tables-derived-sinks), with ORDER BY the key the click filters on, so a filtered read skips most of the file.
+
+- Read a small lookup table once and keep its promise; do not query it again on every click.
+
+- Start the click's query on hover (pointerenter).
+
+- A few seconds after the page is up, read the tables the next click is likely to need.
+
+On Embalses a click on a municipality went from 4.2 s to 0.87 s the first time, and 60 ms after that.
+
+### Refresh a derived table when its source changes
+
+A derived table built only from reference data changes only when that data is loaded again. Run its sink daily (--every 1d) and once right after each reload (lhbox sink run <sink> --wait), not every hour.
+
+### Test the page as visitors get it
+
+Open the published page in headless Chrome at a phone's size, and read the layout shift and the console of the page's frame: a request the frame blocks shows there as a Content Security Policy error. With Playwright (npm install playwright-core) and the Chrome installed on the machine:
+
+```
+// node check-page.mjs https://lakehousebox.com/a/<id>   (a public page; a private one needs a signed-in session)
+import { chromium } from 'playwright-core';
+const browser = await chromium.launch({ channel: 'chrome' });
+const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await context.addInitScript(() => {           // runs in the artifact's frame too
+  window.__cls = 0;
+  new PerformanceObserver((list) => {
+    for (const e of list.getEntries()) if (!e.hadRecentInput) window.__cls += e.value;
+  }).observe({ type: 'layout-shift', buffered: true });
+});
+const page = await context.newPage();
+page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(m.type(), m.text()); });
+await page.goto(process.argv[2], { waitUntil: 'load' });
+await page.waitForTimeout(8000);               // time for the queries to answer
+for (const f of page.frames()) console.log(new URL(f.url()).host, 'CLS', await f.evaluate(() => window.__cls));
+await browser.close();
+```
+
+It prints one line per frame: the page around it, then the artifact's frame, whose layout shift is the page's. Run on Embalses on 19 November 2026, it printed 0.027 to 0.033 for the frame over three runs, and no console error.
 
 ## Publishing
 
@@ -156,7 +231,9 @@ An asset is stored under the SHA-256 of its content (assets/<sha256>.woff2), and
 
 Every publish answers warnings: a list, empty when there is nothing to say, of {code, message, remedy, docs} about the page's index.html (no lang, no viewport, tags a preview never reads, location.hash, requests and loads from hosts the frame blocks, a public page without a description or a thumbnail, assets over 2 MB the page loads). They never stop a publish: fix them in the next version. The CLI prints them after the address, and docs links the section of Making a good page that explains each.
 
-lhbox artifact check ARTIFACT (GET /v1/artifacts/{id}/check) checks the published version without running it. It lists as problems the files the page files refer to that the version does not hold (src and href, CSS url() and @import, relative imports, lhbox.asset('…') with a literal path), and the catalogs it names that nobody reads through it: catalog_gone, author_lost_read (whoever published it no longer reads the catalog), not_public. It also gives the publish's warnings, a version still on the older engine, and the size against the limits. It exits 1 when there is a problem, so a CI step can run it after a publish; warnings do not change the exit code. A path the script builds while it runs is not checked, and neither is what the page does when it runs: console errors, failed queries and timings show in the browser's developer tools on the open page.
+lhbox artifact check ARTIFACT (GET /v1/artifacts/{id}/check) checks the published version without running it. It lists as problems the files the page files refer to that the version does not hold (src and href, CSS url() and @import, relative imports, lhbox.asset('…') with a literal path), and the catalogs it names that nobody reads through it: catalog_gone, author_lost_read (whoever published it no longer reads the catalog), not_public. It also gives the publish's warnings, file_other_host for each address in any page file that the frame blocks (with its file, line and host), a version still on the older engine, and the size against the limits. It exits 1 when there is a problem, so a CI step can run it after a publish; warnings do not change the exit code. A path the script builds while it runs is not checked, and neither is what the page does when it runs: console errors, failed queries and timings show in the browser's developer tools on the open page (Test the page as visitors get it).
+
+lhbox artifact check <folder> checks a folder on disk before it is published, with no request: a file of a type page/ or assets/ does not take, or a layout publish refuses, is a problem (exit 1), in the words the publish would stop with.
 
 Over the API a folder is three steps. POST /v1/artifacts without html starts a pending version. Each file goes up with PUT /v1/artifacts/{id}/versions/{version}/files/{name}. POST /v1/artifacts/{id}/versions/{version}/publish shows it. Nothing is shown until that last call answers. A pending version that is not published within 24 hours is deleted, and an artifact keeps at most three pending versions: starting a fourth deletes the oldest.
 
