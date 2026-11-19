@@ -141,7 +141,7 @@ APIs that answer a POST: http_post. http_post(url, body, headers := MAP {…}, e
 
 - so does each retry of a failed run (a run that POSTs is not retried within itself).
 
-unnest(http_post(…)) (or http_get) is refused (http_call_repeated): it would send one request per field of the answer. Call it once in a subquery and expand that: SELECT unnest(r) FROM (SELECT http_post(…) AS r).
+unnest(http_post(…)) (or http_get) is refused (http_call_repeated): it would send one request per field of the answer. So is any unnest/unlist whose argument holds the call and may be a struct (a cast, coalesce, an index, a struct field, greatest); a list made from the answer is fine (from_json(….body, '["JSON"]'), string_split, json_extract(…, '$[*]'), a cast to a list type). Call it once in a subquery and expand that: SELECT unnest(r) FROM (SELECT http_post(…) AS r).
 
 Declare only endpoints where a repeated request does no harm, such as a viewer's query sent as a form, never one that submits, books or changes something. Removing a prefix (lhbox sink post-prefix remove) pauses the catalog's SQL sinks that POST under it. Example, a form, then a token from a first POST used in a second:
 
