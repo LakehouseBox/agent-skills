@@ -413,11 +413,31 @@ A hosted agent (https://lakehousebox.com/docs/hosted-agents/) whose definition h
 
 - A run publishes at most 5 versions. A test run checks the page and publishes nothing.
 
-- post_update says one short thing about a page the agent keeps: plain text, at most 600 characters, no link or address. It goes to the people who already get the agent's notices, as one of its notices of the day (it leaves the run's own notice free). Where the page's owner lets visitors follow the page, it is also emailed to the page's subscribers, as written. At most one update per page in a run, 3 in a run and 2 per page a day. A test run posts nothing.
+- post_update says one short thing about a page the agent keeps: at most 1,200 characters, with a little formatting and links only to that page (how an update looks). It goes to the people who already get the agent's notices, as one of its notices of the day (it leaves the run's own notice free). Where the page's owner lets visitors follow the page, it is also emailed to the page's subscribers, as written. At most one update per page in a run, 3 in a run and 2 per page a day. A test run posts nothing.
 
 - The agent publishes one self-contained HTML file. It cannot update a page made of several page files, and its version never renames the page: the title is its owner's.
 
 - The agent's own access decides what its pages show. When the agent is deleted, or loses a catalog, the pages it published last show no data from that catalog. The person who owns the page re-owns it from the note the page shows, and it reads what they read.
+
+### How an update looks
+
+An update is written once and shown the same way in the email's HTML, in its plain-text part (for mail apps that show only text), in the email to the people who get the agent's notices and in the owner's list on the account page. A version's note follows the same rules, on one line of at most 200 characters (a longer one is cut there).
+
+| you write | in the email and the owner's list | in the plain-text part |
+|---|---|---|
+| a line break | a line break; an empty line starts a new paragraph (more than one empty line counts as one) | the same |
+| **three stations** | three stations (bold) | three stations |
+| lines that start with -  | a bulleted list | the same lines, -  and all |
+| [see your town](<the page's address>#s=<place>) | "see your town", a link to that place on the page | see your town (the address) |
+| the page's bare address | the address, as a link | the address |
+
+- The only link is to the page itself: its address as url gives it (https://lakehousebox.com/a/<id>/<the title's words>, or https://lakehousebox.com/a/<id>), optionally with a place on it, #s=<state> (the place lhbox.link gives: letters, digits and - _ . ~ % ! * ', not ending on . ! * '; write ( and ) as %28 and %29). Any other link or address, a link's words that are themselves an address ([https://…](<page>)), an address of another kind (mail, data or script) or an image is refused with 400 update_has_link, and a version's note that carries one is published and emailed to nobody.
+
+- A bare address must stand on its own: a space, the end, a closing mark or ** after it (., ,, ) are fine, and are not part of the link).
+
+- Nothing else is formatting: HTML, headings, italics, numbered lists, tables and images are shown as the characters written (<b> reads <b>). A link inside bold stays a link.
+
+- The 1,200 characters count the text as the agent sent it, the markup included.
 
 ## When it fails
 
@@ -443,6 +463,7 @@ A hosted agent (https://lakehousebox.com/docs/hosted-agents/) whose definition h
 | 403 artifact_public_blocked | We took the page off the web. It cannot be made public again until that is lifted. |
 | 403 address_not_verified | The owner's address is not verified yet. |
 | 403 artifacts_not_allowed | The hosted agent's definition does not have artifacts. Whoever manages it turns it on. |
+| 400 update_has_link | An update links only to its own page (page_url in the answer, with an optional #s= place). Say anything else in words; see how an update looks. |
 | http_499 with no message from an upload | The connection closed before an answer came: a timeout or a reset on the way. On a CI runner whose uploads hang, run sudo sysctl -w net.ipv4.tcp_mtu_probing=1 on the runner first, then publish again. |
 
 ## Numbers and dates
