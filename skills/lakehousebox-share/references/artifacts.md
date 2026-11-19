@@ -238,6 +238,7 @@ Making a page public is also where its owner decides whether visitors may subscr
 | GET /v1/artifacts/{id} | url and, while the page is public, public_url, the same address (https://lakehousebox.com/a/<id>/<the title's words>), and for its owner public.copies |
 | PATCH /v1/artifacts/{id} with {"follow": true, "follow_ack": {"catalogs": ["<warehouse id>"], "integrations": false}} | lets visitors subscribe to the page's agent, from a browser session; {"follow": false} stops it |
 | GET /v1/a/{id}/card | the share card, with no account: title, description, url, image (url, width, height, alt, or null) |
+| GET /v1/a/sitemap.xml | every public page, as a sitemap, with no account |
 
 ### When the link is shared
 
@@ -250,6 +251,10 @@ lhbox artifact publish site/ --description "Spain's reservoirs and rain, live." 
 ```
 
 artifact.json keeps both, so the next lhbox artifact publish site/ sends them again. Over the API they are description (one line, at most 300 characters) and thumbnail (the image's stored name, assets/<sha256>.<ext>) in POST /v1/artifacts. A version that does not send them keeps the ones before, so a hosted agent's updates keep the card; --description "" removes the description. A thumbnail over 5 MB is refused when the version is published. A preview follows a change to the page (renamed, made private) within a minute. A self-hosted install serves the page without the preview tags.
+
+### In search engines
+
+A public page is open to search engines: its head carries its title, description and canonical address, and it is in the sitemap at https://api.lakehousebox.com/v1/a/sitemap.xml, which the site's robots.txt names. A page that is not public tells search engines not to list it and is never in the sitemap; one made private leaves it within the hour.
 
 ### Use this in your account
 
