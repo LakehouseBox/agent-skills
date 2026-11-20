@@ -149,6 +149,38 @@ In the API this is on_commit: ["catalog.namespace.table", ...] on POST /v1/agent
 
 - Three such runs failing in a row pause the agent and email you, as for scheduled runs.
 
+- watch_debounce_until on GET /v1/agents/{name} says until when new data waits after the last such run.
+
+### Only when a condition holds
+
+Add a condition so that new data starts a run only when something relevant changed:
+
+```
+lhbox agent update rate_watch --on-commit bde.core.observaciones \
+  --on-commit-if "SELECT max(fecha) > (SELECT coalesce(max(mes), DATE '1900-01-01') FROM anticipa.core.scores) FROM bde.core.observaciones WHERE serie = 'TIPO_NUEVAS'"
+lhbox agent update rate_watch --no-on-commit-if     # every new snapshot starts a run again
+```
+
+In the API this is on_commit_if: "SQL" (null removes it), next to on_commit.
+
+- The condition is one read-only SQL statement, at most 4,000 characters, checked when a watched table changed and before the run starts. The run starts only when the first column of the first row is a boolean true or a number other than 0. No row, NULL, false, 0 or any text means no run.
+
+- It runs as the agent: it reads only what the agent reads, with the same 20-second query limit as the agent's own queries, and it returns one row. A catalog the agent does not read is refused (not_found).
+
+- It sees the tables as they are now; there is no placeholder for the snapshot ids. To compare with what the agent did last, read a table the agent writes.
+
+- When it is not met, that new data is done with: nothing runs for it, and the next new snapshot is checked again.
+
+- It is checked at most once every 15 minutes. New data that lands sooner waits for the next check (watching[].waiting: condition_wait). Saving a new version of the agent checks it at the next look.
+
+- A check is a query, not a run: it uses no model tokens and does not count against the runs per day.
+
+- When the check fails (an SQL error, a table the agent cannot read, a timeout), nothing runs and the new data waits: watching[].waiting says condition_failed, and condition_checked on GET /v1/agents/{name} (and lhbox agent show) gives the error. It is checked again 15 minutes later, or at once when you fix it.
+
+- condition_checked shows the last check: {at, outcome: met | not_met | failed, tables, code, message}. The error's message is shown only to people who may read the agent's runs.
+
+- A DECIMAL or a large integer answer counts as the number it is.
+
 ## Test runs
 
 lhbox agent run <name> --dry-run runs the agent for real, with a few differences. "Test run" on the page does the same, and so does {"dry_run": true} on POST /v1/agents/{agent}/run.
