@@ -21,7 +21,7 @@ An admin can withdraw an invitation nobody has accepted yet. GET /v1/orgs/{org}/
 
 A domain claim (admin) is proven one of two ways.
 
-- By your address: an admin of the organisation has a verified address on exactly that domain. That is enough to switch domain join on, with no DNS step. It is not exclusive: other organisations with an admin there can do the same, and none can once an organisation verifies the domain by DNS. It holds while such an admin does: when the last one leaves, stops being an admin or changes address, the offers stop.
+- By your address: an admin of the organisation has a verified address on exactly that domain. That is enough to switch domain join on, with no DNS step. It is not exclusive: other organisations with an admin there can do the same, and none can once an organisation verifies the domain, or a parent of it, by DNS. It holds while such an admin does: when the last one leaves, stops being an admin or changes address, the offers stop. An address never proves a shared mail domain (an address relay, a free or an internet provider's mailbox): there only DNS does.
 
 - By DNS: the claim answers a TXT record, _lakehousebox.<domain>, with a random value. Publish it in the domain's DNS; --verify looks it up. A domain verified this way is the organisation's alone, and it is what single sign-on, key policies and the directory need.
 
