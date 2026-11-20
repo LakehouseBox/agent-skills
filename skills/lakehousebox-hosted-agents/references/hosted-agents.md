@@ -5,7 +5,7 @@ This is a copy of https://lakehousebox.com/docs/hosted-agents/index.md taken whe
 
 On for every organisation: up to three agents, 4 runs a day and 5 million tokens a month on the models we provide, free, and two integrations to act in the tools you use (the limits below). An organisation an agent made without an account gets them once a person claims it.
 
-A hosted agent is a prompt that LakehouseBox runs for you, on demand or on a schedule. It reads the catalogs you choose with SQL and keeps a few values between runs. It can append rows to tables you name, read web hosts you name, email you and the members who subscribe, and use tools of MCP servers you connect. The model runs in the EU (Scaleway, Paris). Your agent brings no compute and holds no key.
+A hosted agent is a prompt that LakehouseBox runs for you: on demand, on a schedule, or when a table it watches gets new data. It reads the catalogs you choose with SQL and keeps a few values between runs. It can append rows to tables you name, read web hosts you name, email you and the members who subscribe, and use tools of MCP servers you connect. The model runs in the EU (Scaleway, Paris). Your agent brings no compute and holds no key.
 
 Each agent acts through an identity of its own. It reads exactly the catalogs its definition names and nothing else, whoever created it. Only its creator or an admin of the organisation changes those catalogs, with lhbox agent update or with a catalog grant to the agent's identity. Anyone else who holds write on a catalog gets 403 not_agent_manager, because what the agent reads reaches a model that can use its creator's integrations.
 
@@ -114,6 +114,31 @@ A schedule is a cron line of five fields, evaluated in a time zone, so summer ti
 
 The account page previews the next five runs.
 
+## Runs on new data
+
+An agent can run when a table gets a new snapshot instead of, or as well as, on a schedule. Name up to five tables:
+
+```
+lhbox agent update rate_watch --on-commit bde.core.observaciones
+lhbox agent update rate_watch --no-on-commit        # back to schedule and on demand only
+```
+
+In the API this is on_commit: ["catalog.namespace.table", ...] on POST /v1/agents or PATCH /v1/agents/{name}.
+
+- Each table must be in a catalog the agent reads (400 watch_needs_read), must exist (404 table_not_found) and must not be one the agent appends to (400 watch_own_write: its own rows would start its next run).
+
+- The snapshot a table has when you save the agent starts nothing. The next one that changes rows does.
+
+- LakehouseBox looks at the watched tables about once a minute. After a run that new data started, the agent waits your organisation's shortest schedule interval (an hour by default) before the next one. Everything that lands meanwhile starts one run after that wait. These runs count against the runs per day and the month's tokens like any other.
+
+- Compaction and other maintenance rewrite files without changing rows, so they start no run.
+
+- The run is told which tables changed, with the new snapshot id and the one it last ran for. It can read only what is new with time travel (Time travel (https://lakehousebox.com/docs/time-travel/)). Its record (GET /v1/agent-runs/{id}) shows trigger: commit and trigger_tables.
+
+- New data that cannot run yet waits instead of being dropped, and runs once it can: while the agent is still running, during the wait above, or when the day's runs or the month's tokens are used up. For the last, lhbox agent show and GET /v1/agents/{name} show why under watching[].waiting.
+
+- Three such runs failing in a row pause the agent and email you, as for scheduled runs.
+
 ## Test runs
 
 lhbox agent run <name> --dry-run runs the agent for real, with a few differences. "Test run" on the page does the same, and so does {"dry_run": true} on POST /v1/agents/{agent}/run.
@@ -185,6 +210,7 @@ Do not give your personal API key to an agent: it counts as you.
 | web hosts per agent | 10 |
 | subscribers per agent | 20 |
 | shortest schedule | hourly |
+| tables that start runs on new data, per agent | 5 (at most one such run per shortest schedule interval) |
 
 GET /v1/agents shows what is used (lhbox agent list). lhbox agent models lists the models and their price per million tokens. Every route is in the API reference (https://lakehousebox.com/docs/api/) under "Hosted agents".
 
