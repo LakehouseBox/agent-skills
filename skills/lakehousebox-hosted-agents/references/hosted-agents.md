@@ -35,6 +35,7 @@ lhbox agent update <name> changes any part of an agent. Only what you pass chang
 | notify_owner | email you (the person who created it) and its subscribers, at verified addresses, at most once per run and five times a day; the body is Markdown |
 | publish_artifact, read_artifact, list_artifacts, delete_artifact | publish a page for people, and the next versions of the pages it keeps (the ones it published or was given, until their owner takes one back), at most five versions a run; delete one of those into the trash, where you restore it for 30 days; Artifacts (https://lakehousebox.com/docs/artifacts/) |
 | append_rows | add rows to a table its definition names (--write): append-only, checked against the table's columns |
+| insert_select | write the result of a query into a table its definition names (--write): one INSERT INTO … SELECT …, run on the server, so the rows never pass through the model |
 | fetch_url | GET a page or an API answer from a host its definition names (--allow-host) |
 | view_image | look at an image in one of its catalogs' files (only on a model that sees images) |
 | integration tools | the tools of connected MCP servers you allow it, by name |
@@ -50,6 +51,15 @@ Every email has its own "Stop emails from this agent" link, and your mail provid
 lhbox agent update <name> --write garden.journal.entries lets the agent append rows there. The table must exist and be in a catalog the agent reads, and you must be able to write there. A table fed by a sink that reshapes rows (a mapping), or by Scheduled SQL, is refused.
 
 Rows are checked against the table's columns. An unknown column, a missing required one or a wrong type is refused, with the row and column to fix. Rows are stored at once and committed to the table within about a minute, the same way as an ingest sink (https://lakehousebox.com/docs/ingest/). A retried call is never stored twice. A test run checks the rows and writes none. --no-writes takes the tables away.
+
+To derive a table from tables (a daily summary, a score, a join of two catalogs), the agent sends one statement with insert_select, and the server writes the result:
+
+```
+INSERT INTO garden.journal.daily
+SELECT date_trunc('day', ts) AS day, avg(moisture) AS moisture FROM garden.sensors.readings GROUP BY 1
+```
+
+Only rows the query returns are written, exactly as it returns them, and the model never sees or copies them. The statement must be one INSERT into a table of --write (anything else is 400 not_an_insert or 403 write_not_granted), and it must read a table: rows the agent has itself go through append_rows (400 not_an_insert_select). It reads only the catalogs the agent reads, and you must still be able to write the table. It is committed as one snapshot of the table. The answer says how many rows were written and the table's snapshot just after. A retried call never runs twice, and the same statement sent twice in one run runs once. A statement runs for at most 25 seconds, the catalog's storage limit applies, and one run sends at most 20. A test run checks the statement and writes nothing.
 
 ### Reading the web
 
@@ -206,6 +216,7 @@ Do not give your personal API key to an agent: it counts as you.
 | test runs per agent per day | 10 |
 | one run | 350,000 tokens, 400 s, 15 model requests, 30 tool calls, 6 images (3 MB) |
 | appended by one run | 5,000 rows, 5 MB (at most 1,000 rows per call) |
+| insert_select statements by one run | 20 (25 s each) |
 | fetches by one run | 20 |
 | web hosts per agent | 10 |
 | subscribers per agent | 20 |
