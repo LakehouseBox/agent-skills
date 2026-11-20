@@ -353,7 +353,7 @@ lhbox sink create --catalog transit --name gtfs_trips --table gtfs.trips --creat
 
 - A table that already holds rows needs --replace-existing ("replace_existing": true): the first run replaces them. Without it the create is refused (409 replace_needs_confirmation) and says how many rows the table holds.
 
-- The table is format version 2 (--format-version 2 with --create-table; 409 replace_unsupported otherwise), not partitioned, with no key (400 mode_conflict). A sink whose table later becomes format version 3 pauses (table_unsupported).
+- The table is format version 2 (--format-version 2 with --create-table; 409 replace_unsupported otherwise), not partitioned, with no key (400 mode_conflict). A sink whose table later becomes format version 3 pauses (table_unsupported). New tables are format version 3 unless asked (a DuckDB CREATE TABLE … AS, table import, table create without --format-version), and a table never changes its format version. So to replace an existing format-version 3 table under the same name, drop it and let the sink create it: lhbox table delete <ns>.<table> --catalog <name> --yes, then lhbox sink create … --mode replace --create-table --format-version 2. The first run writes every row, as each replace does; only the table's history is lost. The refusal says the same in its remedy and names required_format_version: 2. A table with a geometry column cannot be format version 2: append to it.
 
 - A replace sink is alone on its table: no other sink can feed it (409 sink_exists), and it cannot join a table that already has one. Appending sinks can share a table (up to 8): one scheduled query per source, each failing on its own.
 
