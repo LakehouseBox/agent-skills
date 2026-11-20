@@ -1,6 +1,6 @@
 {
   "name": "lakehousebox-skills",
-  "version": "0.4.159",
+  "version": "0.5.0",
   "site": "https://lakehousebox.com",
   "layers": {
     "base": "what every LakehouseBox task needs: the ways in, the rules, reading public catalogs; depends on nothing",
@@ -15,6 +15,7 @@
         "references/agent-setup.md": "web/docs/agent-setup/index.md",
         "references/mcp.md": "web/docs/mcp/index.md",
         "references/public-catalogs.md": "web/docs/public-catalogs/index.md",
+        "references/connected-catalogs.md": "web/docs/connected-catalogs/index.md",
         "references/duckdb.md": "web/docs/engines/duckdb/index.md",
         "references/performance.md": "web/docs/performance/index.md",
         "references/mcp-tools.md": "web/docs/mcp/tools/index.md",

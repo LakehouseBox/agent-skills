@@ -179,6 +179,8 @@ Sample data, when they have none yet. lhbox duckdb --catalog commons/pubdata att
 
 An existing project. SHOW ALL TABLES, describe what is there, and pick up from it.
 
+Data that stays where it is. A bucket, a Cloud Storage or Azure container, another Iceberg catalog or open data can be read without copying it: make a connection with a key that can only read (or none, for public data) and attach it as a connected catalog, then read <name>.<schema>.<table> with lhbox query (over MCP, query): lhbox connection create overture --anonymous --endpoint s3.us-west-2.amazonaws.com --region us-west-2 --bucket overturemaps-us-west-2 --prefix release/2026-11-18.0, then lhbox source attach overture --connection overture. Every kind, its commands and its limits: Connected catalogs.
+
 Data that keeps arriving. For a device or a webhook with no engine of its own, lhbox sink create --catalog <catalog> --table <ns>.<table> --name <name> --save <file> gives one URL and a send-only key (Sinks). For a public website or API, scheduled SQL fetches it for you (Scheduled SQL).
 
 Files that are not tables (photos, PDFs, rasters, the source downloads) go in the catalog's file bucket: lhbox file cp ./tiles.pmtiles lhbox://<catalog>/public/, and lhbox file ls, sync and rm the same way (File types).

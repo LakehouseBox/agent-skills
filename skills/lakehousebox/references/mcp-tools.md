@@ -48,6 +48,8 @@ All twenty need the caller's key or token. All but open_public_catalog are bound
 
 - search finds tables by any of its words in their names, their catalog's or namespace's name, column names or column docs, without listing everything. The tables matching the most words come first, each with matched_words; it is typo-tolerant (a word with a dropped, doubled or, in a long word, changed letter), and words such as "the" or "de" are skipped. In a search of several words a table found only through such a near-spelling is left out. catalog and namespace narrow it. A search is at most 32 different words and 512 characters (search_too_long past that).
 
+- Connected catalogs come after the stored ones, with kind: connected: data another system keeps (a bucket, an Azure container, another Iceberg catalog), read where it lives. Each table has its format and file count, no row count or size. describe_table reads its columns from the files, and query reads it as <name>.<schema>.<table>, within the same 20 seconds. Attaching one is the CLI's or the account page's: Connected catalogs (https://lakehousebox.com/docs/connected-catalogs/).
+
 - A catalog or namespace that is not found comes back with did_you_mean. It lists the catalogs, namespaces and tables close to the name (madrid → analytics.air.madrid_hourly).
 
 ### list_catalogs

@@ -19,6 +19,7 @@ maintains the tables. Everything is in open formats the person can take elsewher
 | a chat with no shell, or a sandbox whose network refuses `s3.lakehousebox.com` | the MCP server, `https://mcp.lakehousebox.com/mcp` | [mcp](references/mcp.md) |
 | a public catalog, no account | DuckDB with unsigned requests | the section below, then [public-catalogs](references/public-catalogs.md) |
 | another organisation's public catalog, with an account | `lhbox duckdb --catalog <handle>/<catalog>`, or the MCP tool `open_public_catalog` | [public-catalogs](references/public-catalogs.md) |
+| data that lives elsewhere (a bucket, an Azure container, another Iceberg catalog, open data), read without copying it | a connection, attached as a connected catalog, then read with the MCP `query` tool or `lhbox query "<sql>"` | [connected-catalogs](references/connected-catalogs.md) |
 
 The MCP `query` tool runs SQL on LakehouseBox's side over the caller's catalogs and over any organisation's public
 catalog, named by its alias `<handle>_<catalog>` (`open_public_catalog` gives it, with the tables and the AGENTS.md):
@@ -150,5 +151,7 @@ Open only the one the task needs. Each is a copy of a docs page; its first lines
 - [mcp-tools](references/mcp-tools.md): each tool, public catalogs, AGENTS.md, how queries run, where to compute, the limits.
 - [public-catalogs](references/public-catalogs.md): what publishing makes readable, reading with no account,
   attaching by name, allowances and risks.
+- [connected-catalogs](references/connected-catalogs.md): attaching S3-compatible, Cloud Storage, public and Azure
+  buckets, Iceberg REST and Portolan catalogs, read where they live; limits, access, errors.
 - [duckdb](references/duckdb.md): connecting, reading, writing, geometry and performance in DuckDB.
 - [performance](references/performance.md): how tables are laid out and what a query can skip.
