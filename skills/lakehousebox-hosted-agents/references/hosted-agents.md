@@ -40,6 +40,10 @@ lhbox agent update <name> changes any part of an agent. Only what you pass chang
 | view_image | look at an image in one of its catalogs' files (only on a model that sees images) |
 | integration tools | the tools of connected MCP servers you allow it, by name |
 
+### Its budget
+
+A run may make 30 tool calls unless its definition says otherwise: --max-tool-calls N on lhbox agent create or update (max_tool_calls in the API), from 5 up to your organisation's limit (100); null sets it back to the default. Every tool answer tells the agent what is left (_budget: tool calls, model requests and seconds), and the last calls (3, or 2 for a budget under 15) are kept for wrapping up: once the others are spent, only remember, note, resolve, flag_owner and notify_owner run, and the last model request offers no tool, so the agent saves its memory, emails if its task asks, and gives its final message. A call past the budget is not run and the agent is told why. A run that needed more than its budget ends limit_exceeded, keeps what it remembered and noted, and its brief (lhbox agent brief, GET /v1/agents/{agent}/brief) says where it stopped: stopped_at gives the step (the tool it was refused, or the last it called), the tool calls it had made and whether it wrapped up. Raise --max-tool-calls for that agent, or split its job.
+
 ### Emails
 
 Members of the organisation can have an agent's notices sent to them too. Each one clicks "Email me this agent's notices" on its page, or runs lhbox agent subscribe <name> (lhbox agent unsubscribe <name> to stop). Each person subscribes only themselves and needs a verified address. They must also be able to read every catalog the agent reads, since a notice can carry what it read. An agent that uses (or once used) someone's integrations or web keys emails only its creator and the organisation's admins, since its notices can carry what those accounts returned.
@@ -246,7 +250,7 @@ Do not give your personal API key to an agent: it counts as you.
 | tokens (input and output, of the default model) per month | 5,000,000 |
 | runs per day (UTC) | 4 |
 | test runs per agent per day | 10 |
-| one run | 350,000 tokens, 400 s, 15 model requests, 30 tool calls, 6 images (3 MB) |
+| one run | 350,000 tokens, 400 s, 15 model requests, 30 tool calls (up to 100 with --max-tool-calls), 6 images (3 MB) |
 | appended by one run | 5,000 rows, 5 MB (at most 1,000 rows per call) |
 | insert_select statements by one run | 20 (25 s each) |
 | fetches by one run | 20 |
