@@ -266,7 +266,10 @@ lhbox source detach exports                           # its grants go; the conne
 
 ```
 lhbox connection take-over exports --access-key-id-env SRC_KEY_ID --value-env SRC_SECRET
+lhbox connection take-over lake --catalog-secret-env CAT_SECRET --access-key-id-env STORE_KEY_ID --value-env STORE_SECRET   # an Iceberg REST catalog
 ```
+
+take-over and rotate take the same secret, by the connection's type: a key pair for a bucket; the client secret alone (--value-env) for an Azure connection; for an Iceberg REST catalog its client secret or token (--catalog-secret-env) together with the storage key pair, which is left out when its bucket is public.
 
 - History. Every connection and connected catalog change (created, shared, key replaced, taken over, transferred, deleted, attached, opened, granted, looked at again) is in the organisation's audit log, by name. The secret never appears in it.
 
