@@ -208,7 +208,7 @@ Storage is counted in two tiers per organisation, and lhbox usage reports both:
 | private catalogs | storage_bytes | 5 GB |
 | public catalogs | public_storage_bytes | 5 GB; up to 50 GB once we review the dataset |
 
-A public catalog's bytes count in the public tier: its tables and its whole file bucket, published folder or not. Publishing moves the catalog's bytes from the private tier to the public one. It also sets the catalog's tier policy to hot. A publish that would take the public tier over its limit is refused with 409 quota_exceeded, naming public_storage_bytes.
+A public catalog's bytes count in the public tier: its tables and its whole file bucket, published folder or not. Publishing moves the catalog's bytes from the private tier to the public one. A publish that would take the public tier over its limit is refused with 409 quota_exceeded, naming public_storage_bytes.
 
 The person: to raise the public allowance to 50 GB, writes to hello@lakehousebox.com with the catalog and what it holds. We look at the dataset and raise the limit for the organisation.
 
