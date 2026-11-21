@@ -3,7 +3,7 @@ This is a copy of https://lakehousebox.com/docs/connected-catalogs/index.md take
 
 # Connected catalogs: read data where it lives
 
-A connected catalog is data another system keeps, attached to your organisation under a name and read in SQL beside your own catalogs. Files in an S3-compatible bucket, a Google Cloud Storage bucket, an Azure container, the tables of another Apache Iceberg catalog, a Portolan catalog or open data in a public bucket: each becomes <name>.<schema>.<table>, and a query reads it where it lives. Nothing is copied, nothing is written back, and there is no storage to pay for: the bytes stay in the other system.
+A connected catalog is data another system keeps, attached to your organisation under a name and read in SQL beside your own catalogs. Files in an S3-compatible bucket, a Google Cloud Storage bucket, an Azure container, the tables of another Apache Iceberg catalog, a Google BigQuery project, a Portolan catalog or open data in a public bucket: each becomes <name>.<schema>.<table>, and a query reads it where it lives. Nothing is copied, nothing is written back, and there is no storage to pay for: the bytes stay in the other system.
 
 It takes two things:
 
@@ -39,6 +39,7 @@ The key you give is stored sealed and never leaves our side: no query, agent or 
 | Iceberg REST catalog | iceberg_rest | OAuth2 client or token, plus a storage key | each Iceberg table |
 | Another LakehouseBox catalog | lakehousebox (public) or iceberg_rest | none, or its recipe | each Iceberg table |
 | Portolan catalog | portolan | none (public), or a key pair | each collection of GeoParquet files |
+| Google BigQuery | bigquery | none: you grant a service account we make | each table of its datasets |
 
 GET /v1/source-types describes each kind with its fields, as the account page reads it.
 
@@ -172,6 +173,40 @@ lhbox source attach madrid --connection madrid
 
 The address is path style (https://host/bucket/folder/catalog.json). --data-url https://host/bucket/folder/ says where the GeoParquet files are when they are not under the catalog's folder. A public catalog needs no key; a private one takes --access-key-id-env and --value-env like an S3 bucket.
 
+### Google BigQuery
+
+The tables of a Google Cloud project's BigQuery datasets, read where they are. You give no key: LakehouseBox makes a Google service account for the connection, and you grant it read access in your project. Delete the connection and the account is deleted with it.
+
+```
+lhbox connection create warehouse --type bigquery --project acme-analytics --dataset sales --dataset marketing
+```
+
+The answer names the account (lhbq-…@lhbox-connections.iam.gserviceaccount.com) and prints the two grants it needs:
+
+- BigQuery Data Viewer (roles/bigquery.dataViewer) on each dataset it reads (on the project, when it reads every dataset);
+
+- BigQuery Read Session User (roles/bigquery.readSessionUser) on the project the reads are billed to.
+
+```
+bq query --project_id=acme-analytics --nouse_legacy_sql 'GRANT `roles/bigquery.dataViewer` ON SCHEMA `acme-analytics`.sales TO "serviceAccount:lhbq-…@lhbox-connections.iam.gserviceaccount.com"'
+gcloud projects add-iam-policy-binding acme-analytics --member=serviceAccount:lhbq-…@lhbox-connections.iam.gserviceaccount.com --role=roles/bigquery.readSessionUser
+lhbox source attach warehouse --connection warehouse
+lhbox source refresh warehouse          # once granted: its tables, as <name>.<dataset>.<table>
+lhbox query "SELECT count(*) FROM warehouse.sales.orders"
+```
+
+lhbox connection show warehouse prints the account and the commands again. On the account page, Connect data → Google BigQuery shows them after the connection is made, with Granted: look again.
+
+- --dataset (repeat it, or separate with commas) keeps the reads to those datasets, whatever else the account is granted; without it, every dataset the account can read. --billing-project names another project for the reads' cost (the Storage Read API's), when it is not the same.
+
+- Reads use the BigQuery Storage Read API: tables are read, views are not (they are left out of its tables). No query job ever runs in your project, so nothing is billed as a query; Storage Read bytes are billed to the billing project by Google.
+
+- A statement that reads a BigQuery connected catalog reads nothing else: join it with another catalog in separate statements, or keep the result in a catalog of yours.
+
+- Taking over a stopped BigQuery connection keeps its account (your grants are to it); it holds no key to replace.
+
+- The account can only be acted as by our gateway, for one query at a time; the part of LakehouseBox that makes and deletes these accounts cannot act as them.
+
 ## How files become tables
 
 For files (S3, Cloud Storage, Azure), the folder under the connection's prefix is looked at once when the connected catalog is attached:
@@ -284,6 +319,7 @@ Every route, with the rest (sharing, grants, take-over): the API (https://lakeho
 | connection_in_use | 409 | detach its connected catalogs first (sources lists them) |
 | connection_stopped | 409 | its owner left: an admin takes it over |
 | anonymous_connection | 409 | a public connection has no key to replace |
+| no_key | 409 | a BigQuery connection reads as its own account: change its grants in Google Cloud instead |
 | connection_not_found, source_not_found | 404 | no such name you can see |
 | source_unavailable | 502 | the other system refused or did not answer: its message is in the error |
 | sources_unavailable | 503 | retry shortly |
