@@ -207,7 +207,7 @@ lhbox agent runs <name> --detail, GET /v1/agent-runs/{id} and "What it did" on t
 
 - its memory before and after.
 
-Runs and memory are visible to whoever may run the agent. That is its creator (a person or a token) and the organisation's admins (people or admin tokens). A member who reads every catalog the agent has ever read also sees its runs, without its memory or its emails (not for an agent that ran before 2 November 2026, or one that read a catalog deleted since).
+Runs and memory are visible to whoever may run the agent. That is its creator (a person or a token) and the organisation's admins (people or admin tokens). A member who reads every catalog and every source the agent has ever been given also sees its runs, without its memory or its emails (not for an agent that ran before 2 November 2026, or one that read a catalog or a source deleted since). An agent that reads a source you cannot read does not exist for you, as one that reads a catalog you cannot read.
 
 One exception: an agent that uses, or ever used, your integrations or web keys. Then only people, signed in as themselves, run it by hand and read its runs' output, traces and memory. A token sees that the runs happened and how they ended, not what they said. Scheduled runs are not affected.
 
