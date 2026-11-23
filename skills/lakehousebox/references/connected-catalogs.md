@@ -233,7 +233,7 @@ Iceberg tables are read at their current snapshot on every query: new commits ne
 | reading per query | a key of its own, for 15 minutes at most, a bounded number of reads and bytes |
 | looking at the files | the first 5,000 files under the prefix; 200 tables per connected catalog |
 | a Portolan collection | 2,000 files at most; a larger one is left out, not cut |
-| connections, connected catalogs | 50 each per organisation |
+| connections, connected catalogs | 50 each per organisation, 5 of the connections BigQuery ones |
 | the endpoint | a host name over https, never an IP address or a private network |
 
 When looking at the files stops at one of these, the answer says so (more_files, more_tables): narrow the prefix, or make a connection per folder.
@@ -318,7 +318,7 @@ Every route, with the rest (sharing, grants, take-over): the API (https://lakeho
 | invalid_value | 400 | a field the kind refuses; field names it |
 | reserved_name, name_is_a_catalog | 400, 409 | the name is taken by a catalog or reserved |
 | already_exists | 409 | a connection or connected catalog has that name |
-| limit_exceeded | 409 | 50 connections or 50 connected catalogs |
+| limit_exceeded | 409 | 50 connections, 50 connected catalogs or 5 BigQuery connections |
 | connection_in_use | 409 | detach its connected catalogs first (sources lists them) |
 | connection_stopped | 409 | its owner left: an admin takes it over |
 | anonymous_connection | 409 | a public connection has no key to replace |
