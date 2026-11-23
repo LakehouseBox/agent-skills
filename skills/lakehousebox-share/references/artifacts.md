@@ -315,7 +315,7 @@ Making a page public is also where its owner decides whether visitors may subscr
 | PATCH /v1/artifacts/{id} with {"sharing": "public", "confirm_catalogs": {"<warehouse id>": "<name>"}} | makes it public, from a browser session |
 | PATCH /v1/artifacts/{id} with {"sharing": "private", "unpublish_catalogs": ["<warehouse id>"]} | makes it private, and those catalogs with it |
 | GET /v1/artifacts/{id} | url and, while the page is public, public_url, the same address (https://lakehousebox.com/a/<id>/<the title's words>), and for its owner public.copies |
-| PATCH /v1/artifacts/{id} with {"follow": true, "follow_ack": {"catalogs": ["<warehouse id>"], "integrations": false}} | lets visitors subscribe to the page's agent, from a browser session; {"follow": false} stops it |
+| PATCH /v1/artifacts/{id} with {"follow": true, "follow_ack": {"catalogs": ["<warehouse id>"], "sources": ["<source id>"], "integrations": false}} | lets visitors subscribe to the page's agent, from a browser session; {"follow": false} stops it |
 | GET /v1/a/{id}/card | the share card, with no account: title, description, url, image (url, width, height, alt, or null) |
 | GET /v1/a/sitemap.xml | every public page, as a sitemap, with no account |
 
@@ -368,7 +368,7 @@ A visitor of a public page can subscribe by email to what the page's agent write
 
 The page's owner decides, and it is off until they turn it on. The choice is offered when the page is made public and afterwards in the Share panel, and only for a page that has an agent.
 
-Nobody reads an update before it is emailed. Not the owner, and not us. So before the owner says yes, the panel names what the agent reads that is not public: the private catalogs it reads or has read, and whether it uses a person's connected accounts. What the agent writes may carry what it read there. If the agent is later given another private catalog, the emails stop until the owner confirms again.
+Nobody reads an update before it is emailed. Not the owner, and not us. So before the owner says yes, the panel names what the agent reads that is not public: the private catalogs it reads or has read, the sources of other systems it reads or was given, and whether it uses a person's connected accounts. What the agent writes may carry what it read there. If the agent is later given another private catalog or source, the emails stop until the owner confirms again.
 
 - Only the owner turns it on, signed in on the account page. A key, an agent and an admin cannot. The owner or an admin turns it off.
 
@@ -397,7 +397,7 @@ The answer to a subscription is always the same, whether the page takes subscrib
 | over the API |  |
 |---|---|
 | GET /v1/artifacts/{id} | follow: on, live, and for the owner agent, agent_reads, subscribers, updates |
-| PATCH /v1/artifacts/{id} with {"follow": true, "follow_ack": {...}} | turns it on. follow_ack repeats follow.agent_reads: the ids of its catalogs and its integrations. 400 confirmation_required carries what the agent reads now |
+| PATCH /v1/artifacts/{id} with {"follow": true, "follow_ack": {...}} | turns it on. follow_ack repeats follow.agent_reads: the ids of its catalogs and sources, and its integrations. 400 confirmation_required carries what the agent reads now |
 | POST /v1/a/{id}/open | follow: {"agent": "<name>"} when visitors may subscribe, else null |
 | POST /v1/a/{id}/subscribe with {"email": "<address>"} | no account needed; always 202 |
 
