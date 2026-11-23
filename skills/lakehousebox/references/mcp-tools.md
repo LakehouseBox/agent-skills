@@ -108,6 +108,8 @@ All twenty need the caller's key or token. All but open_public_catalog are bound
 
 - Every committed write is a new snapshot, and older versions stay readable.
 
+- A table written by a sink, an upload or append_rows has one more column, __ingest_ts, which describe_table shows. A positional INSERT INTO t SELECT … must supply it too (now() in its place), or name the columns it supplies: INSERT INTO t (a, b) SELECT …. One value short, the answer's remedy says so.
+
 - A DROP removes the table with its history and cannot be undone. The answer says so.
 
 - A statement usually takes under a second, with a 25 s limit.
