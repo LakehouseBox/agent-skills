@@ -228,6 +228,16 @@ The person: adds https://mcp.lakehousebox.com/mcp as a custom connector and appr
 
 You then have list_tables, describe_table, query (one read-only DuckDB statement on our side, at most 2,000 rows and 20 seconds), get_object, read_agents_md and open_public_catalog. With write approved, query_rw changes data one statement at a time, document_table and set_agents_md leave the notes above, and keep_account keeps an account the client set up. connect_machine signs in a machine where you run commands for about an hour (see above). Heavier work and bulk loads need DuckDB on a machine; administration is the CLI or the account page. More: MCP.
 
+What each route covers, when the harness has a shell as well (then use the CLI and leave the MCP entry out, so the host does not ask to sign in twice):
+
+| task | MCP alone | needs lhbox (and DuckDB) on the machine |
+|---|---|---|
+| read tables, run a read-only query, open a public catalog | yes |  |
+| change rows one statement at a time, describe tables, write AGENTS.md | yes, with write approved |  |
+| publish a page, talk to a hosted agent | yes |  |
+| create a catalog, load files in bulk, attach DuckDB, PyIceberg or Spark |  | yes |
+| create a scheduled SQL sink, a hosted agent, a connection; lhbox plan and apply |  | yes (connect_machine signs in a machine from a chat) |
+
 ## When it fails
 
 | what you see | what it means | what to do |

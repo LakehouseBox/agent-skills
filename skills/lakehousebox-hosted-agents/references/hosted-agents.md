@@ -9,6 +9,31 @@ A hosted agent is a prompt that LakehouseBox runs for you: on demand, on a sched
 
 Each agent acts through an identity of its own. It reads exactly the catalogs its definition names and nothing else, whoever created it. Only its creator or an admin of the organisation changes those catalogs, with lhbox agent update or with a catalog grant to the agent's identity. Anyone else who holds write on a catalog gets 403 not_agent_manager, because what the agent reads reaches a model that can use its creator's integrations.
 
+## What hosted agents are for
+
+An agent can do more than send a summary. It can make a call, write it down, check it later against what really happened and get better at it. Four patterns cover most agents:
+
+| pattern | what it does | what it uses | example |
+|---|---|---|---|
+| Predict and score itself | makes a call before the outcome is known, stores it, and scores it when the outcome arrives | insert_select into a table of its own, runs on new data, memory topics | Madrid's air, forecast every day (https://lakehousebox.com/blog/always-learning-analytics/) |
+| Watch and decide | looks at new data and decides what to do, or asks you | runs on new data only when a condition holds, flag_owner, notify_owner | a garden that judges its own watering (https://lakehousebox.com/examples/garden/) |
+| Keep data healthy | checks that feeds still arrive and agree with their source, and proposes a fix | run_sql checks, note and resolve, flag_owner |  |
+| Report | summarises what changed, by email or on a page it keeps up to date | notify_owner, publish_artifact | a scheduled summary (https://lakehousebox.com/docs/scheduled-agents/) |
+
+Who does what: your assistant builds the setup, Scheduled SQL (https://lakehousebox.com/docs/scheduled-sql/) fetches and transforms the data, the hosted agent runs and decides, and a person approves what it proposes (Talking to an agent).
+
+Use something else for:
+
+- collecting data, above all from many web pages: Scheduled SQL, and the agent reads the table it fills;
+
+- Python or heavy models: run them outside and let the agent read their results;
+
+- replaying years of history to test an agent: run it outside, on your own compute;
+
+- alerts within minutes: an agent runs at most hourly;
+
+- acting in another tool: connect it as an integration; an agent cannot POST to the web.
+
 ## The short path
 
 ```

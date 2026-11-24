@@ -1,6 +1,6 @@
 ---
 name: lakehousebox-keep-fresh
-description: Keep a LakehouseBox table filling itself - a scheduled SQL sink that reads a URL (an API, a feed, open data) on a schedule and commits the rows, or an ingest sink that takes JSON rows posted by a device, webhook or job with a send-only key - with upserts by key, rejects and lag to watch. Builds on the lakehousebox skill.
+description: Keep a LakehouseBox table filling itself - a scheduled SQL sink that reads a URL (an API, a feed, open data) on a schedule and commits the rows, a derived scheduled SQL sink that keeps a table built from the catalog's own tables (a clean layer, a summary, the latest state), or an ingest sink that takes JSON rows posted by a device, webhook or job with a send-only key - with upserts by key, rejects and lag to watch. Builds on the lakehousebox skill.
 ---
 
 # Keep a table filled
@@ -15,6 +15,18 @@ turns what arrives into Iceberg commits on a rolling policy, so nothing of the p
 | sits at an http(s) URL LakehouseBox can fetch (an API, a JSON or CSV feed, open data) | a **scheduled SQL** sink: one DuckDB SELECT run on a schedule | [scheduled-sql](references/scheduled-sql.md) |
 | is sent by something: a device, a webhook, a job | an **ingest** sink: one HTTPS intake, JSON arrays, a send-only key | [ingest](references/ingest.md) |
 | arrives as files a device drops | an upload-only key, then imports: the `lakehousebox-load-data` skill | |
+| is already in tables of this catalog, and needs cleaning, joining or summarising | a **derived** scheduled SQL sink: one DuckDB SELECT over the catalog's own tables, run on a schedule | [scheduled-sql](references/scheduled-sql.md), "Reading the catalog's own tables: derived sinks" |
+
+## A derived sink: transform inside the catalog
+
+Build a clean or summary layer here rather than with an engine on the person's machine: a sink whose query names tables of
+its own catalog (`namespace.table`) keeps a table derived from them. Three limits shape the design before any query is
+written:
+
+- **Its own catalog only** (`400 catalog_not_this_sinks`): copy what you need from another catalog into this one first.
+- **Tables or URLs, not both**: load the source into a table with one sink, derive from it with another.
+- **Order by offset**: there is no "run B after A"; give the sink that reads first the earlier offset in the hour, with a
+  few minutes between them. A run has at most 60 s of compute.
 
 ## Scheduled SQL: LakehouseBox fetches
 

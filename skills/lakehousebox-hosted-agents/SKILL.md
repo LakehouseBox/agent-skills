@@ -1,6 +1,6 @@
 ---
 name: lakehousebox-hosted-agents
-description: Create a LakehouseBox hosted agent - a prompt LakehouseBox runs next to the person's data, on demand or on a schedule, that reads their catalogs with SQL, keeps a few values between runs and emails a summary - test it before it sends anything, and read what each run did. On for every organisation. Builds on the lakehousebox skill.
+description: Create a LakehouseBox hosted agent - a prompt LakehouseBox runs next to the person's data, on demand, on a schedule or when a table gets new data, that reads their catalogs with SQL, writes its results to tables, keeps notes between runs and flags what only the owner can decide - to predict and score itself, watch and decide, keep data healthy or report; test it before it sends anything, read what each run did, and talk to it to approve the changes it proposes. On for every organisation. Builds on the lakehousebox skill.
 ---
 
 # Hosted agents: a prompt LakehouseBox runs next to the data
@@ -10,6 +10,22 @@ computer can be off. It acts through an identity of its own that reads exactly t
 
 **On for every organisation**: up to three agents, 4 runs a day and 5 million tokens a month, free. An
 organisation made with `lhbox new` gets them once a person claims it (`403 claim_required` until then).
+
+## What an agent is for
+
+Most people first think of a weekly email summary; that is the least of it. Pick the pattern before writing the prompt:
+
+| pattern | what it does | what it uses |
+|---|---|---|
+| **predict and score itself** | makes a call before the outcome is known, stores it, scores it when the outcome arrives | `insert_select` into its own table, runs on new data (`--on-commit`), memory topics |
+| **watch and decide** | looks at new data and decides what to do, or asks | `--on-commit` with `--on-commit-if "SQL"`, `flag_owner`, `notify_owner` |
+| **keep data healthy** | checks that feeds arrive and agree with their source; proposes a fix | `run_sql` checks, `note`/`resolve`, `flag_owner` |
+| **report** | summarises and emails, or keeps a page up to date | `notify_owner`, `publish_artifact` |
+
+Who does what: the assistant builds, scheduled SQL fetches and transforms (`lakehousebox-keep-fresh`), the hosted agent
+runs and decides, a person approves. Not for an agent: collecting many web pages (scheduled SQL, then the agent reads
+the table), Python or heavy models (run them elsewhere; the agent reads the results), replaying years of history
+(your own compute), alerts within minutes (at most hourly), POSTing to the web (an MCP integration).
 
 ## The default path
 
@@ -29,6 +45,8 @@ lhbox agent show garden_morning                        # definition, schedule, m
 - **Give it the fewest catalogs** it needs; it can read nothing else.
 - **`--state-key`** names a value it keeps between runs (a journal, the last value it reported), so it can say what
   changed rather than repeat itself.
+- **Supervise it by talking**: `lhbox agent brief <name>` says what needs the owner; `lhbox agent talk <name> "…"`
+  gets an answer and maybe a proposed change, which changes nothing until the owner's next message says yes.
 - `lhbox agent update <name>` changes any part (a new version each time); `--pause` and `--resume` stop and restart
   the schedule; `lhbox agent delete <name> --yes` removes it, and its runs stay readable.
 

@@ -133,9 +133,11 @@ are in [migrations](references/migrations.md).
 Load the one the task needs; each builds on this one.
 
 - `lakehousebox-load-data`: files into tables (CSV, Parquet, GeoParquet), the file bucket, upload-only keys for devices.
-- `lakehousebox-keep-fresh`: a table that fills itself, from a URL on a schedule or from a producer that sends rows.
+- `lakehousebox-keep-fresh`: a table that fills itself, from a URL on a schedule or from a producer that sends rows, and
+  a table derived on a schedule from the catalog's own tables (a clean layer, a summary): transform inside the catalog.
 - `lakehousebox-share`: access for colleagues and agents, publishing a catalog, AGENTS.md and table descriptions.
-- `lakehousebox-hosted-agents`: a prompt LakehouseBox runs on a schedule next to the data.
+- `lakehousebox-hosted-agents`: a prompt LakehouseBox runs next to the data, on a schedule or on new data, that
+  decides, writes its results to tables and scores itself, watches, checks data, or reports.
 - `lakehousebox-portolan`: reading or hosting Portolan geospatial catalogs (STAC, GeoParquet, Cloud-Optimized GeoTIFF).
 
 Everything else is in the docs; each page has a Markdown copy at the same URL plus `index.md`, and
