@@ -211,6 +211,28 @@ Runs and memory are visible to whoever may run the agent. That is its creator (a
 
 One exception: an agent that uses, or ever used, your integrations or web keys. Then only people, signed in as themselves, run it by hand and read its runs' output, traces and memory. A token sees that the runs happened and how they ended, not what they said. Scheduled runs are not affected.
 
+## Talking to an agent and approving what it proposes
+
+Between runs, a person supervises the agent from its brief and by talking to it. Its creator and the organisation's admins may do both: on the agent's page, from the CLI signed in as themselves, or from an assistant connected through MCP (agent_brief, talk_to_agent, the MCP page (https://lakehousebox.com/docs/mcp/)).
+
+```
+lhbox agent brief garden_morning                                  # what needs you first, then its memory and runs; no model
+lhbox agent talk garden_morning "skip watering until Friday"      # it answers, and may propose a change
+lhbox agent talk garden_morning "yes"                             # your next message decides the proposal
+```
+
+- The brief starts with attention: what the agent flagged, decisions due, a change it proposed and is waiting on, a pause, a failed run, runs that did not happen and why. It shows the proposed change in full (open_proposal).
+
+- What it can propose: a new version of its instructions (before and after), or items of its memory to mark done.
+
+- A proposal changes nothing until a person answers it. The message right after the proposal decides it: yes applies it, no drops it, anything else asks the agent to propose again. Each person decides only the proposals made to them. An unanswered proposal stays waiting in the brief.
+
+- Every change is a new version of the agent, recorded with who made it, and an earlier version can be restored.
+
+- Each message uses the organisation's monthly tokens.
+
+An agent that has used a person's own integrations or web keys is talked to on its page only, by people signed in as themselves.
+
 ## Integrations (MCP servers)
 
 Connect an MCP server once for the organisation (two per organisation), then let each agent use the tools you pick:
