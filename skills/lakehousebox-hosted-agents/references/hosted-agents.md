@@ -103,8 +103,8 @@ Every model runs in the EU, on Scaleway in Paris. Choose one on the agent's page
 | model | sees images | uses your allowance |
 |---|---|---|
 | deepseek-v4-flash (DeepSeek V4 Flash, the default) | no | ×1 |
-| qwen3.6-35b (Qwen 3.6 35B) | yes | ~0.8× as fast |
-| qwen3.5-397b (Qwen 3.5 397B) | yes | ~1.9× as fast |
+| qwen3.6-35b (Qwen 3.6 35B) | yes | ~×0.8 |
+| qwen3.5-397b (Qwen 3.5 397B) | yes | ~×1.9 |
 
 The allowance counts tokens of the default model. A run on another model is charged its input and output tokens, each weighted by that model's price over the default's. The figures above are for a typical run, about 12 % output. A model that writes long answers uses the allowance faster than that: the Qwen models reason before they answer. A run's record shows both its tokens and what it cost the allowance (allowance_tokens).
 
