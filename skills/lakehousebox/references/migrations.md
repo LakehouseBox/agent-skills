@@ -66,7 +66,7 @@ Writing a migration needs write on the catalog; anyone who reads it can list wha
 
 ## The whole setup: lhbox plan and lhbox apply
 
-A lakehouse.yaml beside the migrations declares the rest of what a catalog needs, so a fork of the repository gets a working copy from one command:
+A lakehousebox.yaml beside the migrations declares the rest of what a catalog needs, so a fork of the repository gets a working copy from one command:
 
 ```
 version: 1
@@ -105,6 +105,10 @@ lhbox apply                     # migrations first, then the rest
 
 - Descriptions can come from two places: the COMMENT ON statements of the migrations and table_docs. apply runs the migrations first and table_docs last, so where both describe a table, table_docs wins on every apply. Keep one source per table: comments in a migration for what a table is when it is made, table_docs for the text you keep editing. A migration whose comments you later align with table_docs is re-recorded with lhbox migrate --repair.
 
+- plan and apply read lakehousebox.yaml in the current folder, or the file -f names. A repository that still has the file's earlier name, lakehouse.yaml, and no lakehousebox.yaml, is read too, with a note to rename it.
+
+- The file holds no secret: a connection's value comes from the environment (value_env) and a web key is named by its integration, so the file can live in a public repository.
+
 - The file is a plain subset of YAML: mappings, lists, {…} and […], quoted or plain values, # comments; no anchors, tags or multi-line strings.
 
 ## The same setup in OpenTofu or Terraform
@@ -136,7 +140,7 @@ resource "lakehousebox_sql_sink" "saih_ebro" {
 
 - Resources: lakehousebox_catalog, lakehousebox_sql_sink, lakehousebox_sql_connection, lakehousebox_sql_post_prefix, lakehousebox_catalog_agents_md, lakehousebox_table_description; data source lakehousebox_catalog. Each one's page on the registry lists its arguments.
 
-- No table resource, as with lakehouse.yaml: tables come from the migrations (lhbox migrate), so a bad apply never drops one. Destroying a lakehousebox_table_description removes the descriptions only.
+- No table resource, as with lakehousebox.yaml: tables come from the migrations (lhbox migrate), so a bad apply never drops one. Destroying a lakehousebox_table_description removes the descriptions only.
 
 - A catalog has deletion_protection = true unless you set it false and apply first; even then a destroy starts its 7-day grace period, restorable.
 

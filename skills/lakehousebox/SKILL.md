@@ -122,7 +122,7 @@ Work that creates or fills tables is not finished until they are described: do i
 ## Keep the setup in the repository
 
 A project that will be forked or rerun keeps its tables as numbered migrations (`lhbox migrate`) and the rest of the
-catalog (AGENTS.md, descriptions, POST prefixes, connections, scheduled SQL, hosted agents) in a `lakehouse.yaml`.
+catalog (AGENTS.md, descriptions, POST prefixes, connections, scheduled SQL, hosted agents) in a `lakehousebox.yaml`.
 Run `lhbox plan` and show the person what it would change before `lhbox apply`; never add `--prune` (deletes sinks,
 connections, prefixes) or `--publish` (changes who can read the catalog) without their say-so. A team on OpenTofu or
 Terraform uses the provider instead (`registry.terraform.io/lakehousebox/lakehousebox`): one tool per catalog. Both
