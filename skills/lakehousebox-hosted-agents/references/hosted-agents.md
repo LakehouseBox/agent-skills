@@ -133,6 +133,18 @@ Every model runs in the EU, on Scaleway in Paris. Choose one on the agent's page
 
 The allowance counts tokens of the default model. A run on another model is charged its input and output tokens, each weighted by that model's price over the default's. The figures above are for a typical run, about 12 % output. A model that writes long answers uses the allowance faster than that: the Qwen models reason before they answer. A run's record shows both its tokens and what it cost the allowance (allowance_tokens).
 
+### What your organisation's admins decide
+
+An admin of the organisation sets three things for all its agents under Settings › Agents on the account page (GET and PATCH /v1/orgs/{org_id}/agent-settings):
+
+- Which models agents may use. A model switched off cannot be chosen for a new agent or moved onto (400 model_not_allowed). An agent already on it keeps it, and its runs use the organisation's default until it is switched on again; the agent's page says so (model_runs_on).
+
+- The default model. It is what a new agent gets and what every person's analyst runs on.
+
+- Instructions for every agent, up to 4,000 characters: your vocabulary, house rules, language and tone, what never to give out. Every agent and analyst of the organisation gets them after LakehouseBox's own rules and before its own task. They cannot widen what an agent may read or do: its grants decide that. Every member can read them. Each change is in the audit log, and a run records the version it ran under (+org<N> in its prompt_version).
+
+The same page shows admins this month's spend by model, in euros at the providers' list prices. Your monthly allowance, and each person's, are still the limits that apply.
+
 ## Schedules
 
 A schedule is a cron line of five fields, evaluated in a time zone, so summer time is handled. It may not run more often than hourly. It may not run more times a day than your organisation's runs per day.
