@@ -135,7 +135,7 @@ The allowance counts tokens of the default model. A run on another model is char
 
 ### What your organisation's admins decide
 
-An admin of the organisation sets three things for all its agents under Settings › Agents on the account page (GET and PATCH /v1/orgs/{org_id}/agent-settings):
+An admin of the organisation sets three things for all its agents: on the account page (Settings › Agents), with lhbox org agent-settings, or as code with the OpenTofu and Terraform provider's lakehousebox_org_agent_settings (GET and PATCH /v1/orgs/{org_id}/agent-settings). A key with the admin role can change them too, so the settings can live in your infrastructure code:
 
 - Which models agents may use. A model switched off cannot be chosen for a new agent or moved onto (400 model_not_allowed). An agent already on it keeps it, and its runs use the organisation's default until it is switched on again; the agent's page says so (model_runs_on).
 
