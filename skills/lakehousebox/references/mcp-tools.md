@@ -7,7 +7,7 @@ Part of MCP (https://lakehousebox.com/docs/mcp/).
 
 ## The tools
 
-Thirteen tools only read, and are marked so (readOnlyHint, idempotentHint). connect_machine changes no data (readOnlyHint) but gives a machine a new token on each call. Eight change things: query_rw, document_table, set_agents_md, keep_account, talk_to_agent, publish_artifact, delete_artifact and restore_change. query_rw and delete_artifact are marked destructiveHint, so a client that honours it asks before they run.
+Thirteen tools only read, and are marked so (readOnlyHint, idempotentHint). connect_machine changes no data (readOnlyHint) but gives a machine a new token on each call. Nine change things: query_rw, document_table, set_agents_md, keep_account, talk_to_agent, ask_my_analyst, publish_artifact, delete_artifact and restore_change. query_rw and delete_artifact are marked destructiveHint, so a client that honours it asks before they run.
 
 All twenty need the caller's key or token. All but open_public_catalog are bounded by the caller's grants. Name tables the way DuckDB does: catalog.namespace.table. A table in a catalog you cannot read answers 404, like one that does not exist.
 
@@ -29,6 +29,7 @@ All twenty need the caller's key or token. All but open_public_catalog are bound
 | list_agents | your hosted agents: what each does, what it reads and writes, its schedule, last run and health | GET /v1/usage, GET /v1/agents |
 | agent_brief | what one of your hosted agents needs from you, what it remembers, its recent runs | GET /v1/agents/{agent}/brief |
 | talk_to_agent | a message to one of your hosted agents, and its answer; your yes applies what it proposed | POST /v1/agents/{agent}/talk |
+| ask_my_analyst | a question to your own analyst, which reads your data as you and answers with the figures; this connection keeps one conversation with it | POST and GET /v1/me/analyst/messages |
 | list_artifacts | the artifacts this connection can see: pages published for people | GET /v1/artifacts |
 | read_artifact | one artifact's current version: its page files as text | GET /v1/artifacts/{id}/files |
 | publish_artifact | publishes a page for people, or the next version of one | POST /v1/artifacts |
