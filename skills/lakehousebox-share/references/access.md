@@ -51,10 +51,21 @@ A token's role works exactly like a person's, with one difference. A human admin
 
 The last human admin cannot leave, be removed or be demoted. Tokens do not count as admins for this.
 
+### Business users and builders
+
+A member is one of two kinds of user, set apart from what data they may read:
+
+- A business user works through their own analyst: they ask it about the data they are given, on the account page. They make no catalogs, feeds, scheduled SQL, connections, integrations, hosted agents, tokens or API keys, and they do not connect lhbox login or an MCP client (403 business_user). The account page opens on their analyst and shows nothing else.
+
+- A builder has all of that, and an analyst too.
+
+An invitation makes a business user unless it says builder (--seat builder, or Builder on the Members page). An admin is always a builder. Every member who joined before 2026-11-26 is a builder. An admin changes a member's kind on the Members page or with lhbox org role --principal <id> --seat business|builder.
+
 ```
 lhbox org list                                    # your organisations: name, id, your role
 lhbox org members                                 # its people and their roles
-lhbox org invite --email ana@example.com --catalog sales --catalog ops:write   # a member, with two catalogs
+lhbox org invite --email ana@example.com --catalog sales --catalog ops:write   # a business user, with two catalogs
+lhbox org invite --email dev@example.com --seat builder                        # a member who builds
 lhbox org role --principal <id> --role admin      # an organisation keeps at least one admin
 lhbox org domain --domain example.com             # claims it; prints the DNS TXT record that makes it yours alone
 lhbox org domain --domain example.com --verify    # once the record is published
