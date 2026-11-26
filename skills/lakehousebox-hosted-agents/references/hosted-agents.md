@@ -133,6 +133,10 @@ Every model runs in the EU, on Scaleway in Paris. Choose one on the agent's page
 
 The allowance counts tokens of the default model. A run on another model is charged its input and output tokens, each weighted by that model's price over the default's. The figures above are for a typical run, about 12 % output. A model that writes long answers uses the allowance faster than that: the Qwen models reason before they answer. A run's record shows both its tokens and what it cost the allowance (allowance_tokens).
 
+### Comparing models on your own data
+
+lhbox agent eval "<prompt>" --models a,b,c --catalog <catalog> runs the same prompt on each model and prints their run records side by side: state, wall time, model requests, tool calls, tokens in and out, then each model's tool calls (with their SQL) and its final answer. --json gives the records whole. For each model it creates a temporary agent (eval_<model>_…, reading the catalogs you name, no email, no artifacts), makes one test run, reads the record and deletes the agent before the next model starts. So it runs any number of models within the plan's three agents, and outside today's runs. The tokens count against the month's allowance as any run's do. A model whose agent could not be created or run is listed with the server's error, which is also printed on stderr; when no model ran, that error is the command's answer. --run-seconds, --max-tool-calls and --timeout (each run's wait, default 600 s) apply to every model.
+
 ### What your organisation's admins decide
 
 An admin of the organisation sets three things for all its agents: on the account page (Settings › Agents), with lhbox org agent-settings, or as code with the OpenTofu and Terraform provider's lakehousebox_org_agent_settings (GET and PATCH /v1/orgs/{org_id}/agent-settings). A key with the admin role can change them too, so the settings can live in your infrastructure code:
@@ -233,6 +237,10 @@ lhbox agent run <name> --dry-run runs the agent for real, with a few differences
 - It does not count against the organisation's runs per day. It has its own cap per agent. Its tokens do count.
 
 - A paused agent can be tested.
+
+### The previous run's message
+
+Each run is given the final message of the agent's previous real run, so a recurring agent can say what changed since. A test run's message is never passed on. To run without it, pass --fresh (lhbox agent run <name> --fresh, or {"fresh": true} on POST /v1/agents/{agent}/run). A run on another model than the previous run's is never given it either: a small model tends to copy the answer it is shown. The run's record says fresh: true when it was not given the message.
 
 ## What a run did
 
