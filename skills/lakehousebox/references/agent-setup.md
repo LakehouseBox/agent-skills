@@ -117,7 +117,17 @@ lhbox duckdb                   # DuckDB with the catalog attached; the recipe ne
 lhbox duckdb -- -c "SELECT 1"  # one statement, then exit
 ```
 
-doctor stops on the problems the rest of this page cannot fix: the key, the grant, the DuckDB version. Its DuckDB line names which installation to upgrade.
+doctor stops on the problems the rest of this page cannot fix: the key, the grant, the DuckDB version. Its DuckDB line names which installation to upgrade. Piped, doctor, table get and agent list answer a brief JSON object (next names one command to run); --full gives the whole answer.
+
+## Several catalogs, and a folder an agent works in
+
+```
+lhbox catalog use sales        # the catalog commands use when none is named; saved with this login
+export LHBOX_CATALOG=sales     # the same for one shell, a sandbox or a CI job (wins over the saved one)
+lhbox init                     # writes the lhbox block of ./AGENTS.md: the catalog, the rules, one example per command
+```
+
+Only commands that read use the default (lists, table get, duckdb, connect); one that creates, writes, deletes or changes a setting names its catalog. lhbox init keeps your own text around its block and refreshes the block when run again. OpenCode, Codex and most agent harnesses read AGENTS.md when they start, so a model that has not loaded the LakehouseBox skills still starts with the right commands. lhbox mcp install --client opencode adds the hosted MCP server to OpenCode's opencode.json.
 
 lhbox duckdb passes the credential to DuckDB through a private file that is deleted once read. Two other ways in:
 

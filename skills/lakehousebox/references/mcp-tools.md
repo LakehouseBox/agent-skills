@@ -146,6 +146,8 @@ lhbox duckdb --catalog <catalog>
 
 - Never more than the connection. The token has the connection's catalogs and grants. It reads only, unless the agent asks for level: "write" and the connection was approved to write (else insufficient_scope). It never carries account:manage, and it cannot create keys or tokens or change access, as the connection cannot.
 
+- Tables, not the account. On the machine, lhbox reads, queries and writes tables. Creating, changing or test-running a hosted agent or a sink, and managing members, keys or grants, is the person's: the account page, or lhbox login on their own machine. The machine answers mcp_human_only (or insufficient_scope with a remedy that says so) rather than asking for a new approval, which would not change it.
+
 - About an hour. It never outlives the connection's own authorisation. When it expires, commands answer invalid_token: call connect_machine again. A token from connect_machine cannot mint another one.
 
 - Revoked with the connection. Revoking the connector under Settings › Access keys refuses the token at once. lhbox duckdb attaches with a catalog token of about an hour, which it renews while the machine token lasts. A shell already open keeps that catalog token, and the storage sessions it was given, for the rest of their hour.

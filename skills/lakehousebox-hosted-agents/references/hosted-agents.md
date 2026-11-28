@@ -67,7 +67,11 @@ lhbox agent update <name> changes any part of an agent. Only what you pass chang
 
 ### Its budget
 
-A run may make 30 tool calls unless its definition says otherwise: --max-tool-calls N on lhbox agent create or update (max_tool_calls in the API), from 5 up to your organisation's limit (100); null sets it back to the default. Every tool answer tells the agent what is left (_budget: tool calls, model requests and seconds), and the last calls (3, or 2 for a budget under 15) are kept for wrapping up: once the others are spent, only remember, note, resolve, flag_owner and notify_owner run, and the last model request offers no tool, so the agent saves its memory, emails if its task asks, and gives its final message. A call past the budget is not run and the agent is told why. A run that needed more than its budget ends limit_exceeded, keeps what it remembered and noted, and its brief (lhbox agent brief, GET /v1/agents/{agent}/brief) says where it stopped: stopped_at gives the step (the tool it was refused, or the last it called), the tool calls it had made and whether it wrapped up. Raise --max-tool-calls for that agent, or split its job.
+A run may make 30 tool calls unless its definition says otherwise: --max-tool-calls N on lhbox agent create or update (max_tool_calls in the API), from 5 up to your organisation's limit (100); null sets it back to the default. Every tool answer tells the agent what is left (_budget: tool calls, model requests, seconds and tokens), and the last calls (3, or 2 for a budget under 15) are kept for wrapping up: once the others are spent, only remember, note, resolve, flag_owner and notify_owner run, and the last model request offers no tool, so the agent saves its memory, emails if its task asks, and gives its final message. A call past the budget is not run and the agent is told why. A run that needed more than its budget ends limit_exceeded, keeps what it remembered and noted, and its brief (lhbox agent brief, GET /v1/agents/{agent}/brief) says where it stopped: stopped_at gives the step (the tool it was refused, or the last it called), the tool calls it had made and whether it wrapped up, and the run's own tool calls are listed with it (calls: each one's tool, what it was about, its outcome and the run's tokens by then). Raise --max-tool-calls for that agent, or split its job.
+
+A run also has tokens to spend (350,000 per run, in default-model tokens: run limit in lhbox agent show, run_tokens in the API). Every model request sends the whole conversation again, so a long tool answer (a web page, many rows) costs again on every later request. When what is left would not pay for about three more requests like the last one, only the wrap-up tools run; when it would not pay for two, the next request is the final message. The run then ends limit_exceeded with limit: tokens and wrapped_up: true. Every call in a run's record (lhbox agent runs <name> --detail) carries tokens_so_far: the step where it jumps is the one that filled the budget.
+
+In a test run (--dry-run), remember, note, resolve and flag_owner answer that what they were given is shown in the run's record and not stored, as append_rows answers that its rows were checked and not written.
 
 ### Emails
 
@@ -100,7 +104,9 @@ lhbox agent update <name> --allow-host api.open-meteo.com lets the agent GET htt
 
 - redirects followed only to hosts it may read;
 
-- at most 2 MB read per page, and 20,000 characters given to the model.
+- at most 2 MB read per page;
+
+- an HTML page is given as its readable text (scripts, styles, navigation and markup removed; its title and JSON-LD kept), 20,000 characters per call. The answer says how long the whole text is (chars) and, when there is more, where it continues (next_offset): the agent reads on with offset, or asks for the passages around a word with find. Reading on in a page the run already fetched does not fetch it again. The run's record says how much of each page's text the agent was given.
 
 For an API that needs a key, store it once as a web key and name the host it goes to:
 
