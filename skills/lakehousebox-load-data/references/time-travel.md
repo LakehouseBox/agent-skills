@@ -87,6 +87,23 @@ SELECT * FROM analytics.events.clicks AT (TIMESTAMP => TIMESTAMP '2026-09-28 12:
 
 Both forms, and iceberg_snapshots, were run against LakehouseBox on 2026-09-29 (DuckDB 1.5.5): a table with two snapshots read 3 rows at the current one and 2 rows at the older one, by id and by time.
 
+The query tool (MCP query, POST /v1/query, lhbox query)
+
+Queries on the server are DuckDB, so the same two forms work there with no extra option. Name the table in full:
+
+```
+SELECT count(*) FROM analytics.events.clicks AT (TIMESTAMP => TIMESTAMP '2026-11-28 09:30:00');
+SELECT count(*) FROM analytics.events.clicks AT (VERSION => <snapshot id>);
+```
+
+- The timestamp is UTC. The table is read as of the newest snapshot committed at or before it.
+
+- A time before the oldest snapshot the catalog still keeps answers sql_error: "Could not find snapshot at or before timestamp". describe_table (MCP) and lhbox table get list the snapshots a table has, with their commit times.
+
+- The answer's snapshots field names each table's current snapshot, not the older one an AT clause read.
+
+Run through the MCP query tool on 2026-11-28 (DuckDB 2.0.0): a table with 992,124 rows read 990,306 rows as of a time 100 minutes earlier and 990,203 rows at its oldest snapshot, by id.
+
 ## Roll a table back
 
 A rollback makes an older snapshot the current one. It is a metadata commit: it writes no data and deletes nothing. The newer snapshots stay in the metadata and expire later like any other. You need write access to the catalog.
