@@ -71,6 +71,62 @@ lhbox.panel(document.getElementById('total'), async (el) => {
 
 - The frame cannot save files or reach the clipboard by itself (a link with download, navigator.clipboard): use lhbox.download and lhbox.copy.
 
+## Panels
+
+A panel is a page of numbers, charts and tables that you describe instead of writing. Send a short spec as panel in place of html, and LakehouseBox draws the page. One call publishes it.
+
+```
+{
+  "title": "The garden, last 14 days",
+  "blocks": [
+    {"type": "text", "text": "Readings of the garden sensors."},
+    {"type": "kpi", "title": "Readings", "unit": "rows",
+     "sql": "SELECT count(*) AS n FROM garden.main.readings WHERE ts > now() - INTERVAL 14 DAY"},
+    {"type": "line", "title": "Daily mean temperature", "x": "day", "y": "t", "unit": "°C",
+     "sql": "SELECT ts::DATE AS day, avg(temperature) AS t FROM garden.main.readings GROUP BY 1 ORDER BY 1"},
+    {"type": "bar", "title": "Readings by plot", "x": "plot", "y": "n",
+     "sql": "SELECT plot, count(*) AS n FROM garden.main.readings GROUP BY 1 ORDER BY 2 DESC LIMIT 10"},
+    {"type": "table", "title": "Latest readings",
+     "sql": "SELECT ts, plot, temperature FROM garden.main.readings ORDER BY ts DESC LIMIT 20"}
+  ]
+}
+```
+
+| from | how |
+|---|---|
+| the API | POST /v1/artifacts with {"catalogs": ["garden"], "panel": {...}} |
+| an MCP host | publish_artifact with panel and catalogs |
+| a hosted agent | publish_artifact with panel and catalogs |
+| block | keys | what it draws |
+|---|---|---|
+| kpi | title, sql, optional value, unit | One number: column value of the first row. Without value, the first column. |
+| line | title, sql, x, y, optional unit | One line: column y over column x, in the order of the rows. Dates and numbers on x are spaced by their value. |
+| bar | title, sql, x, y, optional unit | One bar per row: column y for each x, from zero. |
+| table | title, sql | The rows, with the statement's columns. |
+| text | text, optional title | Paragraphs of plain text. A blank line starts a new paragraph. |
+
+- Each sql is one DuckDB statement, the kind lhbox.query runs. It runs in the viewer's browser with the viewer's own permissions, when they open the page.
+
+- A viewer who cannot read a catalog sees a note naming it in that block, such as "You can't read garden". The other blocks still draw.
+
+- Name every catalog the statements read in catalogs, as for any page.
+
+- Every value is shown as text. A title, a unit or a cell that holds HTML is displayed as written, never run.
+
+- A new panel takes its title from the spec. Send title beside it to name the artifact differently.
+
+- Each chart has a "Data" table under it, and a description for screen readers. The page follows the viewer's light or dark setting.
+
+- Aggregate and LIMIT in SQL. A table shows the first 200 rows, a line draws the first 2,000 and a bar chart the first 100. The page says so when it cuts.
+
+- A key that is not listed is refused. Charts have one series and no other options.
+
+To change a panel, read it back and publish the changed spec with artifact_id. GET /v1/artifacts/{id}/files and read_artifact answer the spec as panel. A version replaces the whole spec.
+
+A panel is stored as an ordinary artifact of one generated file. Versions, sharing, making it public and deleting it work as for any page. For anything a panel does not draw, publish html.
+
+A spec that is refused answers 400 invalid_panel. field names the failing key, such as panel.blocks[2].sql, and remedy says what to send. block is the block's position, counted from 0.
+
 ## The engine
 
 The page's SQL runs in DuckDB 2.0.0, compiled to WebAssembly, in the viewer's browser. A version keeps the engine it was published with: versions published before 13 November 2026 run DuckDB 1.5.6, and publishing the page again moves it to 2.0.0. Both read the same tables with the same SQL. A query over many files of a partitioned table is the one you will notice: on a page that reads a year-partitioned table of 39 files, that query took about 1 s on 2.0.0 against 3 s on 1.5.6 (Chromium; measured 13 November 2026).
@@ -223,7 +279,7 @@ Name every catalog the page's SQL reads. You can only name catalogs you read as 
 | from | how |
 |---|---|
 | the CLI | lhbox artifact publish PAGE --title TEXT --catalog CATALOG: one HTML file, or a folder |
-| the API | POST /v1/artifacts with {"title", "catalogs", "html"} publishes in one call |
+| the API | POST /v1/artifacts with {"title", "catalogs", "html"} publishes in one call; panel in place of html publishes a panel |
 | an MCP host | the publish_artifact tool, with read_artifact and list_artifacts |
 | a hosted agent | the same three tools, when its definition has artifacts |
 
@@ -454,6 +510,8 @@ An update is written once and shown the same way in the email's HTML, in its pla
 | 409 artifact_version_superseded | Another version of the page was published while this one was being sent. Send it again. |
 | 409 artifact_version_gone | The pending version was deleted (unpublished for 24 hours, or a fourth was started). Start the version again. |
 | 409 artifact_author_lost_read | A copy of a page whose publisher no longer reads one of its catalogs. Someone who reads it publishes the page again, or an admin takes it over; then copy it. |
+| 400 invalid_panel | A panel's spec has a key that is missing, unknown, empty or too long. field names it, remedy says what to send. Fix that key and send the whole spec again. |
+| 400 invalid_value with field: "panel" | The call carried both html and panel. Send one. |
 | 413 artifact_too_large | A page file is over 2 MB, an asset over 20 MB, or the version over 25 MB. Read the data from a table instead of shipping it. |
 | 415 artifact_type_refused | The file type is not one an artifact holds. See the limits below. |
 | 429 rate_limited | More than 30 versions in an hour from one key. Publish when the content changes, not on a timer. |
@@ -485,6 +543,9 @@ An update is written once and shown the same way in the email's HTML, in its pla
 | lhbox.download | 25 MB a file |
 | lhbox.copy | 1 MB of text |
 | lhbox.setState | 2,000 characters |
+| a panel | 1 to 12 blocks; its title 200 characters |
+| a panel block | title 120 characters, sql 4,000, text 2,000, unit 16, a column name 128 |
+| a panel's drawing | a table's first 200 rows, a line's first 2,000, a bar chart's first 100 |
 
 Measured on 12 November 2026 on DuckDB 1.5.6, in Chromium and WebKit: loading the engine's time-zone support adds about 0.1 s to the first query and 1.6 MB to the first open in a browser. On 2.0.0 it is about 0.04 s and 0.7 MB (13 November 2026).
 

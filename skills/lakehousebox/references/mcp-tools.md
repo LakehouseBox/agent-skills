@@ -32,7 +32,7 @@ All twenty need the caller's key or token. All but open_public_catalog are bound
 | ask_my_analyst | a question to your own analyst, which reads your data as you and answers with the figures; this connection keeps one conversation with it | POST and GET /v1/me/analyst/messages |
 | list_artifacts | the artifacts this connection can see: pages published for people | GET /v1/artifacts |
 | read_artifact | one artifact's current version: its page files as text | GET /v1/artifacts/{id}/files |
-| publish_artifact | publishes a page for people, or the next version of one | POST /v1/artifacts |
+| publish_artifact | publishes a page for people, or the next version of one: its HTML, or a panel (https://lakehousebox.com/docs/artifacts/#panels)'s spec | POST /v1/artifacts |
 | delete_artifact | deletes a page this connection published, into the trash for 30 days | DELETE /v1/artifacts/{id} |
 | object_history | what changed in a catalog: who changed a sink, a setting, a table or the AGENTS.md, how, why, and the object before and after | GET /v1/changes, GET /v1/changes/{id} |
 | restore_change | puts a sink, a catalog's settings or its AGENTS.md back to a version from its history | POST /v1/changes/{id}/restore |
