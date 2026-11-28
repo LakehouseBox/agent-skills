@@ -396,8 +396,8 @@ The answer to a subscription is always the same, whether the page takes subscrib
 
 | over the API |  |
 |---|---|
-| GET /v1/artifacts/{id} | follow: on, live, and for the owner agent, agent_reads, subscribers, updates |
-| PATCH /v1/artifacts/{id} with {"follow": true, "follow_ack": {...}} | turns it on. follow_ack repeats follow.agent_reads: the ids of its catalogs and sources, and its integrations. 400 confirmation_required carries what the agent reads now |
+| GET /v1/artifacts/{id} | follow: on, live, and for the owner agent, agent_reads, subscribers, updates. An owner who does not read every catalog and source the agent reads or has read gets none of its updates (updates_withheld), sees only the catalogs and sources she reads (agent_reads.hidden counts the others), and its mail stops (why: owner_lost_access) |
+| PATCH /v1/artifacts/{id} with {"follow": true, "follow_ack": {...}} | turns it on. follow_ack repeats follow.agent_reads: the ids of its catalogs and sources, and its integrations. 400 confirmation_required carries what the agent reads now; 403 forbidden when the owner does not read all of it |
 | POST /v1/a/{id}/open | follow: {"agent": "<name>"} when visitors may subscribe, else null |
 | POST /v1/a/{id}/subscribe with {"email": "<address>"} | no account needed; always 202 |
 
