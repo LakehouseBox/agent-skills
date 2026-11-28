@@ -57,6 +57,7 @@ lhbox agent update <name> changes any part of an agent. Only what you pass chang
 | run_sql | one read-only DuckDB statement over its catalogs (the same query service as POST /v1/query) |
 | remember | keep a small value (up to 2,000 characters) under one of its declared keys, for its next run |
 | note, resolve, recall, flag_owner | with memory topics (--topic, up to 12): note observations, alerts and decisions about items, close them when done, read older notes, and flag what only you can decide; each run starts from a short view of what is open and current |
+| propose_change | with memory topics: propose a new version of its own instructions for you to approve, with the statements it ran in that run and what they returned as evidence; it changes nothing by itself (below) |
 | notify_owner | email you (the person who created it) and its subscribers, at verified addresses, at most once per run and five times a day; the body is Markdown |
 | publish_artifact, read_artifact, list_artifacts, delete_artifact | publish a page for people, and the next versions of the pages it keeps (the ones it published or was given, until their owner takes one back), at most five versions a run; delete one of those into the trash, where you restore it for 30 days; Artifacts (https://lakehousebox.com/docs/artifacts/) |
 | append_rows | add rows to a table its definition names (--write): append-only, checked against the table's columns |
@@ -71,7 +72,7 @@ A run may make 30 tool calls unless its definition says otherwise: --max-tool-ca
 
 A run also has tokens to spend (350,000 per run, in default-model tokens: run limit in lhbox agent show, run_tokens in the API). Every model request sends the whole conversation again, so a long tool answer (a web page, many rows) costs again on every later request. When what is left would not pay for about three more requests like the last one, only the wrap-up tools run; when it would not pay for two, the next request is the final message. The run then ends limit_exceeded with limit: tokens and wrapped_up: true. Every call in a run's record (lhbox agent runs <name> --detail) carries tokens_so_far: the step where it jumps is the one that filled the budget.
 
-In a test run (--dry-run), remember, note, resolve and flag_owner answer that what they were given is shown in the run's record and not stored, as append_rows answers that its rows were checked and not written.
+In a test run (--dry-run), remember, note, resolve, flag_owner and propose_change answer that what they were given is shown in the run's record and not stored, as append_rows answers that its rows were checked and not written.
 
 ### Emails
 
@@ -283,6 +284,28 @@ lhbox agent talk garden_morning "yes"                             # your next me
 - Each message uses the organisation's monthly tokens.
 
 An agent that has used a person's own integrations or web keys is talked to on its page only, by people signed in as themselves.
+
+### A run can propose a change, with its evidence
+
+An agent with memory topics can also propose a change from a run, when the run itself shows that its instructions should change: a better method it tested, a rule that proved wrong. It calls propose_change with the new instructions, its reason, and the run_sql statements of that run that support it.
+
+- It is the same proposal. It appears in the brief (attention, and whole in open_proposal, with the run_id that made it) and in the conversation of everyone who manages the agent, and you decide it the same way: Apply or Discard on the agent's page, or by talking. Applying it makes a new version of the agent, which can be restored.
+
+- A yes counts once you have been shown it. Nobody asked for a run's proposal, so your first message after it never applies it: the answer says so (acted.not_applied, code not_shown) and ends with a note that a run's proposal is waiting. Your yes after that applies it; a no drops it at any time.
+
+- It carries what the run ran. proposal.evidence lists each statement with its columns, its row count and the first rows it returned (up to 20 rows of up to 5 statements, 30,000 characters in all). The platform records them from the query's own answer, so the evidence is what ran, not the agent's description of it. A statement the run did not run is refused as evidence.
+
+- The agent cannot approve it. A run only opens a proposal; applying one takes a person. The agent's own credentials are refused on the routes that decide a proposal.
+
+- One proposal at a time. While a proposal waits for you, its runs are not offered propose_change. A run never replaces a proposal you are deciding.
+
+- A no is remembered. A change you discarded is refused when a later run proposes the same instructions again (declined_before), until you edit the agent.
+
+- Refusals the agent is told: prompt_too_long (the new instructions are over the 20,000-character limit: nothing is proposed, and nothing is shortened for it), evidence_required, evidence_not_run, no_change, declined_before. They appear in the run's record and among the brief's failed tool calls.
+
+- A proposal is opened when the run ends succeeded or limit_exceeded; a test run's is shown in its record only. If you edit the agent while that run is under way, its proposal is not opened.
+
+- A proposal changes the instructions only. What the agent may read, write, fetch or send is changed by you, in its definition.
 
 ## Integrations (MCP servers)
 
