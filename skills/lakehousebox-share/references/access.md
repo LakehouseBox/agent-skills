@@ -55,7 +55,7 @@ The last human admin cannot leave, be removed or be demoted. Tokens do not count
 
 A member is one of two kinds of user, set apart from what data they may read:
 
-- A business user works through their own analyst: they ask it about the data they are given, on the account page. They make no catalogs, feeds, scheduled SQL, connections, integrations, hosted agents, tokens or API keys, and they do not connect lhbox login or an MCP client (403 business_user). The account page opens on their analyst and shows nothing else.
+- A business user works through their own analyst: they ask it about the data they are given, on the account page. They make no catalogs, feeds, scheduled SQL, connections, integrations, hosted agents, tokens or API keys, and they do not connect lhbox login or an MCP client (403 business_user). With write on a catalog they still cannot change, resume or restore a builder's feed or scheduled SQL (403 business_user); they may pause one. The account page opens on their analyst and shows nothing else.
 
 - A builder has all of that, and an analyst too.
 
